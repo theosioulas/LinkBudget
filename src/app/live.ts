@@ -14,6 +14,8 @@ function ctxFor(): EvalContext {
 
 let lastVisible = 0;
 let lastVisibleWall = 0;
+let lastRankWall = 0;
+let lastRank: { a?: string; b?: string } = {};
 
 export function liveTick() {
   const s = useStore.getState();
@@ -44,9 +46,20 @@ export function liveTick() {
       const L = evalSatLink(prevA, t, ctx);
       if (L && L.forward.feasible && L.geometry.look.el >= s.mbb.handoverElevationDeg) { aSat = prevA; A = { satId: prevA.id, phase: 'tracking', active: true, link: L }; }
     }
-    const cands = rankCandidates(pool, t, ctx, s.mbb, new Set(aSat ? [aSat.id] : []));
-    if (!A && cands[0]) { A = { satId: cands[0].sat.id, phase: 'tracking', active: true, link: evalSatLink(cands[0].sat, t, ctx) }; cands.shift(); }
-    if (ctx.terminal.beams === 2 && cands[0]) B = { satId: cands[0].sat.id, phase: 'acquiring', active: false, link: evalSatLink(cands[0].sat, t, ctx) };
+    // Candidate ranking (look-ahead heavy) runs at most once per second of wall time.
+    const now = performance.now();
+    if (now - lastRankWall > 1000 || (!A && !lastRank.a) || (aSat && lastRank.b === aSat.id)) {
+      lastRankWall = now;
+      const cands = rankCandidates(pool, t, ctx, s.mbb, new Set(aSat ? [aSat.id] : []));
+      lastRank = aSat ? { a: aSat.id, b: cands[0]?.sat.id } : { a: cands[0]?.sat.id, b: cands[1]?.sat.id };
+    }
+    const aId = A ? A.satId : lastRank.a;
+    if (!A && aId && byId.get(aId)) {
+      const L = evalSatLink(byId.get(aId)!, t, ctx);
+      if (L?.forward.feasible) A = { satId: aId, phase: 'tracking', active: true, link: L };
+    }
+    const bId = lastRank.b;
+    if (ctx.terminal.beams === 2 && bId && bId !== A?.satId && byId.get(bId)) B = { satId: bId, phase: 'acquiring', active: false, link: evalSatLink(byId.get(bId)!, t, ctx) };
   }
   const sel = s.selectedSatId ? byId.get(s.selectedSatId) : undefined;
   const selected = sel ? evalSatLink(sel, t, ctx) : null;
