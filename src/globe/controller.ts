@@ -585,7 +585,7 @@ export class GlobeController {
 
   // ------------------------------------------------------------ camera
   flyToTerminal(rangeKm = 9000, pitchDeg = -60, duration = 1.6) {
-    if (!this.terminal) return;
+    if (!this.terminal || this.viewer.isDestroyed()) return;
     const target = ll(this.terminal.lat, this.terminal.lon, 0);
     this.viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 1), {
       offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(pitchDeg), rangeKm * 1000), duration,
@@ -653,5 +653,5 @@ export class GlobeController {
     this.viewer.camera.flyTo({ destination: Cesium.Rectangle.fromDegrees(b.west, b.south, b.east, b.north), duration: 1.5 });
   }
 
-  destroy() { this.viewer.destroy(); }
+  destroy() { if (!this.viewer.isDestroyed()) this.viewer.destroy(); }
 }

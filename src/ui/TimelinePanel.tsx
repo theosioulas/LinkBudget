@@ -24,6 +24,7 @@ export function TimelinePanel() {
   const running = useStore((s) => s.simRunning);
   const progress = useStore((s) => s.simProgress);
   const err = useStore((s) => s.simError);
+  const stale = useStore((s) => s.simStale);
   const mbb = useStore((s) => s.mbb);
   const set = useStore((s) => s.set);
   const run = useStore((s) => s.runSim);
@@ -83,6 +84,7 @@ export function TimelinePanel() {
           </span>
         )}
         <div className="grow" />
+        {sim && stale && !running && <button className="btn sm" style={{ borderColor: 'var(--warn)', color: 'var(--warn)' }} onClick={() => run(sim.startMs)} title="The scenario changed since this run">⟳ Out of date – re-run</button>}
         {sim && <button className="btn sm" onClick={() => download('mbb-timeline.csv', simCsv(sim), 'text/csv')}>Export CSV</button>}
         <button className="btn sm" onClick={() => set({ bottomOpen: false })} title="Hide">✕</button>
       </div>

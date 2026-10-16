@@ -16,6 +16,8 @@ export interface BeamEval {
   absEirpDbw?: number;
   /** Per-beam EIRP adjustment (forward only; already included in absEirpDbw). */
   eirpOffsetDb?: number;
+  /** Absolute satellite G/T toward the user from imported G/T contours [dB/K]. */
+  absGtDbK?: number;
   scanDeg: number;
   offAxisDeg: number;
   hpbwEffDeg: number;
@@ -286,9 +288,17 @@ function evaluateKml(L: Extract<BeamLayout, { kind: 'kml' }>, user: LatLonAlt): 
   if (!best.inside) return NOT_COVERED('outside-kml');
   const I = sumPow(vals.filter((v) => v.b !== best.b && v.b.color === best.b.color).map((v) => v.level));
   const off = best.b.eirpOffsetDb ?? 0;
+  // Optional absolute G/T contours (return link): same-named beam if present, else the best beam at this point.
+  let absGtDbK: number | undefined;
+  if (L.gtBeams?.length) {
+    const same = L.gtBeams.find((g) => g.name === best.b.name);
+    const cands = same ? [same] : L.gtBeams;
+    const gv = cands.map((g) => kmlLevelAt(g, 'absolute-eirp', -3, user.lat, user.lon)).reduce((a, c) => (c.level > a.level ? c : a));
+    absGtDbK = gv.level;
+  }
   const rel = (L.meaning === 'absolute-eirp' ? best.level - peakOf(best.b) : best.level) - off;
   return {
-    covered: true, beamId: best.b.id, beamLabel: best.b.name, color: best.b.color, relGainDb: rel, eirpOffsetDb: off,
+    covered: true, beamId: best.b.id, beamLabel: best.b.name, color: best.b.color, relGainDb: rel, eirpOffsetDb: off, absGtDbK,
     absEirpDbw: L.meaning === 'absolute-eirp' ? best.level : undefined, scanDeg: 0, offAxisDeg: 0, hpbwEffDeg: 0,
     cciDb: I > 0 ? best.level - 10 * Math.log10(I) : Infinity, coChannelBeams: vals.filter((v) => v.b.color === best.b.color).length - 1,
     aim: best.b.centroid,

@@ -55,6 +55,7 @@ interface State {
   selectedPayloadId: string;
   focusPayloadSatId: string | null; // satellite whose full beam layout is drawn
   sim: SimResult | null;
+  simStale: boolean;
   simRunning: boolean;
   simProgress: number;
   simError: string | null;
@@ -117,6 +118,7 @@ export const useStore = create<State>((set, get) => ({
   selectedPayloadId: (saved?.payloads ?? PAYLOADS)[0].id,
   focusPayloadSatId: null,
   sim: null,
+  simStale: false,
   simRunning: false,
   simProgress: 0,
   simError: null,
@@ -165,7 +167,7 @@ export const useStore = create<State>((set, get) => ({
     worker.onmessage = (ev) => {
       const m = ev.data;
       if (m.type === 'progress') set({ simProgress: m.value });
-      else if (m.type === 'done') { set({ sim: m.result, simRunning: false, simProgress: 1 }); worker?.terminate(); worker = null; }
+      else if (m.type === 'done') { set({ sim: m.result, simRunning: false, simProgress: 1, simStale: false }); worker?.terminate(); worker = null; }
       else if (m.type === 'error') { set({ simRunning: false, simError: m.message }); worker?.terminate(); worker = null; }
     };
     worker.postMessage(req);
@@ -192,6 +194,7 @@ export const useStore = create<State>((set, get) => ({
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 useStore.subscribe((s, prev) => {
   if (s.constellations === prev.constellations && s.payloads === prev.payloads && s.terminals === prev.terminals && s.analysis === prev.analysis && s.mbb === prev.mbb && s.name === prev.name && s.activeTerminalId === prev.activeTerminalId) return;
+  if (s.sim && !s.simStale && s.sim === prev.sim) useStore.setState({ simStale: true });
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(useStore.getState().exportScenario())); } catch { /* ignore */ }

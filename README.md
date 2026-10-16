@@ -47,6 +47,12 @@ terminal beams. Click the globe in **Terminal → Pick on globe** to move the te
 | **Beam Lab** | How the beams of Starlink, OneWeb, Kuiper, Lightspeed, O3b mPOWER and GEO HTS are built, with sources, **Visualize** buttons that draw a live satellite's full beam layout, a footprint-size comparison, a beam-pattern explorer and a footprint/scan calculator. |
 | **Export** | Full HTML report (both beams, forward & return, timeline summary & events), per-link CSV/JSON, timeline CSV, coverage CSV/KML, beam KML, scenario JSON save/load. |
 
+## Screenshots
+
+| GEO Ka-HTS multibeam (4-colour reuse) | Multi-orbit MBB in an urban canyon | Coverage map (GEO throughput) |
+| --- | --- | --- |
+| ![](docs/screenshot-geo-hts.png) | ![](docs/screenshot-multi-orbit-canyon.png) | ![](docs/screenshot-coverage.png) |
+
 ## Propagation & models
 
 * **ITU-R P.618-13** rain attenuation, scintillation, rain XPD, total attenuation combination, availability inversion
@@ -69,7 +75,8 @@ Accepted structures:
 
 Levels above ~15 are treated as absolute EIRP (dBW), smaller values as relative gain; polygons without
 levels become beam edges (choose the edge level, e.g. −3 dB or −4.5 dB). Reuse colours are auto-assigned
-by graph colouring and can be edited per beam. Try `public/samples/ka-hts-europe-eirp.kml`.
+by graph colouring (DSATUR) and can be edited per beam. A second file with **G/T contours** (dB/K) can be
+imported for the return link; beams are matched by name. Try `public/samples/ka-hts-europe-eirp.kml`.
 
 ## Architecture
 

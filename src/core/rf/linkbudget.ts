@@ -186,7 +186,7 @@ function direction(dir: 'forward' | 'return', x: LinkInputs, band: TerminalBand 
     lines.push({ section: 'Transmit', label: 'Tx back-off / power control', value: -t.txBackoffDb, unit: 'dB' });
     lines.push({ section: 'Transmit', label: 'Radome loss', value: -t.radomeLossDb, unit: 'dB' });
     lines.push({ section: 'Transmit', label: 'EIRP toward satellite', value: eirp, unit: 'dBW', key: true });
-    const g = pl.ret.gtPeakDbK + beam.relGainDb;
+    const g = beam.absGtDbK ?? pl.ret.gtPeakDbK + beam.relGainDb;
     gtFn = () => g;
     gt = g;
   }
@@ -210,7 +210,7 @@ function direction(dir: 'forward' | 'return', x: LinkInputs, band: TerminalBand 
     lines.push({ section: 'Receive', label: `Terminal G/T (scan ${scan.toFixed(1)}°), clear sky`, value: gt, unit: 'dB/K' });
     lines.push({ section: 'Receive', label: 'Terminal G/T incl. rain noise', value: gtP, unit: 'dB/K', note: `ΔT_sky = ${(skyNoiseTemp(atmP.total) - skyNoiseTemp(atmClear.total)).toFixed(0)} K` });
   } else {
-    lines.push({ section: 'Receive', label: `Satellite G/T toward terminal (${beam.beamLabel})`, value: gt, unit: 'dB/K' });
+    lines.push({ section: 'Receive', label: `Satellite G/T toward terminal (${beam.beamLabel})`, value: gt, unit: 'dB/K', note: beam.absGtDbK !== undefined ? 'from imported G/T contours' : undefined });
   }
   lines.push({ section: 'Carrier', label: 'Boltzmann constant', value: K_BOLTZ_DB, unit: 'dBW/K/Hz' });
   if (live > 0) lines.push({ section: 'Path', label: `What-if rain ${live} mm/h (current conditions)`, value: -(atmClear.total - gasOnly.total), unit: 'dB', key: true });

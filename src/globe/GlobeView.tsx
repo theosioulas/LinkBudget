@@ -46,9 +46,9 @@ export function GlobeView() {
     g.applyLayers(st.layers);
     g.setTerminal(activeTerminal(st));
     g.flyToTerminal(26000, -78, 0);
-    setTimeout(() => g.flyToTerminal(17000, -62, 3), 600);
+    const intro = setTimeout(() => g.flyToTerminal(17000, -62, 3), 600);
     g.onImageryFallback = () => useStore.getState().notify('Satellite imagery unreachable – using the offline Natural Earth II globe');
-    return () => { g.destroy(); globe = null; };
+    return () => { clearTimeout(intro); g.destroy(); if (globe === g) globe = null; };
   }, []);
 
   useEffect(() => { globe?.setScenario(sats, useStore.getState().constellations, useStore.getState().payloads); }, [sats]);

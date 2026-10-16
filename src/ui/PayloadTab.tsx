@@ -59,6 +59,20 @@ export function PayloadTab() {
     }
   };
 
+  const importGt = async () => {
+    if (L.kind !== 'kml') return;
+    const f = await pickFile('.kml,.kmz');
+    if (!f) return;
+    try {
+      const r = f.name.toLowerCase().endsWith('.kmz') ? parseKmz(await f.arrayBuffer()) : parseKml(await f.text());
+      if (!r.beams.length || !r.hasLevels) { notify('G/T file needs contour levels (dB/K)'); return; }
+      upL({ gtBeams: r.beams, gtSourceName: f.name });
+      notify(`Imported G/T contours for ${r.beams.length} beam(s) from ${f.name}`);
+    } catch (e) {
+      notify(`G/T import failed: ${String(e)}`);
+    }
+  };
+
   const exportKml = () => {
     const st = useStore.getState();
     const c = usedBy[0];
@@ -179,7 +193,10 @@ export function PayloadTab() {
         <button className="btn sm primary" onClick={importKml}>Import KML / KMZ beams…</button>
         <button className="btn sm" onClick={exportKml}>Export beams as KML</button>
         <a className="btn sm" href="./samples/ka-hts-europe-eirp.kml" download>Sample KML</a>
+        {L.kind === 'kml' && <button className="btn sm" onClick={importGt}>{L.gtBeams?.length ? 'Replace G/T contours…' : 'Import G/T contours…'}</button>}
+        {L.kind === 'kml' && L.gtBeams?.length ? <button className="btn sm danger" onClick={() => upL({ gtBeams: undefined, gtSourceName: undefined })}>Clear G/T</button> : null}
       </div>
+      {L.kind === 'kml' && L.gtBeams?.length ? <div className="small dim" style={{ marginTop: 4 }}>Return link uses absolute G/T contours from {L.gtSourceName} ({L.gtBeams.length} beams, matched by beam name).</div> : null}
       {L.kind === 'hex-grid' && (
         <div style={{ marginTop: 8 }}>
           <div className="row small dim" style={{ marginBottom: 4 }}>
