@@ -84,7 +84,7 @@ describe('engine', () => {
   }, 60_000);
 
   it('what-if rain degrades Ka more than Ku and obstructions block satellites', () => {
-    const sats = buildSatellites(CONSTELLATIONS, T0);
+    const sats = buildSatellites(CONSTELLATIONS.map((c) => ({ ...c, enabled: true })), T0);
     const geoKa = sats.find((s) => s.constellationId === 'geo-hts')!;
     const geoKu = sats.find((s) => s.constellationId === 'geo-ku')!;
     const base = makeEvalContext(TERMINALS[0], DEFAULT_ANALYSIS, CONSTELLATIONS, PAYLOADS);
@@ -104,7 +104,7 @@ describe('engine', () => {
   });
 
   it('applies per-beam overrides on GEO multibeam payloads', () => {
-    const sats = buildSatellites(CONSTELLATIONS, T0);
+    const sats = buildSatellites(CONSTELLATIONS.map((c) => ({ ...c, enabled: true })), T0);
     const geo = sats.find((s) => s.constellationId === 'geo-hts')!;
     const pl = PAYLOADS.find((p) => p.id === 'pl-geo-ka-eu')!;
     const ctx = makeEvalContext(TERMINALS[0], DEFAULT_ANALYSIS, CONSTELLATIONS, PAYLOADS);
@@ -119,5 +119,17 @@ describe('engine', () => {
     const ctxO = makeEvalContext(TERMINALS[0], DEFAULT_ANALYSIS, CONSTELLATIONS, PAYLOADS.map((p) => (p.id === pl.id ? off : p)));
     const L2 = evalSatLink(geo, T0, ctxO)!;
     expect(L2.beam.beamId).not.toBe(id);
+  });
+
+  it('GEO wide beam that follows the terminal closes the link from anywhere at low/mid latitude', () => {
+    const places: [number, number][] = [[37.98, 23.73], [51.51, -0.13], [40.71, -74.01], [1.35, 103.82], [-23.55, -46.63], [-33.87, 151.21], [35, -40]];
+    for (const [lat, lon] of places) {
+      const cons = CONSTELLATIONS.map((c) => (c.id === 'geo-ku' && c.source.kind === 'geo' ? { ...c, source: { ...c.source, slots: [{ ...c.source.slots[0], lon: Math.round(lon) }] } } : c));
+      const pls = PAYLOADS.map((p) => (p.layout.kind === 'spot' && p.layout.followTerminal ? { ...p, layout: { ...p.layout, aimLat: lat, aimLon: lon } } : p));
+      const geo = buildSatellites(cons, T0).find((s) => s.constellationId === 'geo-ku')!;
+      const L = evalSatLink(geo, T0, makeEvalContext({ ...TERMINALS[0], lat, lon }, DEFAULT_ANALYSIS, cons, pls))!;
+      expect(L.forward.feasible, `${lat},${lon} ${L.forward.reason}`).toBe(true);
+      expect(L.forward.throughputClearMbps).toBeGreaterThan(20);
+    }
   });
 });

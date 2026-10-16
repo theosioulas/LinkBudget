@@ -45,7 +45,7 @@ export type BeamLayout =
     }
   | { kind: 'fixed-strips'; count: number; alongTrackDeg: number; crossTrackDeg: number; reuseColors: number; boresightTiltDeg: number }
   | { kind: 'hex-grid'; aimLat: number; aimLon: number; spacingDeg: number; rings: number; reuseColors: number; overrides?: Record<string, BeamOverride> }
-  | { kind: 'spot'; aimLat: number; aimLon: number }
+  | { kind: 'spot'; aimLat: number; aimLon: number; followTerminal?: boolean }
   | { kind: 'kml'; beams: KmlBeam[]; meaning: ContourMeaning; edgeRelDb: number; sourceName: string; gtBeams?: KmlBeam[]; gtSourceName?: string };
 
 export interface PayloadDirection {
@@ -97,6 +97,10 @@ export interface Constellation {
   showLabels: boolean;
   propagator: 'kepler-j2' | 'sgp4';
   description?: string;
+  /** Cannot be disabled (the always-available GEO fallback). */
+  locked?: boolean;
+  /** GEO slot longitude tracks the terminal's longitude. */
+  followTerminal?: boolean;
 }
 
 export interface TerminalBand {

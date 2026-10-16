@@ -20,16 +20,21 @@ The app opens over the terminal (Athens by default) with Starlink, OneWeb, O3b m
 satellites enabled, runs a 20-minute make-before-break timeline and shows live budgets for both
 terminal beams. Click the globe in **Terminal → Pick on globe** to move the terminal anywhere.
 
-**Demo scenarios** (timeline panel → *Load a demo…*):
+**Scenarios** (top bar → *Scenario*): one click switches the satellites, handover policy and terminal set-up, and re-runs the simulation. The GEO wide beam is always on and follows the terminal, so there is a GEO fallback anywhere.
 
 | Demo | What it shows |
 | --- | --- |
-| LEO ↔ LEO make-before-break | Starlink handovers every few minutes with zero interruption |
+| Multi-orbit | Starlink, OneWeb, O3b mPOWER and the GEO wide beam; LEO first with MEO/GEO fallback |
+| LEO make-before-break | Starlink handovers every few minutes with zero interruption |
 | Multi-orbit MBB in an urban canyon | East/west sky blocked below 60°: traffic moves OneWeb → O3b mPOWER → GEO and back (≈LEO 76 % / MEO 18 % / GEO 6 %), 100 % availability |
-| GEO anchor + LEO | Beam A parked on the GEO HTS, beam B tracking LEO |
+| GEO + LEO together | Beam A parked on the GEO wide beam, beam B tracking LEO |
 | MEO make-before-break (6 h) | Long O3b mPOWER passes |
 | OneWeb push-broom beams | Es/N0 ripple as the 16 fixed beams sweep over the terminal |
 | Single-beam terminal | The same LEO run with break-before-make outages |
+
+**Layers** (top bar → layers icon): switch satellite dots per orbit (LEO/MEO/GEO), labels, orbit paths, coverage rings,
+link lines, beam footprints, the solid serving-beam cones and field-of-view cones of the visible LEO/MEO satellites,
+obstruction walls and the base map — or hide every overlay at once.
 
 ## What you can do
 

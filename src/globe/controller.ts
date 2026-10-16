@@ -6,7 +6,11 @@ import { gmst } from '../core/time';
 import type { Constellation, Payload, Terminal } from '../core/model';
 import { beamFootprints, coverageRing, steeredSpotFootprint, type Footprint } from '../core/rf/beams';
 import { evaluateBeam } from '../core/rf/beams';
-import { sub, type Vec3 } from '../core/vec';
+import { sub, unit as unit3, dot as dot3, norm as norm3, scale as scale3, angleBetween, type Vec3 } from '../core/vec';
+import { geodeticToEcef } from '../core/geo/coords';
+import { scanEffects } from '../core/rf/antenna';
+
+const angleDeg = (a: Vec3, b: Vec3) => (angleBetween(a, b) * 180) / Math.PI;
 import type { Layers } from '../store/store';
 import { rampColor, type CoverageResult } from '../core/sim/coverage';
 
@@ -193,6 +197,7 @@ export class GlobeController {
   }
 
   applyLayers(l: Layers) {
+    const prev = this.layers;
     this.layers = l;
     this.setImagery(l.imagery);
     this.setNightLights(l.nightLights);
@@ -200,12 +205,32 @@ export class GlobeController {
     s.globe.enableLighting = l.lighting;
     if (s.skyAtmosphere) s.skyAtmosphere.show = l.atmosphere;
     s.globe.showGroundAtmosphere = l.atmosphere;
-    this.cones.show = l.cones;
+    this.cones.show = l.beams;
     this.footOutlines.show = l.beams;
     if (this.footFill) this.footFill.show = l.beams;
     if (this.scanCone) this.scanCone.show = l.scanCone;
-    for (const p of this.pointList) p.pixelSize = this.basePixel(p.id as string);
-    this.rebuildOrbits(this.currentMs());
+    for (const w of this.walls) w.show = l.walls;
+    this.labels.show = l.labels;
+    this.orbits.show = l.orbits;
+    this.coverage.show = l.coverage;
+    this.linkLines.show = l.links;
+    this.groundTrack.show = l.groundTrack;
+    this.icons.show = l.links || l.dotsLEO || l.dotsMEO || l.dotsGEO;
+    this.applyDotVisibility();
+    if (!prev || prev.allOrbitsOpacity !== l.allOrbitsOpacity) this.rebuildOrbits(this.currentMs());
+  }
+
+  private applyDotVisibility() {
+    const l = this.layers;
+    this.sats.forEach((s, i) => {
+      const oc = this.consts.get(s.constellationId)?.orbitClass;
+      const on = !l || (oc === 'GEO' ? l.dotsGEO : oc === 'MEO' ? l.dotsMEO : l.dotsLEO);
+      const p = this.pointList[i];
+      p.show = on;
+      p.pixelSize = this.basePixel(s.id);
+      const lb = this.labelBySat.get(s.id);
+      if (lb) lb.show = on;
+    });
   }
 
   // ------------------------------------------------------------ scenario
@@ -236,7 +261,7 @@ export class GlobeController {
         this.labelBySat.set(s.id, lb);
       }
     });
-    for (const p of this.pointList) p.pixelSize = this.basePixel(p.id as string);
+    this.applyDotVisibility();
     this.rebuildOrbits(this.currentMs());
     this.rebuildCoverage();
     this.lastFoot = 0;
@@ -300,6 +325,7 @@ export class GlobeController {
           positions: Cesium.Cartesian3.fromDegreesArray(pts), maximumHeights: heights, minimumHeights: heights.map(() => 0),
           material: Cesium.Color.fromCssColorString('#f87171').withAlpha(0.22), outline: true, outlineColor: Cesium.Color.fromCssColorString('#f87171').withAlpha(0.7),
         },
+        show: this.layers?.walls ?? true,
       }));
     }
     if (this.scanCone) this.viewer.entities.remove(this.scanCone);
@@ -428,7 +454,9 @@ export class GlobeController {
     return [c.x / 1000, c.y / 1000, c.z / 1000];
   }
 
-  private pool: Record<'A' | 'B', { glow: Cesium.Polyline; dash: Cesium.Polyline; ring: Cesium.Polyline; spokes: Cesium.Polyline[] }> | null = null;
+  private pool: Record<'A' | 'B', { glow: Cesium.Polyline; dash: Cesium.Polyline; ring: Cesium.Polyline; cone: BeamCone }> | null = null;
+  private fovPool: BeamCone[] = [];
+  private lastFov = 0;
 
   private ensurePool() {
     if (this.pool) return this.pool;
@@ -439,7 +467,7 @@ export class GlobeController {
         glow: this.linkLines.add({ positions: z, width: 9, show: false, material: Cesium.Material.fromType('PolylineGlow', { color, glowPower: 0.22, taperPower: 1 }) }),
         dash: this.linkLines.add({ positions: z, width: 4, show: false, material: Cesium.Material.fromType('PolylineDash', { color, gapColor: Cesium.Color.TRANSPARENT, dashLength: 18 }) }),
         ring: this.cones.add({ positions: z, width: 2.5, show: false, material: Cesium.Material.fromType('Color', { color: color.withAlpha(0.95) }) }),
-        spokes: Array.from({ length: 16 }, () => this.cones.add({ positions: z, width: 1, show: false, material: Cesium.Material.fromType('Color', { color: color.withAlpha(0.3) }) })),
+        cone: new BeamCone(this.viewer, color, 0.32),
       };
     };
     this.pool = { A: mk('A'), B: mk('B') };
@@ -455,7 +483,7 @@ export class GlobeController {
       const s = L ? this.sats[this.satIndex.get(L.satId) ?? -1] : undefined;
       if (!t || !L || !s) {
         P.glow.show = P.dash.show = P.ring.show = false;
-        for (const sp of P.spokes) sp.show = false;
+        P.cone.hide();
         continue;
       }
       const sp = satEcef(s, ms);
@@ -468,29 +496,66 @@ export class GlobeController {
       const c = this.consts.get(s.constellationId);
       const pl = c && this.payloads.get(c.payloadId);
       let ring: [number, number][] = [];
-      if (pl && (this.layers?.cones ?? true) && this.terminal) {
+      const orbit = c?.orbitClass;
+      let aimLL: [number, number] | null = null;
+      let halfAngle = 0;
+      if (pl && this.terminal) {
         if (pl.layout.kind === 'steerable-cells') {
-          const aim = L.aim ?? [this.terminal.lat, this.terminal.lon];
-          ring = steeredSpotFootprint(pl, sp, aim[0], aim[1]);
+          aimLL = L.aim ?? [this.terminal.lat, this.terminal.lon];
+          ring = steeredSpotFootprint(pl, sp, aimLL[0], aimLL[1]);
+          const scan = angleDeg(scale3(sp, -1), sub(geodeticToEcef(aimLL[0], aimLL[1], 0), sp));
+          halfAngle = scanEffects(pl.pattern, scan).hpbwDeg / 2;
         } else if (pl.layout.kind === 'spot' || pl.layout.kind === 'hex-grid') {
           const ev = evaluateBeam(pl, { ecef: sp, velEcef: sub(satEcef(s, ms + 500), satEcef(s, ms - 500)) }, { lat: this.terminal.lat, lon: this.terminal.lon, alt: 0 });
-          if (ev.covered) ring = steeredSpotFootprint({ ...pl, pattern: { ...pl.pattern, kind: 'bessel' } }, sp, ev.aim[0], ev.aim[1]);
+          if (ev.covered) { aimLL = ev.aim; halfAngle = pl.pattern.hpbwDeg / 2; ring = steeredSpotFootprint({ ...pl, pattern: { ...pl.pattern, kind: 'bessel' } }, sp, ev.aim[0], ev.aim[1]); }
+        } else if (pl.layout.kind === 'fixed-strips') {
+          aimLL = [this.terminal.lat, this.terminal.lon];
+          halfAngle = pl.layout.alongTrackDeg * 0.75;
         }
       }
-      if (ring.length > 3) {
-        P.ring.show = true;
-        P.ring.positions = ring.map(([a, b]) => ll(a, b, 2500));
-        const step = ring.length / P.spokes.length;
-        P.spokes.forEach((spk, k) => {
-          const r = ring[Math.floor(k * step)];
-          spk.show = true;
-          spk.positions = [km(sp), ll(r[0], r[1], 2000)];
-        });
-      } else {
-        P.ring.show = false;
-        for (const spk of P.spokes) spk.show = false;
-      }
+      const showRing = ring.length > 3 && (this.layers?.beams ?? true);
+      P.ring.show = showRing;
+      if (showRing) P.ring.positions = ring.map(([a, b]) => ll(a, b, 2500));
+      // Solid spot-beam cone for LEO/MEO serving satellites
+      if (aimLL && halfAngle > 0 && orbit !== 'GEO' && (this.layers?.cones ?? true)) P.cone.set(sp, geodeticToEcef(aimLL[0], aimLL[1], 0), halfAngle);
+      else P.cone.hide();
     }
+    const wall = performance.now();
+    if (wall - this.lastFov > 400) { this.lastFov = wall; this.drawFovCones(ms); }
+  }
+
+  /** Field-of-view cones (to the minimum-elevation edge) of the LEO/MEO satellites the terminal can see. */
+  private drawFovCones(ms: number) {
+    const MAX = 6;
+    if (!this.fovPool.length) for (let k = 0; k < MAX; k++) this.fovPool.push(new BeamCone(this.viewer, Cesium.Color.WHITE, 0.10, true));
+    const on = (this.layers?.fovCones ?? true) && this.terminal;
+    const picked: { s: SatelliteDef; p: Vec3; el: number; minEl: number }[] = [];
+    if (on) {
+      const t = this.terminal!;
+      const obs = geodeticToEcef(t.lat, t.lon, 0);
+      const up = unit3(obs);
+      for (let i = 0; i < this.sats.length; i++) {
+        const s = this.sats[i];
+        const c = this.consts.get(s.constellationId);
+        if (!c || c.orbitClass === 'GEO' || !this.pointList[i].show) continue;
+        const p = satEcef(s, ms);
+        const d = sub(p, obs);
+        const el = (Math.asin(dot3(d, up) / norm3(d)) * 180) / Math.PI;
+        const minEl = this.payloads.get(c.payloadId)?.minElevationDeg ?? 10;
+        if (el >= minEl) picked.push({ s, p, el, minEl });
+      }
+      picked.sort((a, b) => b.el - a.el);
+    }
+    this.fovPool.forEach((cone, k) => {
+      const x = picked[k];
+      if (!x) { cone.hide(); return; }
+      const c = this.consts.get(x.s.constellationId)!;
+      const altKm = norm3(x.p) - 6371;
+      const half = (Math.asin((6371 / (6371 + altKm)) * Math.cos((x.minEl * Math.PI) / 180)) * 180) / Math.PI;
+      const nadir = scale3(unit3(x.p), 6371);
+      cone.setColor(Cesium.Color.fromCssColorString(c.color));
+      cone.set(x.p, nadir, half);
+    });
   }
 
   private drawIcons(ms: number) {
@@ -654,4 +719,62 @@ export class GlobeController {
   }
 
   destroy() { if (!this.viewer.isDestroyed()) this.viewer.destroy(); }
+}
+
+/**
+ * A solid translucent cone from a satellite (apex) to a ground aim point, drawn as a Cesium
+ * cylinder entity with a zero top radius whose pose is updated every frame.
+ */
+class BeamCone {
+  private entity: Cesium.Entity;
+  private pos = new Cesium.Cartesian3();
+  private orient = new Cesium.Quaternion();
+  private length = 1;
+  private radius = 1;
+  private visible = false;
+  private color: Cesium.Color;
+
+  constructor(viewer: Cesium.Viewer, color: Cesium.Color, private alpha: number, faint = false) {
+    this.color = color;
+    const mat = new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => this.color.withAlpha(this.alpha), false));
+    this.entity = viewer.entities.add({
+      position: new Cesium.CallbackPositionProperty(() => this.pos, false),
+      orientation: new Cesium.CallbackProperty(() => this.orient, false),
+      cylinder: {
+        length: new Cesium.CallbackProperty(() => this.length, false),
+        topRadius: 0,
+        bottomRadius: new Cesium.CallbackProperty(() => this.radius, false),
+        material: mat,
+        outline: true,
+        outlineColor: new Cesium.CallbackProperty(() => this.color.withAlpha(faint ? 0.35 : 0.7), false),
+        numberOfVerticalLines: faint ? 6 : 10,
+        slices: 48,
+      },
+      show: false,
+    });
+  }
+
+  setColor(c: Cesium.Color) { this.color = c; }
+
+  /** apex and target in ECEF km; halfAngleDeg = cone half angle at the apex */
+  set(apexKm: Vec3, targetKm: Vec3, halfAngleDeg: number) {
+    const ax = apexKm[0] * 1000, ay = apexKm[1] * 1000, az = apexKm[2] * 1000;
+    const tx = targetKm[0] * 1000, ty = targetKm[1] * 1000, tz = targetKm[2] * 1000;
+    const dx = ax - tx, dy = ay - ty, dz = az - tz;
+    const L = Math.hypot(dx, dy, dz);
+    this.length = L;
+    this.radius = L * Math.tan((halfAngleDeg * Math.PI) / 180);
+    this.pos.x = (ax + tx) / 2; this.pos.y = (ay + ty) / 2; this.pos.z = (az + tz) / 2;
+    // rotate +Z (cylinder top, radius 0) onto the direction target → apex
+    const d = new Cesium.Cartesian3(dx / L, dy / L, dz / L);
+    const axis = Cesium.Cartesian3.cross(Cesium.Cartesian3.UNIT_Z, d, new Cesium.Cartesian3());
+    const n = Cesium.Cartesian3.magnitude(axis);
+    if (n < 1e-9) Cesium.Quaternion.clone(d.z > 0 ? Cesium.Quaternion.IDENTITY : Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_X, Math.PI), this.orient);
+    else Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.normalize(axis, axis), Math.acos(Math.max(-1, Math.min(1, d.z))), this.orient);
+    if (!this.visible) { this.entity.show = true; this.visible = true; }
+  }
+
+  hide() {
+    if (this.visible) { this.entity.show = false; this.visible = false; }
+  }
 }

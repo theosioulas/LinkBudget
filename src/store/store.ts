@@ -7,7 +7,7 @@ import type { SimResult } from '../core/sim/handover';
 import type { LinkResult } from '../core/rf/linkbudget';
 import type { SimRequest } from '../core/sim/sim.worker';
 
-export type LeftTab = 'scenario' | 'payload' | 'terminal' | 'coverage' | 'beamlab' | 'settings';
+export type LeftTab = 'scenarios' | 'scenario' | 'payload' | 'terminal' | 'coverage' | 'beamlab' | 'settings';
 export type Imagery = 'satellite' | 'natural' | 'dark';
 
 export interface LiveBeam {
@@ -22,12 +22,33 @@ export interface Layers {
   nightLights: boolean;
   lighting: boolean;
   atmosphere: boolean;
+  /** Satellite dots per orbit class */
+  dotsLEO: boolean;
+  dotsMEO: boolean;
+  dotsGEO: boolean;
+  labels: boolean;
+  orbits: boolean;
+  coverage: boolean;
+  /** Beam footprints on the ground */
   beams: boolean;
+  /** Solid cones of the serving LEO/MEO spot beams */
   cones: boolean;
+  /** Field-of-view cones of the LEO/MEO satellites visible from the terminal */
+  fovCones: boolean;
+  links: boolean;
   scanCone: boolean;
+  walls: boolean;
+  groundTrack: boolean;
   allOrbitsOpacity: number;
   pointSize: number;
 }
+
+export const DEFAULT_LAYERS: Layers = {
+  imagery: 'satellite', nightLights: true, lighting: true, atmosphere: true,
+  dotsLEO: true, dotsMEO: true, dotsGEO: true, labels: true, orbits: true, coverage: true,
+  beams: true, cones: true, fovCones: true, links: true, scanCone: false, walls: true, groundTrack: true,
+  allOrbitsOpacity: 0.35, pointSize: 3,
+};
 
 export interface ScenarioFile {
   version: 1;
@@ -42,6 +63,7 @@ export interface ScenarioFile {
 
 interface State {
   name: string;
+  scenarioId: string;
   constellations: Constellation[];
   payloads: Payload[];
   terminals: Terminal[];
@@ -62,6 +84,7 @@ interface State {
   gridsReady: boolean;
   pickTerminal: boolean;
   leftTab: LeftTab;
+  drawer: LeftTab | null;
   leftOpen: boolean;
   rightOpen: boolean;
   bottomOpen: boolean;
@@ -85,7 +108,7 @@ interface State {
   notify: (msg: string) => void;
 }
 
-const STORAGE_KEY = 'orbitlink.scenario.v1';
+const STORAGE_KEY = 'orbitlink.scenario.v2';
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
 
 function loadSaved(): Partial<ScenarioFile> | null {
@@ -105,6 +128,7 @@ let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const useStore = create<State>((set, get) => ({
   name: saved?.name ?? 'Multi-orbit scenario',
+  scenarioId: 'multi-orbit',
   constellations: saved?.constellations ?? clone(CONSTELLATIONS),
   payloads: saved?.payloads ?? clone(PAYLOADS),
   terminals: saved?.terminals ?? clone(TERMINALS),
@@ -124,11 +148,12 @@ export const useStore = create<State>((set, get) => ({
   simError: null,
   gridsReady: false,
   pickTerminal: false,
-  leftTab: 'scenario',
+  leftTab: 'scenarios',
+  drawer: null,
   leftOpen: true,
   rightOpen: true,
-  bottomOpen: true,
-  layers: { imagery: 'satellite', nightLights: true, lighting: true, atmosphere: true, beams: true, cones: true, scanCone: true, allOrbitsOpacity: 0.35, pointSize: 3 },
+  bottomOpen: false,
+  layers: { ...DEFAULT_LAYERS },
   live: { t: epoch, A: null, B: null, selected: null, visible: 0, mode: 'instant' },
   clock: { t: epoch, multiplier: 10, playing: true },
   toast: null,
@@ -148,9 +173,13 @@ export const useStore = create<State>((set, get) => ({
   },
   updatePayload: (id, p) => set({ payloads: get().payloads.map((x) => (x.id === id ? p : x)), satsVersion: get().satsVersion + 1 }),
   addPayload: (p) => set({ payloads: [...get().payloads, p], selectedPayloadId: p.id }),
-  updateTerminal: (p) => set({ terminals: get().terminals.map((t) => (t.id === get().activeTerminalId ? { ...t, ...p } : t)) }),
+  updateTerminal: (p) => {
+    set({ terminals: get().terminals.map((t) => (t.id === get().activeTerminalId ? { ...t, ...p } : t)) });
+    if ('lat' in p || 'lon' in p) followTerminal();
+  },
   addTerminal: (t) => set({ terminals: [...get().terminals, t], activeTerminalId: t.id }),
   rebuildSats: () => {
+    followTerminal(false);
     const sats = buildSatellites(get().constellations, get().epochMs);
     set({ sats, satsVersion: get().satsVersion + 1 });
   },
@@ -189,6 +218,31 @@ export const useStore = create<State>((set, get) => ({
     toastTimer = setTimeout(() => set({ toast: null }), 4000);
   },
 }));
+
+/**
+ * Keep "follow terminal" systems locked onto the terminal: the GEO wide-beam slot moves to the
+ * terminal's longitude and its beam aims at the terminal.
+ */
+function followTerminal(rebuild = true) {
+  const s = useStore.getState();
+  const t = s.terminals.find((x) => x.id === s.activeTerminalId) ?? s.terminals[0];
+  if (!t) return;
+  let changed = false;
+  const lon = Math.round(t.lon);
+  const constellations = s.constellations.map((c) => {
+    if (!c.followTerminal || c.source.kind !== 'geo' || c.source.slots[0]?.lon === lon) return c;
+    changed = true;
+    return { ...c, source: { ...c.source, slots: c.source.slots.map((x, i) => (i === 0 ? { ...x, lon } : x)) } };
+  });
+  const payloads = s.payloads.map((p) => {
+    if (p.layout.kind !== 'spot' || !p.layout.followTerminal || (p.layout.aimLat === t.lat && p.layout.aimLon === t.lon)) return p;
+    changed = true;
+    return { ...p, layout: { ...p.layout, aimLat: t.lat, aimLon: t.lon } };
+  });
+  if (!changed) return;
+  useStore.setState({ constellations, payloads, satsVersion: s.satsVersion + 1 });
+  if (rebuild) useStore.setState({ sats: buildSatellites(constellations, s.epochMs) });
+}
 
 // Persist scenario edits (debounced); storage may be unavailable.
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
