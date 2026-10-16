@@ -13,7 +13,7 @@ const POLS: [Polarization, string][] = [['RHCP', 'RHCP'], ['LHCP', 'LHCP'], ['H'
 
 function defaultLayout(kind: BeamLayout['kind'], p: Payload): BeamLayout {
   switch (kind) {
-    case 'steerable-cells': return { kind, cellDiameterKm: 24, reuseColors: 4, beamsPerSat: 48 };
+    case 'steerable-cells': return { kind, cellDiameterKm: 24, reuseColors: 4, beamsPerSat: 48, coChannelLoad: 0.5, minSepBeamwidths: 1.6 };
     case 'fixed-strips': return { kind, count: 16, alongTrackDeg: 3, crossTrackDeg: 48, reuseColors: 2, boresightTiltDeg: 0 };
     case 'hex-grid': return { kind, aimLat: 45, aimLon: 10, spacingDeg: p.pattern.hpbwDeg * 0.9, rings: 5, reuseColors: 4 };
     case 'spot': return { kind, aimLat: 45, aimLon: 10 };
@@ -147,6 +147,8 @@ export function PayloadTab() {
           <NumberField label="Cell diameter" unit="km" value={L.cellDiameterKm} step={1} min={1} onChange={(v) => upL({ cellDiameterKm: v })} />
           <NumberField label="Reuse colours" value={L.reuseColors} step={1} min={1} max={7} onChange={(v) => upL({ reuseColors: Math.round(v) })} />
           <NumberField label="Beams per satellite" value={L.beamsPerSat} step={1} min={1} onChange={(v) => upL({ beamsPerSat: Math.round(v) })} />
+          <NumberField label="Co-channel load" value={L.coChannelLoad ?? 0.5} step={0.05} min={0} max={1} title="Fraction of first-tier co-channel cells lit simultaneously by the same satellite" onChange={(v) => upL({ coChannelLoad: v })} />
+          <NumberField label="Min co-ch. separation" unit="BW" value={L.minSepBeamwidths ?? 1.6} step={0.1} min={0} max={6} title="Scheduler keeps co-channel beams at least this many (scan-broadened) beamwidths apart" onChange={(v) => upL({ minSepBeamwidths: v })} />
         </>)}
         {L.kind === 'fixed-strips' && (<>
           <NumberField label="Number of beams" value={L.count} step={1} min={1} max={64} onChange={(v) => upL({ count: Math.round(v) })} />

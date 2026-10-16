@@ -8,6 +8,7 @@ import { beamFootprints, coverageRing, steeredSpotFootprint, type Footprint } fr
 import { evaluateBeam } from '../core/rf/beams';
 import { sub, type Vec3 } from '../core/vec';
 import type { Layers } from '../store/store';
+import { rampColor, type CoverageResult } from '../core/sim/coverage';
 
 export const REUSE_COLORS = ['#4cc9f0', '#06d6a0', '#ffd166', '#ef476f', '#b388ff', '#ff9f43', '#90e0ef'];
 const BEAM_A = Cesium.Color.fromCssColorString('#22d3ee');
@@ -19,6 +20,10 @@ const km = (v: Vec3, out?: Cesium.Cartesian3) => {
   return o;
 };
 const ll = (lat: number, lon: number, h = 0) => Cesium.Cartesian3.fromDegrees(lon, lat, h);
+
+const satSvg = (color: string) => `data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><defs><radialGradient id="g"><stop offset="0" stop-color="${color}" stop-opacity="0.55"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></radialGradient></defs><circle cx="24" cy="24" r="23" fill="url(#g)"/><g transform="rotate(-30 24 24)"><rect x="3" y="20" width="14" height="8" rx="1" fill="#1d4ed8" stroke="#bfdbfe" stroke-width="1"/><rect x="31" y="20" width="14" height="8" rx="1" fill="#1d4ed8" stroke="#bfdbfe" stroke-width="1"/><line x1="17" y1="24" x2="31" y2="24" stroke="#e5e7eb" stroke-width="1.5"/><rect x="19" y="18" width="10" height="12" rx="2" fill="#f8fafc" stroke="${color}" stroke-width="1.6"/><circle cx="24" cy="33" r="2.4" fill="${color}"/></g></svg>`,
+)}`;
 
 const TERMINAL_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44"><defs><radialGradient id="g"><stop offset="0" stop-color="#22d3ee" stop-opacity="0.9"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></radialGradient></defs><circle cx="22" cy="22" r="21" fill="url(#g)"/><rect x="11" y="15" width="22" height="14" rx="2" fill="#0b1220" stroke="#e2f7ff" stroke-width="2"/><g fill="#22d3ee">${Array.from({ length: 12 }, (_, i) => `<circle cx="${14.5 + (i % 4) * 5}" cy="${18.5 + Math.floor(i / 4) * 3.5}" r="1.1"/>`).join('')}</g></svg>`,
@@ -33,6 +38,13 @@ export class GlobeController {
   viewer: Cesium.Viewer;
   private points = new Cesium.PointPrimitiveCollection();
   private labels = new Cesium.LabelCollection();
+  private icons = new Cesium.BillboardCollection();
+  private iconA: Cesium.Billboard | null = null;
+  private iconB: Cesium.Billboard | null = null;
+  private iconSel: Cesium.Billboard | null = null;
+  private groundTrack = new Cesium.PolylineCollection();
+  private trackFor: string | null = null;
+  private trackAt = 0;
   private orbits = new Cesium.PolylineCollection();
   private coverage = new Cesium.PolylineCollection();
   private linkLines = new Cesium.PolylineCollection();
@@ -97,6 +109,12 @@ export class GlobeController {
     scene.primitives.add(this.linkLines);
     scene.primitives.add(this.points);
     scene.primitives.add(this.labels);
+    scene.primitives.add(this.icons);
+    scene.primitives.add(this.groundTrack);
+    const mkIcon = (c: string) => this.icons.add({ position: Cesium.Cartesian3.UNIT_X, image: satSvg(c), width: 38, height: 38, show: false });
+    this.iconA = mkIcon('#22d3ee');
+    this.iconB = mkIcon('#f472b6');
+    this.iconSel = mkIcon('#ffffff');
     this.setImagery('satellite');
 
     scene.preRender.addEventListener(() => this.frame());
@@ -377,6 +395,8 @@ export class GlobeController {
       }
     }
     this.drawLinks(ms);
+    this.drawIcons(ms);
+    if (this.selectedId !== this.trackFor || Math.abs(ms - this.trackAt) > 60_000) this.drawGroundTrack(ms);
     if (wall - this.lastFoot > 250) { this.lastFoot = wall; this.drawFootprints(ms); }
     this.onTick?.(ms);
   }
@@ -452,6 +472,47 @@ export class GlobeController {
     }
   }
 
+  private drawIcons(ms: number) {
+    const place = (b: Cesium.Billboard | null, id: string | null | undefined) => {
+      if (!b) return;
+      const s = id ? this.sats[this.satIndex.get(id) ?? -1] : undefined;
+      b.show = !!s;
+      if (s) b.position = km(satEcef(s, ms), this.tmp);
+    };
+    place(this.iconA, this.links.A?.satId);
+    place(this.iconB, this.links.B?.satId);
+    const sel = this.selectedId && this.selectedId !== this.links.A?.satId && this.selectedId !== this.links.B?.satId ? this.selectedId : null;
+    place(this.iconSel, sel);
+  }
+
+  /** Ground track of the selected satellite: −10 min … +1 orbit (GEO: 24 h figure-8). */
+  private drawGroundTrack(ms: number) {
+    this.trackFor = this.selectedId;
+    this.trackAt = ms;
+    this.groundTrack.removeAll();
+    const s = this.selectedId ? this.sats[this.satIndex.get(this.selectedId) ?? -1] : undefined;
+    if (!s) return;
+    const period = 2 * Math.PI * Math.sqrt(s.el.a ** 3 / 398600.4418) * 1000;
+    const span = s.kind === 'geo' ? 86_400_000 : Math.min(period, 6 * 3600_000);
+    const n = 240;
+    const color = Cesium.Color.fromCssColorString(this.consts.get(s.constellationId)?.color ?? '#fff');
+    let seg: Cesium.Cartesian3[] = [];
+    let lastLon: number | null = null;
+    const flush = () => {
+      if (seg.length > 1) this.groundTrack.add({ positions: seg, width: 2, material: Cesium.Material.fromType('PolylineDash', { color: color.withAlpha(0.85), dashLength: 12 }) });
+      seg = [];
+    };
+    for (let k = 0; k <= n; k++) {
+      const t = ms - 600_000 + (k / n) * (span + 600_000);
+      const g = Cesium.Cartographic.fromCartesian(km(satEcef(s, t)));
+      const lon = Cesium.Math.toDegrees(g.longitude);
+      if (lastLon !== null && Math.abs(lon - lastLon) > 180) flush();
+      lastLon = lon;
+      seg.push(Cesium.Cartesian3.fromRadians(g.longitude, g.latitude, 4000));
+    }
+    flush();
+  }
+
   private drawFootprints(ms: number) {
     this.footOutlines.removeAll();
     if (this.footFill) { this.viewer.scene.primitives.remove(this.footFill); this.footFill = null; }
@@ -485,11 +546,11 @@ export class GlobeController {
         if (f.ring.length < 4) continue;
         const col = Cesium.Color.fromCssColorString(REUSE_COLORS[f.color % REUSE_COLORS.length]);
         const positions = f.ring.map(([a, b]) => ll(a, b, 1500));
-        this.footOutlines.add({ positions, width: f.active ? 3 : 1.2, material: Cesium.Material.fromType('Color', { color: col.withAlpha(f.active ? 1 : 0.85) }) });
         const t = isKml && lmax > lmin ? ((f.level ?? lmin) - lmin) / (lmax - lmin) : 0.5;
+        this.footOutlines.add({ positions, width: f.active ? 3 : isKml ? 1 : 1.2, material: Cesium.Material.fromType('Color', { color: col.withAlpha(f.active ? 1 : isKml ? 0.35 + 0.5 * t : 0.85) }) });
         instances.push(new Cesium.GeometryInstance({
           geometry: new Cesium.PolygonGeometry({ polygonHierarchy: new Cesium.PolygonHierarchy(f.ring.map(([a, b]) => ll(a, b))), height: 1000, granularity: Cesium.Math.toRadians(0.5) }),
-          attributes: { color: Cesium.ColorGeometryInstanceAttribute.fromColor(col.withAlpha(f.active ? 0.45 : isKml ? 0.06 + 0.12 * t : 0.16)) },
+          attributes: { color: Cesium.ColorGeometryInstanceAttribute.fromColor(col.withAlpha(f.active ? 0.45 : isKml ? 0.025 + 0.05 * t : 0.16)) },
         }));
       }
     }
@@ -546,6 +607,29 @@ export class GlobeController {
   satEci(id: string, ms: number) {
     const s = this.sats[this.satIndex.get(id) ?? -1];
     return s ? satEci(s, ms) : null;
+  }
+
+  private coverageMap: Cesium.Primitive | null = null;
+  /** Render a coverage heat-map (null clears it). */
+  setCoverageMap(r: CoverageResult | null, range?: [number, number]) {
+    if (this.coverageMap) { this.viewer.scene.primitives.remove(this.coverageMap); this.coverageMap = null; }
+    if (!r || !r.cells.length) return;
+    const [lo, hi] = range ?? [r.min, r.max];
+    const h = r.stepDeg / 2;
+    const instances = r.cells.map((c) => {
+      const [R, G, B] = rampColor(hi > lo ? (c.value - lo) / (hi - lo) : 0.5);
+      return new Cesium.GeometryInstance({
+        geometry: new Cesium.RectangleGeometry({ rectangle: Cesium.Rectangle.fromDegrees(c.lon - h, c.lat - h, c.lon + h, c.lat + h), height: 800, granularity: Cesium.Math.toRadians(1) }),
+        attributes: { color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.fromBytes(R, G, B, 150)) },
+      });
+    });
+    this.coverageMap = this.viewer.scene.primitives.add(new Cesium.Primitive({
+      geometryInstances: instances, appearance: new Cesium.PerInstanceColorAppearance({ translucent: true, flat: true }),
+    }));
+  }
+
+  flyToBounds(b: { south: number; north: number; west: number; east: number }) {
+    this.viewer.camera.flyTo({ destination: Cesium.Rectangle.fromDegrees(b.west, b.south, b.east, b.north), duration: 1.5 });
   }
 
   destroy() { this.viewer.destroy(); }

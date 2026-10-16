@@ -46,7 +46,7 @@ export function BudgetTable({ d }: { d: DirectionResult }) {
 function Kpis({ L, dir, tone }: { L: LinkResult; dir: 'forward' | 'return'; tone: string }) {
   const d = dir === 'forward' ? L.forward : L.ret;
   const k = (label: string, v: string, unit = '', title?: string) => (
-    <div className={`kpi ${tone}`} title={title}><div className="k">{label}</div><div className="v">{v}<small>{unit}</small></div></div>
+    <div className={`kpi ${tone}`} title={title}><div className="k">{label}</div><div className="v">{d.feasible || ['Elevation', 'Range', 'RTT', 'Term. scan', 'Doppler'].includes(label) ? v : '—'}<small>{unit}</small></div></div>
   );
   return (
     <div className="kpis">

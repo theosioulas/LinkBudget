@@ -4,8 +4,9 @@ import { PayloadTab } from './PayloadTab';
 import { TerminalTab } from './TerminalTab';
 import { BeamLabTab } from './BeamLabTab';
 import { SettingsTab } from './SettingsTab';
+import { CoverageTab } from './CoverageTab';
 
-const TABS: [LeftTab, string][] = [['scenario', 'Satellites'], ['payload', 'Payload'], ['terminal', 'Terminal'], ['beamlab', 'Beam Lab'], ['settings', 'Settings']];
+const TABS: [LeftTab, string][] = [['scenario', 'Satellites'], ['payload', 'Payload'], ['terminal', 'Terminal'], ['coverage', 'Coverage'], ['beamlab', 'Beam Lab'], ['settings', '⚙']];
 
 export function LeftPanel() {
   const tab = useStore((s) => s.leftTab);
@@ -19,6 +20,7 @@ export function LeftPanel() {
         {tab === 'scenario' && <ScenarioTab />}
         {tab === 'payload' && <PayloadTab />}
         {tab === 'terminal' && <TerminalTab />}
+        {tab === 'coverage' && <CoverageTab />}
         {tab === 'beamlab' && <BeamLabTab />}
         {tab === 'settings' && <SettingsTab />}
       </div>

@@ -25,8 +25,8 @@ export function TimeChart(props: {
       legend: { show: false },
       scales: { x: { time: true }, y: props.yRange ? { range: props.yRange } : { auto: true } },
       axes: [
-        { ...AXIS, values: (_u, v) => v.map((s) => new Date(s * 1000).toISOString().slice(11, 16)) },
-        { ...AXIS, size: 38, space: 18 },
+        { ...AXIS, size: 26, values: (_u, v) => v.map((s) => new Date(s * 1000).toISOString().slice(11, 16)) },
+        { ...AXIS, size: 44, space: 18 },
       ],
       series: [
         { value: (_u, v) => (v == null ? '' : new Date(v * 1000).toISOString().slice(11, 19)) },

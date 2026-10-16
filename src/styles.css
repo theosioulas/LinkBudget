@@ -67,7 +67,7 @@ a { color: var(--accent); }
 .right { top: 68px; right: 10px; width: 420px; bottom: var(--bottom-gap, 10px); }
 .bottom { left: 10px; right: 10px; bottom: 10px; height: 292px; }
 .tabs { display: flex; gap: 2px; padding: 6px 6px 0; border-bottom: 1px solid var(--border); flex-shrink: 0; overflow-x: auto; }
-.tab { padding: 7px 8px 8px; border: none; background: none; cursor: pointer; color: var(--text-2); border-bottom: 2px solid transparent; font-weight: 500; white-space: nowrap; font-size: 12.5px; }
+.tab { padding: 7px 7px 8px; border: none; background: none; cursor: pointer; color: var(--text-2); border-bottom: 2px solid transparent; font-weight: 500; white-space: nowrap; font-size: 12.3px; }
 .tab.on { color: var(--text); border-bottom-color: var(--accent); }
 .tab:hover { color: var(--text); }
 .scroll { overflow-y: auto; overflow-x: hidden; flex: 1; padding: 10px 12px 16px; }

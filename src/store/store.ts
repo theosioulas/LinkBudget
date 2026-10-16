@@ -7,7 +7,7 @@ import type { SimResult } from '../core/sim/handover';
 import type { LinkResult } from '../core/rf/linkbudget';
 import type { SimRequest } from '../core/sim/sim.worker';
 
-export type LeftTab = 'scenario' | 'payload' | 'terminal' | 'beamlab' | 'settings';
+export type LeftTab = 'scenario' | 'payload' | 'terminal' | 'coverage' | 'beamlab' | 'settings';
 export type Imagery = 'satellite' | 'natural' | 'dark';
 
 export interface LiveBeam {

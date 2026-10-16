@@ -42,4 +42,21 @@ describe('KML beams', () => {
     // midway between the 52 and 50 dBW contours
     expect(v.level).toBeCloseTo(51, 1);
   });
+
+  it('assigns different reuse colours to adjacent beams of a hex lattice', () => {
+    const beams: { id: string; color: number; center: [number, number]; radiusKmAt3dB: number }[] = [];
+    const sp = 200; // km centre spacing
+    for (let q = -2; q <= 2; q++) for (let r = Math.max(-2, -q - 2); r <= Math.min(2, -q + 2); r++) {
+      const x = sp * (q + r / 2), y = sp * (Math.sqrt(3) / 2) * r;
+      beams.push({ id: `H${q}${r}`, color: 0, center: [48 + y / 111.2, 10 + x / (111.2 * Math.cos((48 * Math.PI) / 180))], radiusKmAt3dB: 120 });
+    }
+    const r = parseKml(footprintsToKml('hex', contourSetFromBeams(beams)), P);
+    expect(r.beams.length).toBe(19);
+    const km = (a: [number, number], b: [number, number]) => Math.hypot((a[0] - b[0]) * 111.2, (a[1] - b[1]) * 111.2 * Math.cos((48 * Math.PI) / 180));
+    let pairs = 0;
+    for (let i = 0; i < r.beams.length; i++) for (let j = i + 1; j < r.beams.length; j++) {
+      if (km(r.beams[i].centroid, r.beams[j].centroid) < 1.1 * sp) { pairs++; expect(r.beams[i].color).not.toBe(r.beams[j].color); }
+    }
+    expect(pairs).toBe(42);
+  });
 });

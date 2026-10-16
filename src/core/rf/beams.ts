@@ -141,7 +141,10 @@ export function evaluateBeam(payload: Payload, pose: SatPose, user: LatLonAlt, u
       const rel = lossDb + relativeGainDb(p, off, hpbwDeg);
       // First-tier co-channel cells at the reuse distance (full load)
       const N = Math.max(1, L.reuseColors);
-      const D = d * Math.sqrt(N);
+      const rangeKm = norm(sub(aim, sat));
+      const load = Math.min(1, Math.max(0, L.coChannelLoad ?? 0.5));
+      const sepKm = (L.minSepBeamwidths ?? 1.6) * rangeKm * Math.tan(hpbwDeg * DEG);
+      const D = Math.max(d * Math.sqrt(N), sepKm);
       const tiers: number[] = [];
       const rot = N === 1 ? 0 : N === 3 ? 30 : N === 4 ? 0 : 19.1;
       const [ux, uy] = hexToXY(q, r, d);
@@ -154,7 +157,7 @@ export function evaluateBeam(payload: Payload, pose: SatPose, user: LatLonAlt, u
         const se = scanEffects(p, sc);
         tiers.push(se.lossDb + relativeGainDb(p, angleBetween(sub(ce, sat), toUser) * RAD, se.hpbwDeg));
       }
-      const I = sumPow(tiers);
+      const I = load * sumPow(tiers);
       return {
         covered: true, beamId: `cell ${q},${r}`, beamLabel: `Cell (${q},${r})`, color: hexColor(q, r, N), relGainDb: rel, scanDeg: scan, offAxisDeg: off, hpbwEffDeg: hpbwDeg,
         cciDb: I > 0 ? rel - 10 * Math.log10(I) : Infinity, coChannelBeams: tiers.length, aim: cellLL,

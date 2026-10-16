@@ -123,25 +123,40 @@ export function parseKmz(buf: ArrayBuffer, Parser?: { new (): DOMParser }): KmlP
   return parseKml(strFromU8(files[name]), Parser);
 }
 
-/** Greedy graph colouring: beams whose centroids are closer than ~1.6× their radius are neighbours. */
+/**
+ * DSATUR graph colouring of beams: two beams are neighbours when their centroids are closer than
+ * 0.9 × the sum of their outer-contour equivalent radii (i.e. overlapping footprints).
+ */
 export function assignColors(beams: KmlBeam[], colors: number) {
+  const n = beams.length;
   const R = beams.map((b) => Math.sqrt(ringAreaKm2(b.contours[b.contours.length - 1].rings[0]) / Math.PI));
   const dist = (a: [number, number], b: [number, number]) => {
     const dl = ((a[1] - b[1] + 540) % 360) - 180;
     return Math.hypot((a[0] - b[0]) * 111.2, dl * 111.2 * Math.cos((a[0] * Math.PI) / 180));
   };
-  const order = beams.map((_, i) => i).sort((a, b) => beams[a].centroid[0] - beams[b].centroid[0] || beams[a].centroid[1] - beams[b].centroid[1]);
-  const assigned: number[] = new Array(beams.length).fill(-1);
-  for (const i of order) {
-    const used = new Set<number>();
-    for (let j = 0; j < beams.length; j++) {
-      if (j === i || assigned[j] < 0) continue;
-      if (dist(beams[i].centroid, beams[j].centroid) < 1.6 * (R[i] + R[j])) used.add(assigned[j]);
+  const adj: number[][] = beams.map(() => []);
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    if (dist(beams[i].centroid, beams[j].centroid) < 0.9 * (R[i] + R[j])) { adj[i].push(j); adj[j].push(i); }
+  }
+  const col = new Array(n).fill(-1);
+  for (let step = 0; step < n; step++) {
+    let best = -1, bestSat = -1, bestDeg = -1;
+    for (let i = 0; i < n; i++) {
+      if (col[i] >= 0) continue;
+      const sat = new Set(adj[i].map((j) => col[j]).filter((c) => c >= 0)).size;
+      if (sat > bestSat || (sat === bestSat && adj[i].length > bestDeg)) { best = i; bestSat = sat; bestDeg = adj[i].length; }
     }
+    const used = new Set(adj[best].map((j) => col[j]));
     let c = 0;
     while (used.has(c) && c < colors - 1) c++;
-    assigned[i] = c;
-    beams[i].color = c;
+    if (used.has(c)) {
+      // no free colour: pick the one used by the fewest neighbours
+      const cnt = new Array(colors).fill(0);
+      for (const j of adj[best]) if (col[j] >= 0) cnt[col[j]]++;
+      c = cnt.indexOf(Math.min(...cnt));
+    }
+    col[best] = c;
+    beams[best].color = c;
   }
 }
 

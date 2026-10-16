@@ -32,7 +32,13 @@ export interface KmlBeam {
 export type ContourMeaning = 'absolute-eirp' | 'relative' | 'edge-only';
 
 export type BeamLayout =
-  | { kind: 'steerable-cells'; cellDiameterKm: number; reuseColors: number; beamsPerSat: number }
+  | {
+      kind: 'steerable-cells'; cellDiameterKm: number; reuseColors: number; beamsPerSat: number;
+      /** Fraction of first-tier co-channel cells illuminated at the same time by the same satellite. */
+      coChannelLoad?: number;
+      /** Scheduler constraint: minimum co-channel beam separation in (scan-broadened) beamwidths. */
+      minSepBeamwidths?: number;
+    }
   | { kind: 'fixed-strips'; count: number; alongTrackDeg: number; crossTrackDeg: number; reuseColors: number; boresightTiltDeg: number }
   | { kind: 'hex-grid'; aimLat: number; aimLon: number; spacingDeg: number; rings: number; reuseColors: number }
   | { kind: 'spot'; aimLat: number; aimLon: number }
