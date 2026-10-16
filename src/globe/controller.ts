@@ -1,0 +1,552 @@
+import * as Cesium from 'cesium';
+import type { SatelliteDef } from '../core/orbit/propagator';
+import { satEcef, satEci } from '../core/orbit/propagator';
+import { orbitRing } from '../core/orbit/kepler';
+import { gmst } from '../core/time';
+import type { Constellation, Payload, Terminal } from '../core/model';
+import { beamFootprints, coverageRing, steeredSpotFootprint, type Footprint } from '../core/rf/beams';
+import { evaluateBeam } from '../core/rf/beams';
+import { sub, type Vec3 } from '../core/vec';
+import type { Layers } from '../store/store';
+
+export const REUSE_COLORS = ['#4cc9f0', '#06d6a0', '#ffd166', '#ef476f', '#b388ff', '#ff9f43', '#90e0ef'];
+const BEAM_A = Cesium.Color.fromCssColorString('#22d3ee');
+const BEAM_B = Cesium.Color.fromCssColorString('#f472b6');
+
+const km = (v: Vec3, out?: Cesium.Cartesian3) => {
+  const o = out ?? new Cesium.Cartesian3();
+  o.x = v[0] * 1000; o.y = v[1] * 1000; o.z = v[2] * 1000;
+  return o;
+};
+const ll = (lat: number, lon: number, h = 0) => Cesium.Cartesian3.fromDegrees(lon, lat, h);
+
+const TERMINAL_SVG = `data:image/svg+xml;utf8,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44"><defs><radialGradient id="g"><stop offset="0" stop-color="#22d3ee" stop-opacity="0.9"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></radialGradient></defs><circle cx="22" cy="22" r="21" fill="url(#g)"/><rect x="11" y="15" width="22" height="14" rx="2" fill="#0b1220" stroke="#e2f7ff" stroke-width="2"/><g fill="#22d3ee">${Array.from({ length: 12 }, (_, i) => `<circle cx="${14.5 + (i % 4) * 5}" cy="${18.5 + Math.floor(i / 4) * 3.5}" r="1.1"/>`).join('')}</g></svg>`,
+)}`;
+
+export interface LiveLinks {
+  A: { satId: string; phase: string; active: boolean; aim?: [number, number] } | null;
+  B: { satId: string; phase: string; active: boolean; aim?: [number, number] } | null;
+}
+
+export class GlobeController {
+  viewer: Cesium.Viewer;
+  private points = new Cesium.PointPrimitiveCollection();
+  private labels = new Cesium.LabelCollection();
+  private orbits = new Cesium.PolylineCollection();
+  private coverage = new Cesium.PolylineCollection();
+  private linkLines = new Cesium.PolylineCollection();
+  private cones = new Cesium.PolylineCollection();
+  private footOutlines = new Cesium.PolylineCollection();
+  private footFill: Cesium.Primitive | null = null;
+  private activeFill: Cesium.Primitive | null = null;
+  private sats: SatelliteDef[] = [];
+  private satIndex = new Map<string, number>();
+  private pointList: Cesium.PointPrimitive[] = [];
+  private labelBySat = new Map<string, Cesium.Label>();
+  private coverageBySat = new Map<string, Cesium.Polyline>();
+  private consts = new Map<string, Constellation>();
+  private payloads = new Map<string, Payload>();
+  private ringEpoch = 0;
+  private lastCoverage = 0;
+  private lastFoot = 0;
+  private terminalEntity: Cesium.Entity | null = null;
+  private scanCone: Cesium.Entity | null = null;
+  private terminal: Terminal | null = null;
+  private links: LiveLinks = { A: null, B: null };
+  private selectedId: string | null = null;
+  private focusId: string | null = null;
+  private layers: Layers | null = null;
+  private tmp = new Cesium.Cartesian3();
+  private imageryKind = '';
+  private nightLayer: Cesium.ImageryLayer | null = null;
+  private baseLayer: Cesium.ImageryLayer | null = null;
+  private imageryErrors = 0;
+  private nightFailed = false;
+  onImageryFallback?: () => void;
+  onPick?: (satId: string | null) => void;
+  onPickGround?: (lat: number, lon: number) => void;
+  onHover?: (satId: string | null, x: number, y: number) => void;
+  onTick?: (ms: number) => void;
+  pickGroundMode = false;
+
+  constructor(container: HTMLElement, creditContainer: HTMLElement) {
+    this.viewer = new Cesium.Viewer(container, {
+      baseLayer: false, animation: false, timeline: false, baseLayerPicker: false, geocoder: false, homeButton: false,
+      sceneModePicker: false, navigationHelpButton: false, fullscreenButton: false, infoBox: false, selectionIndicator: false,
+      creditContainer, shouldAnimate: true, msaaSamples: 4,
+      skyBox: undefined,
+    });
+    const scene = this.viewer.scene;
+    scene.globe.enableLighting = true;
+    scene.globe.dynamicAtmosphereLighting = true;
+    scene.globe.dynamicAtmosphereLightingFromSun = true;
+    scene.globe.showGroundAtmosphere = true;
+    scene.globe.baseColor = Cesium.Color.fromCssColorString('#0b1a2e');
+    scene.globe.atmosphereLightIntensity = 12;
+    scene.fog.enabled = true;
+    scene.globe.maximumScreenSpaceError = 1.5;
+    if (scene.skyAtmosphere) scene.skyAtmosphere.show = true;
+    scene.screenSpaceCameraController.minimumZoomDistance = 50_000;
+    scene.screenSpaceCameraController.maximumZoomDistance = 250_000_000;
+    this.viewer.clock.clockRange = Cesium.ClockRange.UNBOUNDED;
+    scene.primitives.add(this.orbits);
+    scene.primitives.add(this.coverage);
+    scene.primitives.add(this.footOutlines);
+    scene.primitives.add(this.cones);
+    scene.primitives.add(this.linkLines);
+    scene.primitives.add(this.points);
+    scene.primitives.add(this.labels);
+    this.setImagery('satellite');
+
+    scene.preRender.addEventListener(() => this.frame());
+    const h = new Cesium.ScreenSpaceEventHandler(scene.canvas);
+    h.setInputAction((e: Cesium.ScreenSpaceEventHandler.PositionedEvent) => {
+      if (this.pickGroundMode) {
+        const c = this.viewer.camera.pickEllipsoid(e.position, scene.globe.ellipsoid);
+        if (c) { const g = Cesium.Cartographic.fromCartesian(c); this.onPickGround?.(Cesium.Math.toDegrees(g.latitude), Cesium.Math.toDegrees(g.longitude)); }
+        return;
+      }
+      const p = scene.pick(e.position);
+      const id = p && typeof p.id === 'string' && this.satIndex.has(p.id) ? (p.id as string) : null;
+      this.onPick?.(id);
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    let lastHover = 0;
+    h.setInputAction((e: Cesium.ScreenSpaceEventHandler.MotionEvent) => {
+      const now = performance.now();
+      if (now - lastHover < 60) return;
+      lastHover = now;
+      const p = scene.pick(e.endPosition);
+      const id = p && typeof p.id === 'string' && this.satIndex.has(p.id) ? (p.id as string) : null;
+      this.onHover?.(id, e.endPosition.x, e.endPosition.y);
+    }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+  }
+
+  // ------------------------------------------------------------ imagery
+  setImagery(kind: string) {
+    if (kind === this.imageryKind) return;
+    this.imageryKind = kind;
+    const layers = this.viewer.imageryLayers;
+    if (this.baseLayer) layers.remove(this.baseLayer, true);
+    let layer: Cesium.ImageryLayer;
+    if (kind === 'satellite') {
+      layer = new Cesium.ImageryLayer(new Cesium.UrlTemplateImageryProvider({
+        url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        maximumLevel: 17, credit: new Cesium.Credit('Imagery © Esri, Maxar, Earthstar Geographics'),
+      }));
+      this.imageryErrors = 0;
+      (layer.imageryProvider as Cesium.UrlTemplateImageryProvider).errorEvent.addEventListener((err: Cesium.TileProviderError) => {
+        err.retry = false;
+        if (++this.imageryErrors === 4 && this.imageryKind === 'satellite') { this.imageryKind = ''; this.setImagery('natural'); this.onImageryFallback?.(); }
+      });
+    } else if (kind === 'dark') {
+      layer = new Cesium.ImageryLayer(new Cesium.UrlTemplateImageryProvider({
+        url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png', subdomains: 'abcd', maximumLevel: 18,
+        credit: new Cesium.Credit('© OpenStreetMap contributors © CARTO'),
+      }));
+    } else {
+      layer = Cesium.ImageryLayer.fromProviderAsync(Cesium.TileMapServiceImageryProvider.fromUrl(Cesium.buildModuleUrl('Assets/Textures/NaturalEarthII')), {});
+    }
+    layers.add(layer, 0);
+    this.baseLayer = layer;
+  }
+
+  setNightLights(on: boolean) {
+    if (on && !this.nightLayer && !this.nightFailed) {
+      const l = new Cesium.ImageryLayer(new Cesium.UrlTemplateImageryProvider({
+        url: 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/GoogleMapsCompatible_Level8/{z}/{y}/{x}.png',
+        maximumLevel: 8, credit: new Cesium.Credit('Night lights: NASA Black Marble (GIBS)'),
+      }));
+      let errs = 0;
+      (l.imageryProvider as Cesium.UrlTemplateImageryProvider).errorEvent.addEventListener((err: Cesium.TileProviderError) => {
+        err.retry = false;
+        if (++errs === 4 && this.nightLayer === l) { this.viewer.imageryLayers.remove(l, true); this.nightLayer = null; this.nightFailed = true; }
+      });
+      l.dayAlpha = 0.0;
+      l.nightAlpha = 0.9;
+      l.brightness = 1.6;
+      this.viewer.imageryLayers.add(l);
+      this.nightLayer = l;
+    } else if (!on && this.nightLayer) {
+      this.viewer.imageryLayers.remove(this.nightLayer, true);
+      this.nightLayer = null;
+    }
+  }
+
+  applyLayers(l: Layers) {
+    this.layers = l;
+    this.setImagery(l.imagery);
+    this.setNightLights(l.nightLights);
+    const s = this.viewer.scene;
+    s.globe.enableLighting = l.lighting;
+    if (s.skyAtmosphere) s.skyAtmosphere.show = l.atmosphere;
+    s.globe.showGroundAtmosphere = l.atmosphere;
+    this.cones.show = l.cones;
+    this.footOutlines.show = l.beams;
+    if (this.footFill) this.footFill.show = l.beams;
+    if (this.scanCone) this.scanCone.show = l.scanCone;
+    for (const p of this.pointList) p.pixelSize = this.basePixel(p.id as string);
+    this.rebuildOrbits(this.currentMs());
+  }
+
+  // ------------------------------------------------------------ scenario
+  setScenario(sats: SatelliteDef[], constellations: Constellation[], payloads: Payload[]) {
+    this.sats = sats;
+    this.consts = new Map(constellations.map((c) => [c.id, c]));
+    this.payloads = new Map(payloads.map((p) => [p.id, p]));
+    this.points.removeAll();
+    this.labels.removeAll();
+    this.pointList = [];
+    this.satIndex.clear();
+    this.labelBySat.clear();
+    sats.forEach((s, i) => {
+      const c = this.consts.get(s.constellationId)!;
+      this.satIndex.set(s.id, i);
+      const pt = this.points.add({
+        id: s.id, position: Cesium.Cartesian3.ZERO, color: Cesium.Color.fromCssColorString(c.color), pixelSize: 3,
+        outlineColor: Cesium.Color.BLACK.withAlpha(0.6), outlineWidth: c.orbitClass === 'LEO' ? 0 : 1,
+        scaleByDistance: c.orbitClass === 'LEO' ? new Cesium.NearFarScalar(2e6, 1.6, 6e7, 0.7) : undefined,
+      });
+      this.pointList.push(pt);
+      if (c.showLabels) {
+        const lb = this.labels.add({
+          position: Cesium.Cartesian3.ZERO, text: s.name, font: '12px Inter, system-ui, sans-serif', fillColor: Cesium.Color.fromCssColorString(c.color),
+          outlineColor: Cesium.Color.BLACK, outlineWidth: 3, style: Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new Cesium.Cartesian2(10, -8),
+          horizontalOrigin: Cesium.HorizontalOrigin.LEFT, distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, c.orbitClass === 'GEO' ? 1.6e8 : 6e7), scale: 0.95,
+        });
+        this.labelBySat.set(s.id, lb);
+      }
+    });
+    for (const p of this.pointList) p.pixelSize = this.basePixel(p.id as string);
+    this.rebuildOrbits(this.currentMs());
+    this.rebuildCoverage();
+    this.lastFoot = 0;
+  }
+
+  updatePayloads(payloads: Payload[], constellations: Constellation[]) {
+    this.payloads = new Map(payloads.map((p) => [p.id, p]));
+    this.consts = new Map(constellations.map((c) => [c.id, c]));
+    this.lastFoot = 0;
+    this.rebuildOrbits(this.currentMs());
+    this.rebuildCoverage();
+  }
+
+  private basePixel(id: string) {
+    const s = this.sats[this.satIndex.get(id) ?? -1];
+    if (!s) return 3;
+    const oc = this.consts.get(s.constellationId)?.orbitClass;
+    const k = this.layers?.pointSize ?? 3;
+    if (id === this.links.A?.satId || id === this.links.B?.satId) return 11;
+    if (id === this.selectedId) return 12;
+    return oc === 'GEO' ? k + 6 : oc === 'MEO' ? k + 4 : oc === 'LEO' ? k - (s.constellationId === 'starlink' ? 1 : 0) : k + 2;
+  }
+
+  setTerminal(t: Terminal) {
+    this.terminal = t;
+    const pos = ll(t.lat, t.lon, t.altM);
+    if (!this.terminalEntity) {
+      this.terminalEntity = this.viewer.entities.add({
+        position: pos,
+        billboard: { image: TERMINAL_SVG, width: 40, height: 40, disableDepthTestDistance: Number.POSITIVE_INFINITY },
+        label: {
+          text: t.name, font: '600 13px Inter, system-ui, sans-serif', fillColor: Cesium.Color.WHITE, outlineColor: Cesium.Color.BLACK, outlineWidth: 3,
+          style: Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new Cesium.Cartesian2(0, 30), disableDepthTestDistance: Number.POSITIVE_INFINITY,
+          distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 4e7),
+        },
+      });
+    }
+    this.terminalEntity.position = new Cesium.ConstantPositionProperty(pos);
+    if (this.terminalEntity.label) this.terminalEntity.label.text = new Cesium.ConstantProperty(t.name);
+    // scan cone (electronic steering limit) above the terminal
+    const L = 900_000;
+    const top = t.type === 'phased-array' ? L * Math.tan(Cesium.Math.toRadians(Math.min(t.maxScanDeg, 80))) : 60_000;
+    const center = ll(t.lat, t.lon, L / 2);
+    const hpr = new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(t.panelAzDeg), 0, -Cesium.Math.toRadians(t.panelTiltDeg));
+    const orient = Cesium.Transforms.headingPitchRollQuaternion(center, hpr);
+    if (this.scanCone) this.viewer.entities.remove(this.scanCone);
+    this.scanCone = this.viewer.entities.add({
+      position: center, orientation: orient,
+      cylinder: {
+        length: L, topRadius: top, bottomRadius: 0, material: Cesium.Color.fromCssColorString('#22d3ee').withAlpha(0.07), outline: true,
+        outlineColor: Cesium.Color.fromCssColorString('#22d3ee').withAlpha(0.35), numberOfVerticalLines: 12, slices: 64,
+      },
+      show: this.layers?.scanCone ?? true,
+    });
+    this.lastFoot = 0;
+  }
+
+  setLinks(l: LiveLinks) {
+    const changed = l.A?.satId !== this.links.A?.satId || l.B?.satId !== this.links.B?.satId || l.A?.phase !== this.links.A?.phase || l.B?.phase !== this.links.B?.phase || l.A?.active !== this.links.A?.active;
+    const old = [this.links.A?.satId, this.links.B?.satId];
+    this.links = l;
+    if (changed) {
+      for (const id of [...old, l.A?.satId, l.B?.satId]) this.restyle(id);
+      this.lastFoot = 0;
+    }
+  }
+
+  setSelected(id: string | null, focus: string | null) {
+    const old = this.selectedId;
+    this.selectedId = id;
+    this.restyle(old);
+    this.restyle(id);
+    if (focus !== this.focusId) { this.focusId = focus; this.lastFoot = 0; }
+  }
+
+  private restyle(id: string | null | undefined) {
+    if (!id) return;
+    const i = this.satIndex.get(id);
+    if (i === undefined) return;
+    const p = this.pointList[i];
+    const c = this.consts.get(this.sats[i].constellationId)!;
+    p.pixelSize = this.basePixel(id);
+    if (id === this.links.A?.satId) { p.outlineColor = BEAM_A; p.outlineWidth = 3; p.color = Cesium.Color.WHITE; }
+    else if (id === this.links.B?.satId) { p.outlineColor = BEAM_B; p.outlineWidth = 3; p.color = Cesium.Color.WHITE; }
+    else if (id === this.selectedId) { p.outlineColor = Cesium.Color.WHITE; p.outlineWidth = 3; p.color = Cesium.Color.fromCssColorString(c.color); }
+    else { p.outlineColor = Cesium.Color.BLACK.withAlpha(0.6); p.outlineWidth = c.orbitClass === 'LEO' ? 0 : 1; p.color = Cesium.Color.fromCssColorString(c.color); }
+  }
+
+  // ------------------------------------------------------------ time
+  currentMs() { return Cesium.JulianDate.toDate(this.viewer.clock.currentTime).getTime(); }
+  setTime(ms: number) { this.viewer.clock.currentTime = Cesium.JulianDate.fromDate(new Date(ms)); }
+  setClock(multiplier: number, playing: boolean) { this.viewer.clock.multiplier = multiplier; this.viewer.clock.shouldAnimate = playing; }
+
+  // ------------------------------------------------------------ orbits & coverage
+  private rebuildOrbits(ms: number) {
+    this.orbits.removeAll();
+    this.ringEpoch = ms;
+    const opacity = this.layers?.allOrbitsOpacity ?? 0.35;
+    const byPlane = new Map<string, SatelliteDef>();
+    for (const s of this.sats) {
+      const c = this.consts.get(s.constellationId);
+      if (!c?.showOrbits) continue;
+      const key = `${s.constellationId}:${s.kind === 'sgp4' ? s.id : s.plane}`;
+      if (!byPlane.has(key)) byPlane.set(key, s);
+    }
+    for (const s of byPlane.values()) {
+      const c = this.consts.get(s.constellationId)!;
+      const ring = s.kind === 'geo' ? geoRing() : orbitRing(s.el, ms, c.orbitClass === 'LEO' ? 96 : 180);
+      this.orbits.add({
+        positions: ring.map((p) => km(p)), width: c.orbitClass === 'LEO' ? 1 : 1.5,
+        material: Cesium.Material.fromType('Color', { color: Cesium.Color.fromCssColorString(c.color).withAlpha(c.orbitClass === 'LEO' ? opacity * 0.6 : opacity + 0.15) }),
+      });
+    }
+    function geoRing(): Vec3[] {
+      const out: Vec3[] = [];
+      for (let k = 0; k <= 360; k += 2) { const a = (k * Math.PI) / 180; out.push([42164.17 * Math.cos(a), 42164.17 * Math.sin(a), 0]); }
+      return out;
+    }
+  }
+
+  private rebuildCoverage() {
+    this.coverage.removeAll();
+    this.coverageBySat.clear();
+    for (const s of this.sats) {
+      const c = this.consts.get(s.constellationId);
+      if (!c?.showCoverage) continue;
+      const pl = this.payloads.get(c.payloadId);
+      const line = this.coverage.add({ positions: [Cesium.Cartesian3.ZERO, Cesium.Cartesian3.UNIT_X], width: 1.5, material: Cesium.Material.fromType('Color', { color: Cesium.Color.fromCssColorString(c.color).withAlpha(0.4) }) });
+      (line as unknown as { _minEl: number })._minEl = pl?.minElevationDeg ?? 10;
+      this.coverageBySat.set(s.id, line);
+    }
+    this.lastCoverage = 0;
+  }
+
+  // ------------------------------------------------------------ per frame
+  private frame() {
+    const ms = this.currentMs();
+    // satellites
+    for (let i = 0; i < this.sats.length; i++) {
+      const p = satEcef(this.sats[i], ms);
+      this.pointList[i].position = km(p, this.tmp);
+    }
+    for (const [id, lb] of this.labelBySat) {
+      const i = this.satIndex.get(id)!;
+      lb.position = km(satEcef(this.sats[i], ms), this.tmp);
+    }
+    // orbit rings follow Earth rotation: r_ecef = Rz(−GMST)·r_eci
+    if (Math.abs(ms - this.ringEpoch) > 3 * 3600_000) this.rebuildOrbits(ms);
+    this.orbits.modelMatrix = Cesium.Matrix4.fromRotationTranslation(Cesium.Matrix3.fromRotationZ(-gmst(ms)));
+    const wall = performance.now();
+    if (wall - this.lastCoverage > 400) {
+      this.lastCoverage = wall;
+      for (const [id, line] of this.coverageBySat) {
+        const s = this.sats[this.satIndex.get(id)!];
+        const ring = coverageRing(satEcef(s, ms), (line as unknown as { _minEl: number })._minEl, 72);
+        line.positions = ring.map(([la, lo]) => ll(la, lo, 3000));
+      }
+    }
+    this.drawLinks(ms);
+    if (wall - this.lastFoot > 250) { this.lastFoot = wall; this.drawFootprints(ms); }
+    this.onTick?.(ms);
+  }
+
+  private terminalEcefKm(): Vec3 | null {
+    if (!this.terminal) return null;
+    const c = ll(this.terminal.lat, this.terminal.lon, this.terminal.altM);
+    return [c.x / 1000, c.y / 1000, c.z / 1000];
+  }
+
+  private pool: Record<'A' | 'B', { glow: Cesium.Polyline; dash: Cesium.Polyline; ring: Cesium.Polyline; spokes: Cesium.Polyline[] }> | null = null;
+
+  private ensurePool() {
+    if (this.pool) return this.pool;
+    const mk = (key: 'A' | 'B') => {
+      const color = key === 'A' ? BEAM_A : BEAM_B;
+      const z = [Cesium.Cartesian3.UNIT_X, Cesium.Cartesian3.UNIT_Y];
+      return {
+        glow: this.linkLines.add({ positions: z, width: 9, show: false, material: Cesium.Material.fromType('PolylineGlow', { color, glowPower: 0.22, taperPower: 1 }) }),
+        dash: this.linkLines.add({ positions: z, width: 4, show: false, material: Cesium.Material.fromType('PolylineDash', { color, gapColor: Cesium.Color.TRANSPARENT, dashLength: 18 }) }),
+        ring: this.cones.add({ positions: z, width: 2.5, show: false, material: Cesium.Material.fromType('Color', { color: color.withAlpha(0.95) }) }),
+        spokes: Array.from({ length: 16 }, () => this.cones.add({ positions: z, width: 1, show: false, material: Cesium.Material.fromType('Color', { color: color.withAlpha(0.3) }) })),
+      };
+    };
+    this.pool = { A: mk('A'), B: mk('B') };
+    return this.pool;
+  }
+
+  private drawLinks(ms: number) {
+    const pool = this.ensurePool();
+    const t = this.terminalEcefKm();
+    for (const key of ['A', 'B'] as const) {
+      const P = pool[key];
+      const L = this.links[key];
+      const s = L ? this.sats[this.satIndex.get(L.satId) ?? -1] : undefined;
+      if (!t || !L || !s) {
+        P.glow.show = P.dash.show = P.ring.show = false;
+        for (const sp of P.spokes) sp.show = false;
+        continue;
+      }
+      const sp = satEcef(s, ms);
+      const tracking = L.phase === 'tracking';
+      const line = [km(t), km(sp)];
+      P.glow.show = tracking;
+      P.dash.show = !tracking;
+      if (tracking) { P.glow.positions = line; P.glow.width = L.active ? 10 : 5; } else P.dash.positions = line;
+      // satellite-side spot beam toward the terminal's cell / beam centre
+      const c = this.consts.get(s.constellationId);
+      const pl = c && this.payloads.get(c.payloadId);
+      let ring: [number, number][] = [];
+      if (pl && (this.layers?.cones ?? true) && this.terminal) {
+        if (pl.layout.kind === 'steerable-cells') {
+          const aim = L.aim ?? [this.terminal.lat, this.terminal.lon];
+          ring = steeredSpotFootprint(pl, sp, aim[0], aim[1]);
+        } else if (pl.layout.kind === 'spot' || pl.layout.kind === 'hex-grid') {
+          const ev = evaluateBeam(pl, { ecef: sp, velEcef: sub(satEcef(s, ms + 500), satEcef(s, ms - 500)) }, { lat: this.terminal.lat, lon: this.terminal.lon, alt: 0 });
+          if (ev.covered) ring = steeredSpotFootprint({ ...pl, pattern: { ...pl.pattern, kind: 'bessel' } }, sp, ev.aim[0], ev.aim[1]);
+        }
+      }
+      if (ring.length > 3) {
+        P.ring.show = true;
+        P.ring.positions = ring.map(([a, b]) => ll(a, b, 2500));
+        const step = ring.length / P.spokes.length;
+        P.spokes.forEach((spk, k) => {
+          const r = ring[Math.floor(k * step)];
+          spk.show = true;
+          spk.positions = [km(sp), ll(r[0], r[1], 2000)];
+        });
+      } else {
+        P.ring.show = false;
+        for (const spk of P.spokes) spk.show = false;
+      }
+    }
+  }
+
+  private drawFootprints(ms: number) {
+    this.footOutlines.removeAll();
+    if (this.footFill) { this.viewer.scene.primitives.remove(this.footFill); this.footFill = null; }
+    if (this.activeFill) { this.viewer.scene.primitives.remove(this.activeFill); this.activeFill = null; }
+    if (!(this.layers?.beams ?? true)) return;
+    const focusIds = new Set<string>();
+    if (this.focusId) focusIds.add(this.focusId);
+    if (this.selectedId) focusIds.add(this.selectedId);
+    if (this.links.A?.satId) focusIds.add(this.links.A.satId);
+    if (this.links.B?.satId) focusIds.add(this.links.B.satId);
+    const instances: Cesium.GeometryInstance[] = [];
+    const user = this.terminal ? { lat: this.terminal.lat, lon: this.terminal.lon, alt: 0 } : undefined;
+    const drawnLayouts = new Set<string>();
+    for (const id of focusIds) {
+      const s = this.sats[this.satIndex.get(id) ?? -1];
+      if (!s) continue;
+      const c = this.consts.get(s.constellationId);
+      const pl = c && this.payloads.get(c.payloadId);
+      if (!pl) continue;
+      // steerable cell grids are ground-fixed: draw once per payload
+      const layoutKey = pl.layout.kind === 'steerable-cells' ? `cells:${pl.id}` : id;
+      if (drawnLayouts.has(layoutKey)) continue;
+      drawnLayouts.add(layoutKey);
+      const sp = satEcef(s, ms);
+      const vel = sub(satEcef(s, ms + 500), satEcef(s, ms - 500));
+      const fps: Footprint[] = beamFootprints(pl, { ecef: sp, velEcef: vel }, user, pl.layout.kind === 'steerable-cells' ? 4 : 3);
+      const isKml = pl.layout.kind === 'kml';
+      const levels = isKml ? fps.map((f) => f.level ?? 0) : [];
+      const lmax = Math.max(...levels, 0), lmin = Math.min(...levels, 0);
+      for (const f of fps) {
+        if (f.ring.length < 4) continue;
+        const col = Cesium.Color.fromCssColorString(REUSE_COLORS[f.color % REUSE_COLORS.length]);
+        const positions = f.ring.map(([a, b]) => ll(a, b, 1500));
+        this.footOutlines.add({ positions, width: f.active ? 3 : 1.2, material: Cesium.Material.fromType('Color', { color: col.withAlpha(f.active ? 1 : 0.85) }) });
+        const t = isKml && lmax > lmin ? ((f.level ?? lmin) - lmin) / (lmax - lmin) : 0.5;
+        instances.push(new Cesium.GeometryInstance({
+          geometry: new Cesium.PolygonGeometry({ polygonHierarchy: new Cesium.PolygonHierarchy(f.ring.map(([a, b]) => ll(a, b))), height: 1000, granularity: Cesium.Math.toRadians(0.5) }),
+          attributes: { color: Cesium.ColorGeometryInstanceAttribute.fromColor(col.withAlpha(f.active ? 0.45 : isKml ? 0.06 + 0.12 * t : 0.16)) },
+        }));
+      }
+    }
+    if (instances.length) {
+      this.footFill = this.viewer.scene.primitives.add(new Cesium.Primitive({
+        geometryInstances: instances, asynchronous: false,
+        appearance: new Cesium.PerInstanceColorAppearance({ translucent: true, flat: true }),
+      }));
+    }
+  }
+
+  // ------------------------------------------------------------ camera
+  flyToTerminal(rangeKm = 9000, pitchDeg = -60, duration = 1.6) {
+    if (!this.terminal) return;
+    const target = ll(this.terminal.lat, this.terminal.lon, 0);
+    this.viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 1), {
+      offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(pitchDeg), rangeKm * 1000), duration,
+    });
+  }
+  flyGlobal() {
+    const lon = this.terminal?.lon ?? 0;
+    this.viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(lon, 15, 1.25e8), duration: 1.8 });
+  }
+  /** Frame a satellite together with its ground footprint (or its payload's aim point for GEO/spot layouts). */
+  flyToSat(id: string) {
+    const s = this.sats[this.satIndex.get(id) ?? -1];
+    if (!s) return;
+    const c = this.consts.get(s.constellationId);
+    const pl = c && this.payloads.get(c.payloadId);
+    const p = satEcef(s, this.currentMs());
+    const sub = Cesium.Cartographic.fromCartesian(km(p));
+    const alt = sub.height;
+    let lat = Cesium.Math.toDegrees(sub.latitude), lon = Cesium.Math.toDegrees(sub.longitude);
+    let range: number;
+    if (pl && (pl.layout.kind === 'hex-grid' || pl.layout.kind === 'spot')) {
+      lat = pl.layout.aimLat; lon = pl.layout.aimLon;
+      range = pl.layout.kind === 'hex-grid' ? Math.max(2.5e6, pl.layout.spacingDeg * (2 * pl.layout.rings + 1) * 37_000 * Cesium.Math.RADIANS_PER_DEGREE * 1e3 * 1.6) : 9e6;
+    } else if (pl && pl.layout.kind === 'kml' && pl.layout.beams.length) {
+      const b = pl.layout.beams;
+      lat = b.reduce((a, x) => a + x.centroid[0], 0) / b.length;
+      lon = b.reduce((a, x) => a + x.centroid[1], 0) / b.length;
+      range = 6e6;
+    } else if (pl && pl.layout.kind === 'steerable-cells' && this.terminal) {
+      lat = this.terminal.lat; lon = this.terminal.lon;
+      range = Math.max(alt * 2.6, 1.6e6);
+    } else {
+      range = Math.max(alt * 3.2, 2.5e6);
+    }
+    this.viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(ll(lat, lon, 0), 1), {
+      offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(alt > 1e7 ? -75 : -48), range), duration: 1.8,
+    });
+  }
+
+  satEci(id: string, ms: number) {
+    const s = this.sats[this.satIndex.get(id) ?? -1];
+    return s ? satEci(s, ms) : null;
+  }
+
+  destroy() { this.viewer.destroy(); }
+}
