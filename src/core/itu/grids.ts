@@ -50,8 +50,17 @@ export async function loadItuGrids(baseUrl: string): Promise<void> {
   await Promise.all(
     (Object.keys(manifest) as GridName[]).map(async (name) => {
       const meta = manifest[name];
-      const buf = await (await fetch(`${baseUrl}${meta.file}`)).arrayBuffer();
+      const res = await fetch(`${baseUrl}${meta.file}`);
+      // `.json` grids carry the same little-endian uint16 payload as a base64 string (for hosts that refuse raw binaries)
+      const buf = meta.file.endsWith('.json') ? base64ToBuffer((await res.json()) as string) : await res.arrayBuffer();
       ituGrids.set(name, meta, buf);
     }),
   );
+}
+
+function base64ToBuffer(b64: string): ArrayBuffer {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out.buffer;
 }
