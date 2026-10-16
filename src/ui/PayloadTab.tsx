@@ -3,7 +3,7 @@ import type { Payload, BeamLayout, PatternKind, Polarization, ContourMeaning } f
 import { NumberField, SelectField, TextField, Sect, download, pickFile, fmtNum } from './controls';
 import { PatternPlot } from './PatternPlot';
 import { parseKml, parseKmz, footprintsToKml } from '../core/kml/kml';
-import { beamContours, beamFootprints } from '../core/rf/beams';
+import { beamContours, beamFootprints, hexBeamIds } from '../core/rf/beams';
 import { satEcef } from '../core/orbit/propagator';
 import { sub } from '../core/vec';
 import { REUSE_COLORS, } from '../globe/controller';
@@ -180,22 +180,56 @@ export function PayloadTab() {
         <button className="btn sm" onClick={exportKml}>Export beams as KML</button>
         <a className="btn sm" href="./samples/ka-hts-europe-eirp.kml" download>Sample KML</a>
       </div>
+      {L.kind === 'hex-grid' && (
+        <div style={{ marginTop: 8 }}>
+          <div className="row small dim" style={{ marginBottom: 4 }}>
+            <span>Per-beam settings · {Object.values(L.overrides ?? {}).filter((o) => o.off).length} off · {Object.values(L.overrides ?? {}).filter((o) => o.eirpOffsetDb).length} adjusted</span>
+            <button className="btn sm right-align" onClick={() => upL({ overrides: {} })}>Reset</button>
+          </div>
+          <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+            <table className="grid">
+              <thead><tr><th>Beam</th><th>On</th><th>Colour</th><th>EIRP Δ dB</th></tr></thead>
+              <tbody>
+                {hexBeamIds(L).map((b) => {
+                  const o = L.overrides?.[b.id] ?? {};
+                  const setO = (patch: Partial<typeof o>) => upL({ overrides: { ...(L.overrides ?? {}), [b.id]: { ...o, ...patch } } });
+                  const col = o.color ?? b.color;
+                  return (
+                    <tr key={b.id} style={{ opacity: o.off ? 0.45 : 1 }}>
+                      <td>{b.id}</td>
+                      <td><input type="checkbox" checked={!o.off} onChange={(e) => setO({ off: !e.target.checked })} /></td>
+                      <td>
+                        <select value={col} style={{ background: 'transparent', border: 'none', color: REUSE_COLORS[col % REUSE_COLORS.length] }} onChange={(e) => setO({ color: +e.target.value })}>
+                          {Array.from({ length: Math.max(L.reuseColors, 2) }, (_, c) => <option key={c} value={c}>● {c + 1}</option>)}
+                        </select>
+                      </td>
+                      <td><input type="number" step={0.5} value={o.eirpOffsetDb ?? 0} style={{ width: 64, background: 'transparent', border: '1px solid var(--border)', borderRadius: 4 }} onChange={(e) => setO({ eirpOffsetDb: parseFloat(e.target.value) || 0 })} /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
       {L.kind === 'kml' && (
         <div style={{ marginTop: 8 }}>
           <div className="small dim" style={{ marginBottom: 4 }}>{L.beams.length} beams from {L.sourceName || 'KML'} · contour levels {L.meaning === 'absolute-eirp' ? 'dBW' : 'dB'} · G/T follows the same relative shape</div>
           <div style={{ maxHeight: 220, overflowY: 'auto' }}>
             <table className="grid">
-              <thead><tr><th>Beam</th><th>Colour</th><th>Levels</th></tr></thead>
+              <thead><tr><th>Beam</th><th>On</th><th>Colour</th><th>EIRP Δ</th><th>Levels</th></tr></thead>
               <tbody>
                 {L.beams.map((b, i) => (
-                  <tr key={b.id}>
+                  <tr key={b.id} style={{ opacity: b.off ? 0.45 : 1 }}>
                     <td style={{ fontFamily: 'var(--sans)' }}>{b.name}</td>
+                    <td><input type="checkbox" checked={!b.off} onChange={(e) => upL({ beams: L.beams.map((x, j) => (j === i ? { ...x, off: !e.target.checked } : x)) })} /></td>
                     <td>
                       <select value={b.color} style={{ background: 'transparent', border: 'none', color: REUSE_COLORS[b.color % REUSE_COLORS.length] }}
                         onChange={(e) => upL({ beams: L.beams.map((x, j) => (j === i ? { ...x, color: +e.target.value } : x)) })}>
                         {[0, 1, 2, 3, 4, 5, 6].map((c) => <option key={c} value={c}>● {c + 1}</option>)}
                       </select>
                     </td>
+                    <td><input type="number" step={0.5} value={b.eirpOffsetDb ?? 0} style={{ width: 52, background: 'transparent', border: '1px solid var(--border)', borderRadius: 4 }} onChange={(e) => upL({ beams: L.beams.map((x, j) => (j === i ? { ...x, eirpOffsetDb: parseFloat(e.target.value) || 0 } : x)) })} /></td>
                     <td>{b.contours.map((c) => c.level).join(' / ')}</td>
                   </tr>
                 ))}

@@ -21,9 +21,13 @@ export interface KmlContour {
   rings: [number, number][][]; // [lat, lon] rings (outer boundaries)
 }
 
+export interface BeamOverride { eirpOffsetDb?: number; off?: boolean; color?: number }
+
 export interface KmlBeam {
   id: string;
   name: string;
+  eirpOffsetDb?: number; // per-beam power adjustment
+  off?: boolean; // beam switched off
   color: number; // frequency/polarisation colour index for C/I
   contours: KmlContour[]; // sorted descending by level
   centroid: [number, number];
@@ -40,7 +44,7 @@ export type BeamLayout =
       minSepBeamwidths?: number;
     }
   | { kind: 'fixed-strips'; count: number; alongTrackDeg: number; crossTrackDeg: number; reuseColors: number; boresightTiltDeg: number }
-  | { kind: 'hex-grid'; aimLat: number; aimLon: number; spacingDeg: number; rings: number; reuseColors: number }
+  | { kind: 'hex-grid'; aimLat: number; aimLon: number; spacingDeg: number; rings: number; reuseColors: number; overrides?: Record<string, BeamOverride> }
   | { kind: 'spot'; aimLat: number; aimLon: number }
   | { kind: 'kml'; beams: KmlBeam[]; meaning: ContourMeaning; edgeRelDb: number; sourceName: string };
 
@@ -126,6 +130,21 @@ export interface Terminal {
   implMarginDb: number;
   txBackoffDb: number;
   groundSpillK: number; // ground/spillover noise added at low elevation
+  /** Local horizon / obstruction mask: azimuth sectors blocked below an elevation. */
+  obstructions?: Obstruction[];
+}
+
+export interface Obstruction { azFrom: number; azTo: number; elMax: number; label?: string }
+
+/** True when the direction (az, el) is hidden by the terminal's obstruction mask. */
+export function isObstructed(t: Pick<Terminal, 'obstructions'>, azDeg: number, elDeg: number): boolean {
+  if (!t.obstructions?.length) return false;
+  const az = ((azDeg % 360) + 360) % 360;
+  return t.obstructions.some((o) => {
+    const a = ((o.azFrom % 360) + 360) % 360, b = ((o.azTo % 360) + 360) % 360;
+    const inSector = a <= b ? az >= a && az <= b : az >= a || az <= b;
+    return inSector && elDeg < o.elMax;
+  });
 }
 
 export type HandoverPolicy = 'max-elevation' | 'longest-visibility' | 'best-sinr';
@@ -153,4 +172,6 @@ export interface AnalysisSettings {
   R001Override?: number;
   acmMarginDb: number;
   direction: 'forward' | 'return';
+  /** What-if: instantaneous rain rate at the terminal [mm/h]; 0 = clear sky. Applied to the "current" columns. */
+  liveRainMmH?: number;
 }

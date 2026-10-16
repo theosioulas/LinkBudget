@@ -50,7 +50,7 @@ function Kpis({ L, dir, tone }: { L: LinkResult; dir: 'forward' | 'return'; tone
   );
   return (
     <div className="kpis">
-      {k('Es/(N0+I) clr', fmtNum(d.esn0TotalClear, 1), 'dB', 'End-to-end clear-sky Es/(N0+I0)')}
+      {k(useStore.getState().analysis.liveRainMmH ? 'Es/(N0+I) now' : 'Es/(N0+I) clr', fmtNum(d.esn0TotalClear, 1), 'dB', 'End-to-end Es/(N0+I0) in current conditions')}
       {k('MODCOD', d.modcodClear?.name ?? (d.feasible ? 'OUTAGE' : '—'), '', 'Clear-sky ACM MODCOD')}
       {k('Throughput', fmtNum(d.throughputClearMbps, 0), 'Mbps', 'Per carrier, clear sky')}
       {k('Elevation', fmtNum(L.geometry.look.el, 1), '°')}
@@ -86,6 +86,11 @@ export function LinkPanel() {
         <button className={`tab ${pick === 'A' ? 'on' : ''}`} onClick={() => setWhich('A')}><span className="chip a">A</span> {live.A?.active ? '●' : ''}</button>
         <button className={`tab ${pick === 'B' ? 'on' : ''}`} onClick={() => setWhich('B')}><span className="chip b">B</span> {live.B?.active ? '●' : ''}</button>
         <button className={`tab ${pick === 'sel' ? 'on' : ''}`} onClick={() => setWhich('sel')}>Selected sat</button>
+      </div>
+      <div className="row" style={{ padding: '6px 12px', borderBottom: '1px solid var(--border)', gap: 8 }} title="What-if: instantaneous rain rate at the terminal applied to the current-conditions budget (re-run the timeline to include it there)">
+        <span className="small muted" style={{ whiteSpace: 'nowrap' }}>☔ Rain now</span>
+        <input type="range" min={0} max={100} step={1} value={analysis.liveRainMmH ?? 0} onChange={(e) => useStore.getState().set({ analysis: { ...analysis, liveRainMmH: +e.target.value } })} />
+        <span className="mono small" style={{ width: 62, textAlign: 'right' }}>{analysis.liveRainMmH ? `${analysis.liveRainMmH} mm/h` : 'clear'}</span>
       </div>
       <div className="scroll">
         {!beam || !L ? (

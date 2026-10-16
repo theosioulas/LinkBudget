@@ -14,6 +14,8 @@ export interface BeamEval {
   relGainDb: number;
   /** For absolute-EIRP KML contours: EIRP toward user [dBW] (otherwise undefined). */
   absEirpDbw?: number;
+  /** Per-beam EIRP adjustment (forward only; already included in absEirpDbw). */
+  eirpOffsetDb?: number;
   scanDeg: number;
   offAxisDeg: number;
   hpbwEffDeg: number;
@@ -110,6 +112,12 @@ function aimFrame(satEcef: Vec3, aimEcef: Vec3) {
   return { b, u1, u2 };
 }
 
+export const hexBeamId = (q: number, r: number) => `B${q >= 0 ? '+' : ''}${q}${r >= 0 ? '+' : ''}${r}`;
+
+export function hexBeamIds(layout: Extract<BeamLayout, { kind: 'hex-grid' }>): { id: string; q: number; r: number; color: number }[] {
+  return hexRing(layout.rings).map(([q, r]) => ({ id: hexBeamId(q, r), q, r, color: hexColor(q, r, layout.reuseColors) }));
+}
+
 function hexBeamDirs(satEcef: Vec3, layout: Extract<BeamLayout, { kind: 'hex-grid' }>) {
   const aim = geodeticToEcef(layout.aimLat, layout.aimLon, 0);
   const { b, u1, u2 } = aimFrame(satEcef, aim);
@@ -117,8 +125,10 @@ function hexBeamDirs(satEcef: Vec3, layout: Extract<BeamLayout, { kind: 'hex-gri
   return hexRing(layout.rings).map(([q, r]) => {
     const ax = s * (q + r / 2), ay = s * (SQ3 / 2) * r;
     const dir = unit(add(add(b, scale(u1, Math.tan(ax))), scale(u2, Math.tan(ay))));
-    return { q, r, dir, color: hexColor(q, r, layout.reuseColors), id: `B${String(q).padStart(2, '+')}${String(r).padStart(2, '+')}` };
-  });
+    const id = hexBeamId(q, r);
+    const o = layout.overrides?.[id];
+    return { q, r, dir, color: o?.color ?? hexColor(q, r, layout.reuseColors), id, offset: o?.eirpOffsetDb ?? 0, off: !!o?.off };
+  }).filter((x) => !x.off);
 }
 
 // ---------------------------------------------------------------- main evaluation
@@ -191,19 +201,20 @@ export function evaluateBeam(payload: Payload, pose: SatPose, user: LatLonAlt, u
       const beams = hexBeamDirs(sat, L);
       const t = unit(toUser);
       let bi = 0, bg = -Infinity, boff = 0;
+      if (!beams.length) return NOT_COVERED('no-beams');
       const g = beams.map((b, i) => {
         const off = angleBetween(b.dir, t) * RAD;
-        const v = relativeGainDb(p, off);
+        const v = relativeGainDb(p, off) + b.offset;
         if (v > bg) { bg = v; bi = i; boff = off; }
         return v;
       });
       const best = beams[bi];
-      if (bg < -8) return NOT_COVERED('outside-coverage');
+      if (bg - best.offset < -8) return NOT_COVERED('outside-coverage');
       const I = sumPow(g.filter((_, i) => i !== bi && beams[i].color === best.color));
       const aimPt = rayEllipsoid(sat, best.dir);
       const aimLL = aimPt ? ecefToGeodetic(aimPt) : { lat: user.lat, lon: user.lon };
       return {
-        covered: true, beamId: best.id, beamLabel: `Beam ${best.id}`, color: best.color, relGainDb: bg, scanDeg: nadirAngle(sat, u), offAxisDeg: boff, hpbwEffDeg: p.hpbwDeg,
+        covered: true, beamId: best.id, beamLabel: `Beam ${best.id}`, color: best.color, relGainDb: bg - best.offset, eirpOffsetDb: best.offset, scanDeg: nadirAngle(sat, u), offAxisDeg: boff, hpbwEffDeg: p.hpbwDeg,
         cciDb: I > 0 ? bg - 10 * Math.log10(I) : Infinity, coChannelBeams: beams.filter((b) => b.color === best.color).length - 1, aim: [aimLL.lat, aimLL.lon],
       };
     }
@@ -263,15 +274,21 @@ export function kmlLevelAt(beam: KmlBeam, meaning: 'absolute-eirp' | 'relative' 
 
 function evaluateKml(L: Extract<BeamLayout, { kind: 'kml' }>, user: LatLonAlt): BeamEval {
   if (!L.beams.length) return NOT_COVERED('no-beams');
-  const vals = L.beams.map((b) => ({ b, ...kmlLevelAt(b, L.meaning, L.edgeRelDb, user.lat, user.lon) }));
+  const active = L.beams.filter((b) => !b.off);
+  if (!active.length) return NOT_COVERED('no-beams');
+  const vals = active.map((b) => {
+    const v = kmlLevelAt(b, L.meaning, L.edgeRelDb, user.lat, user.lon);
+    return { b, inside: v.inside, level: v.level + (b.eirpOffsetDb ?? 0) };
+  });
   const peakOf = (b: KmlBeam) => (L.meaning === 'edge-only' ? 0 : b.contours[0]?.level ?? 0);
   // Choose the beam with the highest level (relative to its own peak for relative modes)
   const best = vals.reduce((a, c) => (c.level > a.level ? c : a));
   if (!best.inside) return NOT_COVERED('outside-kml');
   const I = sumPow(vals.filter((v) => v.b !== best.b && v.b.color === best.b.color).map((v) => v.level));
-  const rel = L.meaning === 'absolute-eirp' ? best.level - peakOf(best.b) : best.level;
+  const off = best.b.eirpOffsetDb ?? 0;
+  const rel = (L.meaning === 'absolute-eirp' ? best.level - peakOf(best.b) : best.level) - off;
   return {
-    covered: true, beamId: best.b.id, beamLabel: best.b.name, color: best.b.color, relGainDb: rel,
+    covered: true, beamId: best.b.id, beamLabel: best.b.name, color: best.b.color, relGainDb: rel, eirpOffsetDb: off,
     absEirpDbw: L.meaning === 'absolute-eirp' ? best.level : undefined, scanDeg: 0, offAxisDeg: 0, hpbwEffDeg: 0,
     cciDb: I > 0 ? best.level - 10 * Math.log10(I) : Infinity, coChannelBeams: vals.filter((v) => v.b.color === best.b.color).length - 1,
     aim: best.b.centroid,
@@ -336,7 +353,7 @@ export function beamFootprints(payload: Payload, pose: SatPose, user?: LatLonAlt
       }));
     }
     case 'kml':
-      return L.beams.flatMap((b) => b.contours.flatMap((c, ci) => c.rings.map((ring, ri) => ({ id: `${b.id}#${ci}.${ri}`, color: b.color, ring, level: c.level }))));
+      return L.beams.filter((b) => !b.off).flatMap((b) => b.contours.flatMap((c, ci) => c.rings.map((ring, ri) => ({ id: `${b.id}#${ci}.${ri}`, color: b.color, ring, level: c.level + (b.eirpOffsetDb ?? 0) }))));
   }
 }
 
@@ -384,14 +401,14 @@ export function offAxisForLevel(p: Payload['pattern'], levelDb: number, hpbwDeg 
 export function beamContours(payload: Payload, pose: SatPose, levelsRel: number[] = [-1, -2, -3, -4, -5]): Footprint[] {
   const L = payload.layout, p = payload.pattern, sat = pose.ecef;
   const peak = payload.forward.eirpPeakDbw;
-  const beams: { id: string; color: number; dir: Vec3 }[] =
-    L.kind === 'hex-grid' ? hexBeamDirs(sat, L).map((b) => ({ id: b.id, color: b.color, dir: b.dir }))
-      : L.kind === 'spot' ? [{ id: 'spot', color: 0, dir: sub(geodeticToEcef(L.aimLat, L.aimLon, 0), sat) }] : [];
+  const beams: { id: string; color: number; dir: Vec3; offset: number }[] =
+    L.kind === 'hex-grid' ? hexBeamDirs(sat, L).map((b) => ({ id: b.id, color: b.color, dir: b.dir, offset: b.offset }))
+      : L.kind === 'spot' ? [{ id: 'spot', color: 0, dir: sub(geodeticToEcef(L.aimLat, L.aimLon, 0), sat), offset: 0 }] : [];
   const out: Footprint[] = [];
   for (const b of beams) {
     for (const lv of levelsRel) {
       const ring = coneFootprint(sat, b.dir, offAxisForLevel(p, lv), 48);
-      if (ring.length > 3) out.push({ id: `${b.id}#${lv}`, color: b.color, ring, level: +(peak + lv).toFixed(2) });
+      if (ring.length > 3) out.push({ id: `${b.id}#${lv}`, color: b.color, ring, level: +(peak + b.offset + lv).toFixed(2) });
     }
   }
   return out;

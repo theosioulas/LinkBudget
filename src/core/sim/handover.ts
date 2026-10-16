@@ -115,9 +115,13 @@ export function rankCandidates(
   }
   vis.sort((a, b) => b.el - a.el);
   const out: Candidate[] = [];
+  const shortLived: Candidate[] = [];
+  // A handover target must stay usable for a minimum dwell, otherwise it only goes in the fallback list.
+  const dwellMs = Math.max(30_000, 4 * (s.acquisitionSec + s.overlapSec) * 1000);
   for (const v of vis.slice(0, 24)) {
     const link = evalSatLink(v.sat, ms, ctx, true);
     if (!link || !link.forward.feasible || link.forward.throughputClearMbps <= 0) continue;
+    const lasting = usableAt(v.sat, ms + dwellMs, ctx, s.handoverElevationDeg);
     const orbit = ctx.orbitClassOf(v.sat.constellationId);
     let score: number;
     switch (s.policy) {
@@ -126,11 +130,13 @@ export function rankCandidates(
       default: score = link.geometry.look.el;
     }
     if (s.orbitPolicy === 'best-throughput') score = link.forward.throughputClearMbps;
-    out.push({ sat: v.sat, link, score, orbit });
+    (lasting ? out : shortLived).push({ sat: v.sat, link, score, orbit });
   }
   const prio = (c: Candidate) => (s.orbitPolicy === 'leo-first' ? ORBIT_PRIORITY[c.orbit] ?? 0 : 0);
-  out.sort((a, b) => prio(b) - prio(a) || b.score - a.score);
-  return out;
+  const order = (a: Candidate, b: Candidate) => prio(b) - prio(a) || b.score - a.score;
+  out.sort(order);
+  shortLived.sort((a, b) => b.score - a.score);
+  return [...out, ...shortLived];
 }
 
 /** Usable = above the handover elevation, inside a beam and closing the forward link. */

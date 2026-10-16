@@ -64,6 +64,7 @@ export class GlobeController {
   private lastFoot = 0;
   private terminalEntity: Cesium.Entity | null = null;
   private scanCone: Cesium.Entity | null = null;
+  private walls: Cesium.Entity[] = [];
   private terminal: Terminal | null = null;
   private links: LiveLinks = { A: null, B: null };
   private selectedId: string | null = null;
@@ -281,6 +282,26 @@ export class GlobeController {
     const center = ll(t.lat, t.lon, L / 2);
     const hpr = new Cesium.HeadingPitchRoll(Cesium.Math.toRadians(t.panelAzDeg), 0, -Cesium.Math.toRadians(t.panelTiltDeg));
     const orient = Cesium.Transforms.headingPitchRollQuaternion(center, hpr);
+    for (const w of this.walls) this.viewer.entities.remove(w);
+    this.walls = [];
+    for (const o of t.obstructions ?? []) {
+      // obstruction "wall": an arc at 120 km from the terminal whose height subtends the blocked elevation
+      const r = 120, span = ((o.azTo - o.azFrom) % 360 + 360) % 360 || 360;
+      const pts: number[] = [], heights: number[] = [];
+      for (let k = 0; k <= 24; k++) {
+        const az = Cesium.Math.toRadians(o.azFrom + (span * k) / 24);
+        const lat = t.lat + (r * Math.cos(az)) / 111.2;
+        const lon = t.lon + (r * Math.sin(az)) / (111.2 * Math.cos(Cesium.Math.toRadians(t.lat)));
+        pts.push(lon, lat);
+        heights.push(r * 1000 * Math.tan(Cesium.Math.toRadians(Math.min(o.elMax, 80))));
+      }
+      this.walls.push(this.viewer.entities.add({
+        wall: {
+          positions: Cesium.Cartesian3.fromDegreesArray(pts), maximumHeights: heights, minimumHeights: heights.map(() => 0),
+          material: Cesium.Color.fromCssColorString('#f87171').withAlpha(0.22), outline: true, outlineColor: Cesium.Color.fromCssColorString('#f87171').withAlpha(0.7),
+        },
+      }));
+    }
     if (this.scanCone) this.viewer.entities.remove(this.scanCone);
     this.scanCone = this.viewer.entities.add({
       position: center, orientation: orient,

@@ -82,4 +82,42 @@ describe('engine', () => {
     // eslint-disable-next-line no-console
     console.log('geo-leo-dual', dual.summary);
   }, 60_000);
+
+  it('what-if rain degrades Ka more than Ku and obstructions block satellites', () => {
+    const sats = buildSatellites(CONSTELLATIONS, T0);
+    const geoKa = sats.find((s) => s.constellationId === 'geo-hts')!;
+    const geoKu = sats.find((s) => s.constellationId === 'geo-ku')!;
+    const base = makeEvalContext(TERMINALS[0], DEFAULT_ANALYSIS, CONSTELLATIONS, PAYLOADS);
+    const wet = makeEvalContext(TERMINALS[0], { ...DEFAULT_ANALYSIS, liveRainMmH: 25 }, CONSTELLATIONS, PAYLOADS);
+    const dKa = evalSatLink(geoKa, T0, base)!.forward.esn0TotalClear - evalSatLink(geoKa, T0, wet)!.forward.esn0TotalClear;
+    const dKu = evalSatLink(geoKu, T0, base)!.forward.esn0TotalClear - evalSatLink(geoKu, T0, wet)!.forward.esn0TotalClear;
+    expect(dKa).toBeGreaterThan(3);
+    expect(dKu).toBeGreaterThan(0.3);
+    expect(dKa).toBeGreaterThan(2 * dKu);
+    const L = evalSatLink(geoKa, T0, base)!;
+    const az = L.geometry.look.az;
+    const blocked = makeEvalContext({ ...TERMINALS[0], obstructions: [{ azFrom: az - 10, azTo: az + 10, elMax: 60 }] }, DEFAULT_ANALYSIS, CONSTELLATIONS, PAYLOADS);
+    const Lb = evalSatLink(geoKa, T0, blocked)!;
+    expect(Lb.forward.feasible).toBe(false);
+    expect(Lb.forward.reason).toMatch(/obstruction/);
+    expect(quickVisible(geoKa, T0, blocked, 5)).toBeNull();
+  });
+
+  it('applies per-beam overrides on GEO multibeam payloads', () => {
+    const sats = buildSatellites(CONSTELLATIONS, T0);
+    const geo = sats.find((s) => s.constellationId === 'geo-hts')!;
+    const pl = PAYLOADS.find((p) => p.id === 'pl-geo-ka-eu')!;
+    const ctx = makeEvalContext(TERMINALS[0], DEFAULT_ANALYSIS, CONSTELLATIONS, PAYLOADS);
+    const L0 = evalSatLink(geo, T0, ctx)!;
+    const id = L0.beam.beamId;
+    const boosted = { ...pl, layout: { ...pl.layout, overrides: { [id]: { eirpOffsetDb: 3 } } } } as typeof pl;
+    const ctxB = makeEvalContext(TERMINALS[0], DEFAULT_ANALYSIS, CONSTELLATIONS, PAYLOADS.map((p) => (p.id === pl.id ? boosted : p)));
+    const L1 = evalSatLink(geo, T0, ctxB)!;
+    expect(L1.forward.eirpDbw - L0.forward.eirpDbw).toBeCloseTo(3, 5);
+    expect(L1.ret.gtDbK).toBeCloseTo(L0.ret.gtDbK, 5);
+    const off = { ...pl, layout: { ...pl.layout, overrides: { [id]: { off: true } } } } as typeof pl;
+    const ctxO = makeEvalContext(TERMINALS[0], DEFAULT_ANALYSIS, CONSTELLATIONS, PAYLOADS.map((p) => (p.id === pl.id ? off : p)));
+    const L2 = evalSatLink(geo, T0, ctxO)!;
+    expect(L2.beam.beamId).not.toBe(id);
+  });
 });

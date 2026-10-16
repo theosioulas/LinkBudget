@@ -4,6 +4,7 @@ import { NumberField, SelectField, Toggle, download, fmtNum } from './controls';
 import { TimeChart, type Series } from './Charts';
 import { globe } from '../globe/GlobeView';
 import type { SimResult } from '../core/sim/handover';
+import { DEMOS, applyDemo } from '../app/demos';
 
 const A = '#22d3ee', B = '#f472b6';
 
@@ -87,6 +88,15 @@ export function TimelinePanel() {
       </div>
       <div className="bottom-body">
         <div className="bottom-side">
+          <div className="field" style={{ marginBottom: 6 }}>
+            <label>Demo scenarios</label>
+            <div className="input-wrap" style={{ borderColor: 'rgba(34,211,238,0.45)' }}>
+              <select value="" onChange={(e) => applyDemo(e.target.value)}>
+                <option value="">▶ Load a demo…</option>
+                {DEMOS.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+              </select>
+            </div>
+          </div>
           <div className="fgrid">
             <SelectField label="Satellite selection" value={mbb.policy} onChange={(v) => up({ policy: v })}
               options={[['longest-visibility', 'Longest visibility'], ['max-elevation', 'Max elevation'], ['best-sinr', 'Best Es/N0']]} />

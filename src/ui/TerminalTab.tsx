@@ -1,5 +1,5 @@
 import { useStore, activeTerminal } from '../store/store';
-import type { Terminal, TerminalBand } from '../core/model';
+import type { Terminal, TerminalBand, Obstruction } from '../core/model';
 import { NumberField, SelectField, TextField, Toggle, Sect, fmtNum } from './controls';
 import { globe } from '../globe/GlobeView';
 import { siteClimate } from '../core/itu/atmosphere';
@@ -7,6 +7,14 @@ import { siteClimate } from '../core/itu/atmosphere';
 const PLACES: [string, number, number][] = [
   ['Athens', 37.98, 23.73], ['London', 51.51, -0.13], ['New York', 40.71, -74.01], ['Singapore', 1.35, 103.82], ['Dubai', 25.2, 55.27],
   ['São Paulo', -23.55, -46.63], ['Tromsø', 69.65, 18.96], ['Mid-Atlantic ship', 35.0, -40.0], ['Nairobi', -1.29, 36.82], ['Sydney', -33.87, 151.21],
+];
+
+export const OBSTRUCTION_PRESETS: [string, Obstruction[]][] = [
+  ['Clear sky', []],
+  ['Urban canyon (N–S street)', [{ azFrom: 30, azTo: 150, elMax: 60 }, { azFrom: 210, azTo: 330, elMax: 60 }]],
+  ['Ship superstructure aft', [{ azFrom: 135, azTo: 225, elMax: 40 }]],
+  ['Mountain valley (south ridge)', [{ azFrom: 100, azTo: 260, elMax: 35 }]],
+  ['Rooftop with tree line west', [{ azFrom: 225, azTo: 315, elMax: 45 }]],
 ];
 
 function BandEditor({ k, band, onChange }: { k: 'Ku' | 'Ka'; band?: TerminalBand; onChange: (b?: TerminalBand) => void }) {
@@ -107,6 +115,26 @@ export function TerminalTab() {
       <Sect>Bands</Sect>
       <BandEditor k="Ku" band={t.bands.Ku} onChange={(b) => u({ bands: { ...t.bands, Ku: b } })} />
       <BandEditor k="Ka" band={t.bands.Ka} onChange={(b) => u({ bands: { ...t.bands, Ka: b } })} />
+
+      <Sect>Obstruction mask</Sect>
+      <div className="small dim" style={{ marginBottom: 6 }}>Satellites inside a blocked sector below its elevation are not usable (ship superstructure, buildings, terrain). Shown as red walls on the globe.</div>
+      {(t.obstructions ?? []).map((o, i) => (
+        <div key={i} className="fgrid three" style={{ marginBottom: 4, alignItems: 'end' }}>
+          <NumberField label="Az from" unit="°" value={o.azFrom} step={5} min={0} max={360} onChange={(v) => u({ obstructions: (t.obstructions ?? []).map((x, j) => (j === i ? { ...x, azFrom: v } : x)) })} />
+          <NumberField label="Az to" unit="°" value={o.azTo} step={5} min={0} max={360} onChange={(v) => u({ obstructions: (t.obstructions ?? []).map((x, j) => (j === i ? { ...x, azTo: v } : x)) })} />
+          <div className="row" style={{ gap: 4 }}>
+            <NumberField label="Below el." unit="°" value={o.elMax} step={1} min={0} max={90} onChange={(v) => u({ obstructions: (t.obstructions ?? []).map((x, j) => (j === i ? { ...x, elMax: v } : x)) })} />
+            <button className="btn sm icon danger" style={{ marginBottom: 2 }} onClick={() => u({ obstructions: (t.obstructions ?? []).filter((_, j) => j !== i) })}>✕</button>
+          </div>
+        </div>
+      ))}
+      <div className="row wrap" style={{ gap: 5 }}>
+        <button className="btn sm" onClick={() => u({ obstructions: [...(t.obstructions ?? []), { azFrom: 90, azTo: 180, elMax: 30 }] })}>＋ Sector</button>
+        <select className="btn sm" value="" onChange={(e) => { const p = OBSTRUCTION_PRESETS.find((x) => x[0] === e.target.value); if (p) u({ obstructions: p[1] }); }}>
+          <option value="">Presets…</option>
+          {OBSTRUCTION_PRESETS.map(([n]) => <option key={n} value={n}>{n}</option>)}
+        </select>
+      </div>
 
       <Sect>Losses & margins</Sect>
       <div className="fgrid three">

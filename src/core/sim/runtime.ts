@@ -1,4 +1,4 @@
-import type { Constellation, Payload, Terminal, AnalysisSettings, OrbitClass } from '../model';
+import { isObstructed, type Constellation, type Payload, type Terminal, type AnalysisSettings, type OrbitClass } from '../model';
 import { walkerElements } from '../orbit/walker';
 import { makeKeplerSat, makeGeoSat, makeTleSat, parseTleText, satEcef, type SatelliteDef } from '../orbit/propagator';
 import { lookAngles, geodeticToEcef, type LatLonAlt } from '../geo/coords';
@@ -74,6 +74,7 @@ export function quickVisible(sat: SatelliteDef, ms: number, ctx: EvalContext, mi
   const sinEl = (d[0] * up[0] + d[1] * up[1] + d[2] * up[2]) / r;
   const el = (Math.asin(sinEl) * 180) / Math.PI;
   if (el < minEl) return null;
+  if (ctx.terminal.obstructions?.length && isObstructed(ctx.terminal, lookAngles(ctx.obs, pos).az, el)) return null;
   const scan = terminalScanDeg(ctx.terminal, pos);
   if (ctx.terminal.type === 'phased-array' && scan > ctx.terminal.maxScanDeg) return null;
   return { pos, el, scan };

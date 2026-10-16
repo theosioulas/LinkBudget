@@ -20,6 +20,17 @@ The app opens over the terminal (Athens by default) with Starlink, OneWeb, O3b m
 satellites enabled, runs a 20-minute make-before-break timeline and shows live budgets for both
 terminal beams. Click the globe in **Terminal → Pick on globe** to move the terminal anywhere.
 
+**Demo scenarios** (timeline panel → *Load a demo…*):
+
+| Demo | What it shows |
+| --- | --- |
+| LEO ↔ LEO make-before-break | Starlink handovers every few minutes with zero interruption |
+| Multi-orbit MBB in an urban canyon | East/west sky blocked below 60°: traffic moves OneWeb → O3b mPOWER → GEO and back (≈LEO 76 % / MEO 18 % / GEO 6 %), 100 % availability |
+| GEO anchor + LEO | Beam A parked on the GEO HTS, beam B tracking LEO |
+| MEO make-before-break (6 h) | Long O3b mPOWER passes |
+| OneWeb push-broom beams | Es/N0 ripple as the 16 fixed beams sweep over the terminal |
+| Single-beam terminal | The same LEO run with break-before-make outages |
+
 ## What you can do
 
 | Area | Capabilities |
@@ -27,7 +38,9 @@ terminal beams. Click the globe in **Terminal → Pick on globe** to move the te
 | **Constellations** | Walker Delta/Star shells (two-body + J2 secular drift), station-kept GEO slots with residual inclination (figure-8), TLE files / pasted TLEs, **live CelesTrak TLEs** (SGP4 or fast Kepler+J2). Presets: Starlink Gen1 (4,408), OneWeb (588), Kuiper (3,236), Lightspeed (198), O3b mPOWER (13), GEO Ka-HTS Europe & Americas, GEO Ku FSS. |
 | **Payload editor** | Every parameter: band, bent-pipe / regenerative, forward EIRP, OBO, C/IM, return G/T, carrier bandwidth & roll-off, polarisation, feeder-link C/N, C/ASI, X-pol isolation, min elevation, antenna pattern (phased array with cosⁿ scan loss & beam broadening, Bessel aperture, ITU-R S.672, Gaussian). |
 | **Beam layouts** | Steerable spots over hexagonal ground cells (LEO/MEO ESAs) with frequency-reuse colours, co-channel load and scheduler separation · OneWeb-style fixed push-broom strips · GEO multibeam hex grid (4-colour reuse) · single spot / regional beam · **imported KML/KMZ contours** (absolute EIRP, relative dB, or beam-edge polygons). Export any layout as an operator-style EIRP-contour KML. |
-| **Terminal** | Electronically steered array or parabolic dish, 1 or 2 independent beams, Ku and/or Ka bands (gain, G/T, EIRP), Rx/Tx scan-loss exponents, scan limit, panel tilt/azimuth, pointing/radome/polarisation losses, implementation margin, ground-spill noise. |
+| **Terminal** | Electronically steered array or parabolic dish, 1 or 2 independent beams, Ku and/or Ka bands (gain, G/T, EIRP), Rx/Tx scan-loss exponents, scan limit, panel tilt/azimuth, pointing/radome/polarisation losses, implementation margin, ground-spill noise, **obstruction mask** (azimuth sectors blocked below an elevation, drawn as walls on the globe). |
+| **GEO per-beam control** | For multibeam and KML payloads: switch individual beams off, change their reuse colour, add per-beam EIRP offsets (return G/T unaffected). |
+| **Weather what-if** | "Rain now" slider applies an instantaneous rain rate along the slant path (P.618 effective path) to the current-conditions budget, including the rain-noise G/T degradation. |
 | **Link budget** | Forward & return line items: EIRP toward terminal, FSPL, gases, cloud, rain, scintillation, total attenuation (P.618 §2.5), rain-induced sky-noise increase, G/T at scan angle, C/N0, Es/N0, co-channel C/I from the beam geometry, C/ASI, C/XPI (antenna ∥ rain XPD), C/IM, feeder C/N, end-to-end Es/(N0+I0), DVB-S2/S2X ACM MODCOD, throughput, annual availability (inverted P.618), PFD, Doppler & Doppler rate, RTT. |
 | **Make-before-break** | Dual-beam terminal state machine: beam B acquires and locks the next satellite while beam A carries traffic; traffic switches on lock; A is released after the overlap. Policies: longest visibility / max elevation / best Es/N0; multi-orbit: LEO-first → MEO → GEO, GEO/MEO + LEO dual, best throughput. Single-beam terminals fall back to break-before-make so you can quantify the outage. |
 | **Coverage maps** | Gridded service-area analysis from any satellite: EIRP, Es/(N0+I0), C/I, throughput, availability, elevation — rendered as a heat-map, exportable to CSV/KML. |

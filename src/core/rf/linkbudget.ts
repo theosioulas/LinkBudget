@@ -1,4 +1,4 @@
-import type { Payload, Terminal, AnalysisSettings, TerminalBand, OrbitClass } from '../model';
+import { isObstructed, type Payload, type Terminal, type AnalysisSettings, type TerminalBand, type OrbitClass } from '../model';
 import type { BeamEval } from './beams';
 import type { LookAngles, LatLonAlt } from '../geo/coords';
 import { azElToEcefDir, geodeticToEcef } from '../geo/coords';
@@ -141,13 +141,22 @@ function direction(dir: 'forward' | 'return', x: LinkInputs, band: TerminalBand 
   if (!beam.covered) return empty('Terminal outside beam coverage');
   if (look.el < Math.max(pl.minElevationDeg, 0)) return empty(`Elevation ${look.el.toFixed(1)}° below payload minimum ${pl.minElevationDeg}°`);
   if (t.type === 'phased-array' && scan > t.maxScanDeg) return empty(`Terminal scan ${scan.toFixed(1)}° exceeds limit ${t.maxScanDeg}°`);
+  if (isObstructed(t, look.az, look.el)) return empty(`Line of sight blocked by obstruction (az ${look.az.toFixed(0)}°, el ${look.el.toFixed(1)}°)`);
 
   const tau = tauForPolarization(pd.pol);
   const p = pOf(s);
   const inc = { gas: s.includeGas, cloud: s.includeCloud, rain: s.includeRain, scint: s.includeScint };
   const atmBase = { lat: t.lat, fGHz: f, elDeg: look.el, tauDeg: tau, antennaDiameterM: t.apertureM, climate, R001Override: s.R001Override, include: inc };
   const atmP = atmosphericAttenuation({ ...atmBase, pPct: p });
-  const atmClear = atmosphericAttenuation({ ...atmBase, pPct: 50, include: { gas: inc.gas, cloud: false, rain: false, scint: false } });
+  const gasOnly = atmosphericAttenuation({ ...atmBase, pPct: 50, include: { gas: inc.gas, cloud: false, rain: false, scint: false } });
+  const live = s.liveRainMmH ?? 0;
+  // "Current" conditions: clear sky, or a what-if rain event of `live` mm/h along the slant path (P.618 effective path).
+  const atmClear = live > 0
+    ? (() => {
+      const w = atmosphericAttenuation({ ...atmBase, pPct: 0.01, R001Override: live, include: { gas: inc.gas, cloud: inc.cloud, rain: true, scint: false } });
+      return { ...w, total: w.gas + w.cloud + w.rain };
+    })()
+    : gasOnly;
   const fspl = fsplDb(f, look.range);
   const cosScan = Math.max(Math.cos((Math.min(scan, 89) * Math.PI) / 180), 0.02);
 
@@ -155,17 +164,18 @@ function direction(dir: 'forward' | 'return', x: LinkInputs, band: TerminalBand 
   let eirp: number, gt: number;
   let gtFn: (atmTotal: number) => number;
   if (fwd) {
-    const satEirp = beam.absEirpDbw !== undefined ? beam.absEirpDbw : pl.forward.eirpPeakDbw + beam.relGainDb;
+    const satEirp = beam.absEirpDbw !== undefined ? beam.absEirpDbw : pl.forward.eirpPeakDbw + beam.relGainDb + (beam.eirpOffsetDb ?? 0);
     eirp = satEirp - pl.forward.oboDb;
-    lines.push({ section: 'Transmit', label: 'Satellite EIRP (beam peak, saturated)', value: beam.absEirpDbw !== undefined ? beam.absEirpDbw - beam.relGainDb : pl.forward.eirpPeakDbw, unit: 'dBW' });
+    lines.push({ section: 'Transmit', label: 'Satellite EIRP (beam peak, saturated)', value: beam.absEirpDbw !== undefined ? beam.absEirpDbw - beam.relGainDb - (beam.eirpOffsetDb ?? 0) : pl.forward.eirpPeakDbw, unit: 'dBW' });
     lines.push({ section: 'Transmit', label: `Beam gain toward terminal (${beam.beamLabel})`, value: beam.relGainDb, unit: 'dB', note: beam.offAxisDeg ? `off-axis ${beam.offAxisDeg.toFixed(2)}°, sat scan ${beam.scanDeg.toFixed(1)}°` : undefined });
+    if (beam.eirpOffsetDb) lines.push({ section: 'Transmit', label: 'Per-beam EIRP adjustment', value: beam.eirpOffsetDb, unit: 'dB' });
     lines.push({ section: 'Transmit', label: 'Output back-off', value: -pl.forward.oboDb, unit: 'dB' });
     lines.push({ section: 'Transmit', label: 'EIRP toward terminal', value: eirp, unit: 'dBW', key: true });
     // terminal receive
     const gScan = band.rxGainDbi + 10 * t.scanLossExpRx * Math.log10(cosScan) - t.radomeLossDb;
     const tsys0 = undb(band.rxGainDbi - band.gtDbK);
     const tGround = t.groundSpillK * (1 - Math.sin((look.el * Math.PI) / 180));
-    const tAtm0 = skyNoiseTemp(atmClear.total);
+    const tAtm0 = skyNoiseTemp(gasOnly.total);
     gtFn = (A: number) => gScan - db(tsys0 + tGround + Math.max(0, skyNoiseTemp(A) - tAtm0));
     gt = gtFn(atmClear.total);
   } else {
@@ -203,7 +213,8 @@ function direction(dir: 'forward' | 'return', x: LinkInputs, band: TerminalBand 
     lines.push({ section: 'Receive', label: `Satellite G/T toward terminal (${beam.beamLabel})`, value: gt, unit: 'dB/K' });
   }
   lines.push({ section: 'Carrier', label: 'Boltzmann constant', value: K_BOLTZ_DB, unit: 'dBW/K/Hz' });
-  lines.push({ section: 'Carrier', label: 'C/N0 clear sky', value: cn0Clear, unit: 'dBHz' });
+  if (live > 0) lines.push({ section: 'Path', label: `What-if rain ${live} mm/h (current conditions)`, value: -(atmClear.total - gasOnly.total), unit: 'dB', key: true });
+  lines.push({ section: 'Carrier', label: live > 0 ? 'C/N0 current (what-if rain)' : 'C/N0 clear sky', value: cn0Clear, unit: 'dBHz' });
   lines.push({ section: 'Carrier', label: `C/N0 @ ${(100 - p).toFixed(2)}% avail.`, value: cn0P, unit: 'dBHz' });
   lines.push({ section: 'Carrier', label: `Symbol rate (BW ${pd.bandwidthMHz} MHz, α=${pd.rolloff})`, value: Rs / 1e6, unit: 'Msps' });
   const esClear = cn0Clear - db(Rs), esP = cn0P - db(Rs);
