@@ -1,0 +1,92 @@
+{
+ "r001": {
+  "file": "r001.bin",
+  "res": 0.5,
+  "nlat": 361,
+  "nlon": 721,
+  "scale": 0.01,
+  "description": "ITU-R P.837-7 rainfall rate exceeded 0.01% of an average year [mm/h]",
+  "min": 0.0,
+  "max": 148.623
+ },
+ "h0": {
+  "file": "h0.bin",
+  "res": 1.0,
+  "nlat": 181,
+  "nlon": 361,
+  "scale": 0.001,
+  "description": "ITU-R P.839-4 mean annual 0 degC isotherm height above mean sea level [km]",
+  "min": 0.018666666666666665,
+  "max": 6.256333333333334
+ },
+ "lred_0.1": {
+  "file": "lred_0.1.bin",
+  "res": 1.0,
+  "nlat": 181,
+  "nlon": 361,
+  "scale": 0.0001,
+  "description": "ITU-R P.840-7 reduced cloud liquid water content exceeded 0.1% [kg/m2]",
+  "min": 0.0,
+  "max": 4.980925244444444
+ },
+ "lred_1": {
+  "file": "lred_1.bin",
+  "res": 1.0,
+  "nlat": 181,
+  "nlon": 361,
+  "scale": 0.0001,
+  "description": "ITU-R P.840-7 reduced cloud liquid water content exceeded 1% [kg/m2]",
+  "min": 0.0,
+  "max": 4.532578006172839
+ },
+ "lred_5": {
+  "file": "lred_5.bin",
+  "res": 1.0,
+  "nlat": 181,
+  "nlon": 361,
+  "scale": 0.0001,
+  "description": "ITU-R P.840-7 reduced cloud liquid water content exceeded 5% [kg/m2]",
+  "min": 0.0,
+  "max": 3.976225566666667
+ },
+ "rho_50": {
+  "file": "rho_50.bin",
+  "res": 1.0,
+  "nlat": 181,
+  "nlon": 361,
+  "scale": 0.001,
+  "description": "ITU-R P.836-6 surface water vapour density (median) [g/m3]",
+  "min": 0.0,
+  "max": 23.3888102962963
+ },
+ "v_50": {
+  "file": "v_50.bin",
+  "res": 1.0,
+  "nlat": 181,
+  "nlon": 361,
+  "scale": 0.001,
+  "description": "ITU-R P.836-6 total columnar water vapour (median) [kg/m2]",
+  "min": 0.0,
+  "max": 58.468951753086415
+ },
+ "nwet_50": {
+  "file": "nwet_50.bin",
+  "res": 1.0,
+  "nlat": 181,
+  "nlon": 361,
+  "scale": 0.01,
+  "description": "ITU-R P.453-13 wet term of surface refractivity (median) [ppm]",
+  "min": 0.483,
+  "max": 137.132
+ },
+ "topo": {
+  "file": "topo.bin",
+  "res": 0.5,
+  "nlat": 361,
+  "nlon": 721,
+  "scale": 0.001,
+  "description": "ITU-R P.1511-1 topographic height above mean sea level [km]",
+  "min": 0.0,
+  "max": 6.01
+ }
+}
