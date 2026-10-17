@@ -26,8 +26,9 @@ terminal beams. Click the globe in **Terminal → Pick on globe** to move the te
 
 **Scenario builder** (top bar → *Scenario*): an object browser in the spirit of STK. Set up the ground terminal (model, location, one or two simultaneous beams), add or remove satellite systems from the library or your own Walker / GEO / TLE sets, and choose the **beam plan**:
 
-- *Make-before-break*: both beams may use any satellite; the free beam acquires the next satellite before the serving one is lost.
-- *Dedicated beams*: tick which systems beam A and beam B may track (e.g. A → GEO, B → Starlink); each beam re-points within its own systems and traffic rides the better beam.
+- **Beam A → / Beam B →**: each beam has an on/off switch, the systems it may track, *Automatic* or one pinned satellite (systems up to 400 satellites, e.g. a GEO slot), its selection rule (longest visibility / highest elevation / best signal) and its own minimum and hand-over elevation. A beam re-points within its own systems.
+- **Traffic**: the faster beam, beam A primary (B backup), beam B primary (A backup), or both **bonded** (throughputs add up).
+- *Shared make-before-break* instead lets both beams draw from the same systems: the free beam locks the next satellite before the serving one is lost.
 
 The simulation re-runs automatically after structural changes. The *Payloads* panel edits the payload of each system in the scenario (*Make independent* gives a system its own copy of a shared payload). Ready-made setups are under **Templates**; applying one replaces the satellites, beam plan and simulation settings. Every system can be added or removed, including the GEO wide beam; its slot longitude and spot aim can optionally follow the terminal (switches in the Scenario and Payloads panels).
 

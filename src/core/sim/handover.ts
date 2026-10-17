@@ -9,6 +9,7 @@
  */
 import type { MbbSettings, OrbitClass } from '../model';
 import type { SatelliteDef } from '../orbit/propagator';
+import { resolveBeams, isDedicated, trafficMode } from './beamplan';
 import { evalSatLink, quickVisible, type EvalContext } from './runtime';
 import type { LinkResult } from '../rf/linkbudget';
 
@@ -156,8 +157,13 @@ function remainingVisibility(sat: SatelliteDef, ms: number, ctx: EvalContext, s:
 }
 
 export function runHandoverSim(sats: SatelliteDef[], ctx: EvalContext, s: MbbSettings, startMs: number, onProgress?: (f: number) => void): SimResult {
-  const pool = s.allowedConstellations.length ? sats.filter((x) => s.allowedConstellations.includes(x.constellationId)) : sats;
-  const dual = ctx.terminal.beams === 2;
+  const enabledIds = [...new Set(sats.map((x) => x.constellationId))];
+  const cfg = resolveBeams(s, ctx.orbitClassOf, enabledIds);
+  const twoBeams = ctx.terminal.beams === 2 && cfg.A.on && cfg.B.on;
+  // Shared (make-before-break) pool: the systems ticked for the beams, else the allowed list, else all.
+  const sharedIds = !isDedicated(s) && cfg.A.systems.length ? cfg.A.systems : s.allowedConstellations;
+  const pool = sharedIds.length ? sats.filter((x) => sharedIds.includes(x.constellationId)) : sats;
+  const dual = twoBeams;
   const stepMs = Math.max(0.2, s.stepSec) * 1000;
   const endMs = startMs + s.durationMin * 60_000;
   const leadMs = (s.acquisitionSec + s.overlapSec) * 1000 + stepMs;
@@ -172,14 +178,20 @@ export function runHandoverSim(sats: SatelliteDef[], ctx: EvalContext, s: MbbSet
   let inOutage = false;
   let visible = 0;
   const other = (b: BeamName): BeamName => (b === 'A' ? 'B' : 'A');
-  const isLeo = (o: OrbitClass) => o === 'LEO';
-  // Dedicated beams: each beam tracks its own set of systems and re-points (break-before-make)
-  // within that set; traffic rides the better of the two. 'geo-leo-dual' = A on GEO/MEO, B on LEO.
-  const dedicated = dual && (s.orbitPolicy === 'dedicated' || s.orbitPolicy === 'geo-leo-dual');
-  const geoLeo = dedicated && s.orbitPolicy === 'geo-leo-dual';
-  const inSet = (ids: string[] | undefined) => (x: SatelliteDef) => !ids?.length || ids.includes(x.constellationId);
-  const poolA = geoLeo ? pool.filter((x) => !isLeo(ctx.orbitClassOf(x.constellationId))) : pool.filter(inSet(s.beamAssign?.A));
-  const poolB = geoLeo ? pool.filter((x) => isLeo(ctx.orbitClassOf(x.constellationId))) : pool.filter(inSet(s.beamAssign?.B));
+  // Dedicated beams: each beam tracks its own systems (or one pinned satellite) with its own selection
+  // rule and elevation limits, re-pointing (break-before-make) within them; the traffic mode decides
+  // which beam carries the traffic. A beam switched off stays idle.
+  const dedicated = ctx.terminal.beams === 2 && isDedicated(s);
+  const traffic = trafficMode(s);
+  const poolFor = (b: BeamName) => {
+    const c = cfg[b];
+    if (!c.on) return [];
+    if (c.satId) return sats.filter((x) => x.id === c.satId);
+    return c.systems.length ? sats.filter((x) => c.systems.includes(x.constellationId)) : sats;
+  };
+  const poolA = poolFor('A'), poolB = poolFor('B');
+  const beamSettings = (b: BeamName): MbbSettings => ({ ...s, policy: cfg[b].policy, minElevationDeg: cfg[b].minElevationDeg, handoverElevationDeg: cfg[b].handoverElevationDeg });
+  const sA = beamSettings('A'), sB = beamSettings('B');
   const thr = (b: BeamName) => (beams[b].phase === 'tracking' ? beams[b].link?.forward.throughputClearMbps ?? 0 : -1);
 
   const startAcq = (b: BeamName, c: Candidate, t: number, type: SimEvent['type'] = 'acquire') => {
@@ -198,7 +210,8 @@ export function runHandoverSim(sats: SatelliteDef[], ctx: EvalContext, s: MbbSet
       const st = beams[b];
       if (!st.sat) continue;
       const link = evalSatLink(st.sat, t, ctx, true);
-      const ok = link && link.forward.feasible && link.geometry.look.el >= s.minElevationDeg;
+      const minEl = dedicated ? cfg[b].minElevationDeg : s.minElevationDeg;
+      const ok = link && link.forward.feasible && link.geometry.look.el >= minEl;
       if (!ok) {
         events.push({ t, beam: b, type: 'lost', satName: st.sat.name, detail: link?.forward.reason ?? 'below horizon' });
         beams[b] = { sat: null, phase: 'idle', since: t, link: null };
@@ -228,15 +241,17 @@ export function runHandoverSim(sats: SatelliteDef[], ctx: EvalContext, s: MbbSet
 
     if (dedicated) {
       for (const b of ['A', 'B'] as BeamName[]) {
+        const bs = b === 'A' ? sA : sB;
         const cur = beams[b].sat;
-        // GEO/MEO beams in the GEO+LEO mode stay put; otherwise re-point ahead of the loss of the satellite.
-        const trigger = cur && !(geoLeo && b === 'A') && !usableAt(cur, t + leadMs, ctx, s.handoverElevationDeg);
+        // re-point ahead of losing the satellite (a pinned satellite is kept as long as it is usable)
+        const trigger = cur && !cfg[b].satId && !usableAt(cur, t + leadMs, ctx, bs.handoverElevationDeg);
         if (cur && !trigger) continue;
-        const c = rankCandidates(b === 'A' ? poolA : poolB, t, ctx, geoLeo && b === 'A' ? { ...s, policy: 'best-sinr' } : s, inUse())[0];
+        const c = rankCandidates(b === 'A' ? poolA : poolB, t, ctx, bs, inUse())[0];
         if (c) { startAcq(b, c, t, cur ? 'break' : 'acquire'); if (n === 0) beams[b].phase = 'tracking'; }
       }
-      primary = geoLeo
-        ? beams.B.phase === 'tracking' ? 'B' : beams.A.phase === 'tracking' ? 'A' : null
+      const pref = traffic === 'A' || traffic === 'B' ? traffic : null;
+      primary = pref
+        ? beams[pref].phase === 'tracking' ? pref : beams[other(pref)].phase === 'tracking' ? other(pref) : null
         : thr('A') < 0 && thr('B') < 0 ? null : thr('A') >= thr('B') ? 'A' : 'B';
     } else {
       // 3. no primary → promote a tracking beam or acquire the best candidate
@@ -288,13 +303,17 @@ export function runHandoverSim(sats: SatelliteDef[], ctx: EvalContext, s: MbbSet
     const A = sample(beams.A, ctx), B = sample(beams.B, ctx);
     const act = primary ? (primary === 'A' ? A : B) : null;
     const outage = !act || act.thrFwd <= 0;
+    // bonded: both locked beams carry traffic, throughputs add up
+    const bonded = dedicated && traffic === 'bonded';
+    const lockedFwd = (A.phase === 'tracking' ? A.thrFwd : 0) + (B.phase === 'tracking' ? B.thrFwd : 0);
+    const lockedRtn = (A.phase === 'tracking' ? A.thrRtn : 0) + (B.phase === 'tracking' ? B.thrRtn : 0);
     if (outage !== inOutage) {
       events.push({ t, beam: primary ?? 'A', type: outage ? 'outage-start' : 'outage-end', satName: act?.satName ?? '' });
       inOutage = outage;
     }
     steps.push({
       t, A, B, active: outage ? null : primary,
-      activeThrFwd: act?.thrFwd ?? 0, activeThrRtn: act?.thrRtn ?? 0,
+      activeThrFwd: bonded ? lockedFwd : act?.thrFwd ?? 0, activeThrRtn: bonded ? lockedRtn : act?.thrRtn ?? 0,
       aggregateThrFwd: A.thrFwd + B.thrFwd,
       latencyMs: act ? act.delayMs : NaN,
       visible,

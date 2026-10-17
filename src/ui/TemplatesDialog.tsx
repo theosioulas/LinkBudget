@@ -28,7 +28,7 @@ export function TemplatesDialog() {
             {DEMOS.map((d) => (
               <button key={d.id} className={`scn ${scenarioId === d.id ? 'on' : ''}`} onClick={() => applyDemo(d.id)}>
                 <span className="t">{d.name}{scenarioId === d.id && <span className="check" style={{ width: 16, height: 16, display: 'inline-flex' }}><Icon.check /></span>}</span>
-                <span className="sys">{d.systems} · {d.beams === 1 ? 'single beam' : d.mbb.orbitPolicy === 'dedicated' ? 'dedicated beams' : 'dual-beam MBB'}</span>
+                <span className="sys">{d.systems}</span>
                 <span className="d">{d.description}</span>
               </button>
             ))}

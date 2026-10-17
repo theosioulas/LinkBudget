@@ -155,12 +155,25 @@ export type OrbitPolicy = 'leo-first' | 'geo-leo-dual' | 'single' | 'best-throug
 /** Dual-beam terminal with dedicated beams: the constellations each beam may use (empty = any). */
 export interface BeamAssignment { A: string[]; B: string[] }
 
+export interface BeamCfg {
+  on: boolean;
+  systems: string[];
+  satId: string | null;
+  policy: HandoverPolicy;
+  minElevationDeg: number;
+  handoverElevationDeg: number;
+}
+
 export interface MbbSettings {
   policy: HandoverPolicy;
   orbitPolicy: OrbitPolicy;
   allowedConstellations: string[]; // empty = all enabled
-  /** Used when orbitPolicy is 'dedicated': which systems beam A and beam B may track. */
+  /** Used when orbitPolicy is 'dedicated': which systems beam A and beam B may track (older format). */
   beamAssign?: BeamAssignment;
+  /** Per-beam settings (see core/sim/beamplan.ts); unset fields fall back to the scenario-wide values. */
+  beamCfg?: { A?: Partial<BeamCfg>; B?: Partial<BeamCfg> };
+  /** Which beam carries the traffic when both are locked: the better one, A, B, or both bonded. */
+  traffic?: 'best' | 'A' | 'B' | 'bonded';
   minElevationDeg: number; // terminal-side
   handoverElevationDeg: number; // trigger when serving falls below
   hysteresisDb: number;
