@@ -83,6 +83,7 @@ interface State {
   /** Constellation whose payload the Payload panel edits. */
   payloadSystemId: string | null;
   templatesOpen: boolean;
+  wizardOpen: boolean;
   view: { mode: 'terminal' | 'earth' | 'satellite'; satId?: string | null; rangeKm?: number; nonce: number };
   sim: SimResult | null;
   simStale: boolean;
@@ -153,6 +154,7 @@ export const useStore = create<State>((set, get) => ({
   focusPayloadSatId: null,
   payloadSystemId: null,
   templatesOpen: false,
+  wizardOpen: false,
   view: { mode: 'terminal', nonce: 0 },
   sim: null,
   simStale: false,

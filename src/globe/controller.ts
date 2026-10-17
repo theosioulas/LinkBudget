@@ -536,6 +536,7 @@ export class GlobeController {
       if (!ring) { P.vol.hide(); continue; }
       const oc = this.consts.get(s.constellationId)?.orbitClass;
       P.vol.setAlphas(oc === 'GEO' ? 0.05 : oc === 'MEO' ? 0.1 : 0.22, oc === 'GEO' ? 0.12 : 0.28);
+      P.vol.setRays(oc === 'LEO');
       P.vol.update(sp, ring, { cone: showCone, footprint: showFoot });
     }
     const wall = performance.now();

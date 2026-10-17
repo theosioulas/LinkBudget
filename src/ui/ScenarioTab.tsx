@@ -355,6 +355,7 @@ function SystemChips({ ids, value, onChange, all }: { ids: Constellation[]; valu
 
 function BeamCard({ b, cfg, systems, onChange }: { b: 'A' | 'B'; cfg: BeamConfig; systems: Constellation[]; onChange: (p: Partial<BeamConfig>) => void }) {
   const sats = useStore((s) => s.sats);
+  const live = useStore((s) => s.live[b]);
   const names = (cfg.systems.length ? systems.filter((c) => cfg.systems.includes(c.id)) : systems).map((c) => c.name);
   const candidates = sats.filter((x) => !cfg.systems.length || cfg.systems.includes(x.constellationId));
   const pinned = cfg.satId ? sats.find((x) => x.id === cfg.satId) : undefined;
@@ -366,6 +367,9 @@ function BeamCard({ b, cfg, systems, onChange }: { b: 'A' | 'B'; cfg: BeamConfig
         <span className="grow ellipsis small">{cfg.on ? (pinned ? pinned.name : names.join(' / ') || 'no system') : 'off'}</span>
         <Toggle checked={cfg.on} onChange={(v) => onChange({ on: v })} label="" title={cfg.on ? `Switch beam ${b} off` : `Switch beam ${b} on`} />
       </div>
+      {cfg.on && !live && (
+        <div className="small" style={{ color: 'var(--warn)', padding: '0 10px 6px' }}>No satellite of these systems is usable from the terminal right now (check elevation limits, location or obstructions).</div>
+      )}
       {cfg.on && (
         <div className="beam-body">
           <div className="small dim">Systems</div>
@@ -490,6 +494,7 @@ export function ScenarioTab() {
     <div>
       <div className="ob-head">
         <input className="ob-name" value={name} onChange={(e) => useStore.setState({ name: e.target.value })} aria-label="Scenario name" />
+        <button className="btn sm" onClick={() => useStore.setState({ wizardOpen: true })} title="Build a scenario from scratch">＋ New</button>
         <button className="btn sm" onClick={() => useStore.setState({ templatesOpen: true })} title="Start from a ready-made scenario"><Icon.scenarios /> Templates</button>
       </div>
       <div className="ob-sub">{template ? `From template “${template.name}”` : 'Custom scenario'} · {sats.length} satellites (LEO {counts.LEO} · MEO {counts.MEO} · GEO {counts.GEO})</div>
