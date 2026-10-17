@@ -10,6 +10,7 @@ import { loadItuGrids } from './core/itu/grids';
 import { applyDemo } from './app/demos';
 import { AccountDialog } from './ui/AccountDialog';
 import { TemplatesDialog } from './ui/TemplatesDialog';
+import { NewScenarioWizard } from './ui/NewScenarioWizard';
 
 export default function App() {
   const bottomOpen = useStore((s) => s.bottomOpen);
@@ -45,6 +46,7 @@ export default function App() {
       )}
       <AccountDialog />
       <TemplatesDialog />
+      <NewScenarioWizard />
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );

@@ -24,6 +24,8 @@ terminal beams. Click the globe in **Terminal → Pick on globe** to move the te
 
 **Sky:** the star background is rendered from the Hipparcos catalogue (≈118,000 stars to magnitude 14, with B–V colours) and the Milky Way outlines from [d3-celestial](https://github.com/ofrohn/d3-celestial) (BSD-3-Clause), at 2048 px per cube face (`scripts/build_skybox.py`).
 
+**New scenario** (top bar → *＋ New*): a guided start from empty: 1) terminal model, location and one or two beams, 2) the system Beam A tracks (optionally one pinned satellite), 3) Beam B and the traffic mode, 4) review and run. Each system shows how many of its satellites are visible from the chosen location right now.
+
 **Scenario builder** (top bar → *Scenario*): an object browser in the spirit of STK. Set up the ground terminal (model, location, one or two simultaneous beams), add or remove satellite systems from the library or your own Walker / GEO / TLE sets, and choose the **beam plan**:
 
 - **Beam A → / Beam B →**: each beam has an on/off switch, the systems it may track, *Automatic* or one pinned satellite (systems up to 400 satellites, e.g. a GEO slot), its selection rule (longest visibility / highest elevation / best signal) and its own minimum and hand-over elevation. A beam re-points within its own systems.

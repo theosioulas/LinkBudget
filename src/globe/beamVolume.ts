@@ -25,6 +25,12 @@ export interface BeamVolumeStyle {
 export class BeamVolume {
   private cone: Cesium.Primitive | null = null;
   private fill: Cesium.Primitive | null = null;
+  /** Replaced primitives stay on screen until their successor is ready (no blank frames). */
+  private retiring: Cesium.Primitive[] = [];
+  private coneApex = new Cesium.Cartesian3();
+  private coneEdge0 = new Cesium.Cartesian3();
+  private coneN = 0;
+  private showRays = true;
   private lines = new Cesium.PolylineCollection();
   private outline: Cesium.Polyline;
   private rayLines: Cesium.Polyline[] = [];
@@ -48,7 +54,26 @@ export class BeamVolume {
   /** Large beams (GEO/MEO) get a fainter surface so they don't wash over the view. */
   setAlphas(cone: number, fill: number) {
     if (fill !== this.style.fillAlpha) this.ringKey = '';
+    if (cone !== this.style.coneAlpha) this.coneN = 0;
     this.style = { ...this.style, coneAlpha: cone, fillAlpha: fill };
+  }
+
+  /** Edge rays help read small LEO beams; on huge GEO/MEO beams they are long and distracting. */
+  setRays(on: boolean) { this.showRays = on; }
+
+  private swap(old: Cesium.Primitive | null, next: Cesium.Primitive | null) {
+    if (old) this.retiring.push(old);
+    return next;
+  }
+
+  /** Drop replaced primitives once the current ones are drawable. */
+  private reap() {
+    if (!this.retiring.length) return;
+    const ready = (p: Cesium.Primitive | null) => !p || p.ready;
+    if (ready(this.cone) && ready(this.fill)) {
+      for (const p of this.retiring) this.scene.primitives.remove(p);
+      this.retiring = [];
+    }
   }
 
   setColor(c: Cesium.Color) {
@@ -76,27 +101,34 @@ export class BeamVolume {
 
     // edge rays from the apex
     const n = closed.length - 1;
+    const rays = opts.cone && this.showRays;
     this.rayLines.forEach((r, k) => {
-      r.show = opts.cone;
-      if (opts.cone) r.positions = [apex, edge[Math.floor((k * n) / this.rayLines.length)]];
+      r.show = rays;
+      if (rays) r.positions = [apex, edge[Math.floor((k * n) / this.rayLines.length)]];
     });
 
-    // cone surface: triangle fan apex → edge, rebuilt every frame (cheap: ~100 vertices)
-    if (this.cone) this.scene.primitives.remove(this.cone);
-    this.cone = null;
-    if (opts.cone) this.cone = this.scene.primitives.add(this.fan(apex, edge));
+    // cone surface: triangle fan apex → edge; rebuilt only when the apex or the footprint has moved
+    // by more than ~200 m (a LEO beam every frame, a GEO beam rarely), so it never shimmers.
+    if (!opts.cone) {
+      this.cone = this.swap(this.cone, null);
+      this.coneN = 0;
+    } else if (this.coneN !== edge.length || Cesium.Cartesian3.distance(apex, this.coneApex) > 200 || Cesium.Cartesian3.distance(edge[0], this.coneEdge0) > 200) {
+      this.cone = this.swap(this.cone, this.scene.primitives.add(this.fan(apex, edge)));
+      Cesium.Cartesian3.clone(apex, this.coneApex);
+      Cesium.Cartesian3.clone(edge[0], this.coneEdge0);
+      this.coneN = edge.length;
+    }
 
     // draped footprint fill: rebuilt only when the ring moves (or at most ~6 Hz)
     const key = `${closed.length}:${closed[0][0].toFixed(3)},${closed[0][1].toFixed(3)}:${closed[n >> 1][0].toFixed(3)}`;
     const now = performance.now();
     if (!opts.footprint) {
-      if (this.fill) { this.scene.primitives.remove(this.fill); this.fill = null; }
+      this.fill = this.swap(this.fill, null);
       this.ringKey = '';
     } else if (key !== this.ringKey && now - this.lastFill > 160) {
       this.ringKey = key;
       this.lastFill = now;
-      if (this.fill) this.scene.primitives.remove(this.fill);
-      this.fill = this.scene.primitives.add(new Cesium.Primitive({
+      this.fill = this.swap(this.fill, this.scene.primitives.add(new Cesium.Primitive({
         geometryInstances: new Cesium.GeometryInstance({
           geometry: new Cesium.PolygonGeometry({
             polygonHierarchy: new Cesium.PolygonHierarchy(closed.slice(0, -1).map(([la, lo]) => Cesium.Cartesian3.fromDegrees(lo, la))),
@@ -106,8 +138,9 @@ export class BeamVolume {
         }),
         appearance: new Cesium.PerInstanceColorAppearance({ translucent: true, flat: true }),
         asynchronous: false,
-      }));
+      })));
     }
+    this.reap();
   }
 
   private fan(apex: Cesium.Cartesian3, edge: Cesium.Cartesian3[]) {
@@ -141,9 +174,11 @@ export class BeamVolume {
     this.visible = false;
     this.outline.show = false;
     for (const r of this.rayLines) r.show = false;
-    if (this.cone) { this.scene.primitives.remove(this.cone); this.cone = null; }
-    if (this.fill) { this.scene.primitives.remove(this.fill); this.fill = null; }
+    for (const p of [this.cone, this.fill, ...this.retiring]) if (p) this.scene.primitives.remove(p);
+    this.cone = this.fill = null;
+    this.retiring = [];
     this.ringKey = '';
+    this.coneN = 0;
   }
 
   destroy() {

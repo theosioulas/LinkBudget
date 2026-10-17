@@ -70,6 +70,7 @@ export function TopBar() {
         </span>
         <span style={{ color: 'var(--text-3)', display: 'flex' }}><span style={{ width: 16, height: 16, display: 'inline-flex' }}><Icon.chevronDown /></span></span>
       </button>
+      <button className="btn sm ghost" onClick={() => set({ wizardOpen: true })} title="Build a scenario from scratch: terminal, Beam A, Beam B">＋ New</button>
       <button className="btn sm ghost" onClick={() => set({ templatesOpen: true })} title="Start from a ready-made scenario template">Templates</button>
       <div className="clock">
         <button className="ibtn sm" title={clock.playing ? 'Pause' : 'Play'} onClick={() => set({ clock: { ...clock, playing: !clock.playing } })}>{clock.playing ? <Icon.pause /> : <Icon.play />}</button>
