@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useStore, type ScenarioFile } from '../store/store';
+import { useStore, setView, type ScenarioFile } from '../store/store';
 import { globe } from '../globe/GlobeView';
 import { download, pickFile } from './controls';
 import { buildHtmlReport } from './report';
@@ -27,6 +27,8 @@ export function TopBar() {
   const name = useStore((s) => s.name);
   const scenarioId = useStore((s) => s.scenarioId);
   const drawer = useStore((s) => s.drawer);
+  const view = useStore((s) => s.view);
+  const servingId = useStore((s) => (s.live.A?.active ? s.live.A.satId : s.live.B?.active ? s.live.B.satId : s.live.A?.satId ?? null));
   const set = useStore((s) => s.set);
   const [menu, setMenu] = useState<'layers' | 'export' | null>(null);
   const close = () => setMenu(null);
@@ -74,8 +76,11 @@ export function TopBar() {
         <button className="btn sm ghost" onClick={() => setT(Date.now())} title="Jump to the current real time">Now</button>
       </div>
       <div className="grow" />
-      <button className="ibtn" onClick={() => globe?.flyToTerminal(9000, -55)} title="Fly to the terminal"><Icon.target /></button>
-      <button className="ibtn" onClick={() => globe?.flyGlobal()} title="Show the whole Earth and the GEO belt"><Icon.globe /></button>
+      <div className="seg view-seg" role="group" aria-label="Camera view">
+        <button className={view.mode === 'terminal' ? 'on' : ''} onClick={() => setView('terminal')} title="Orbit around the terminal"><Icon.target /> Terminal</button>
+        <button className={view.mode === 'earth' ? 'on' : ''} onClick={() => setView('earth')} title="Orbit around the Earth: whole globe and GEO belt"><Icon.globe /> Earth</button>
+        <button className={view.mode === 'satellite' ? 'on' : ''} disabled={!servingId} onClick={() => setView('satellite')} title="Follow the satellite carrying traffic (switches on handover)"><Icon.satellites /> Satellite</button>
+      </div>
       <div className="menu-wrap" ref={layersRef}>
         <button className={`ibtn ${menu === 'layers' ? 'on' : ''}`} onClick={() => setMenu(menu === 'layers' ? null : 'layers')} title="Layers: choose what the globe shows"><Icon.layers /></button>
         {menu === 'layers' && <div className="menu layers-menu"><LayersMenu /></div>}

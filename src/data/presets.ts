@@ -127,7 +127,7 @@ export const CONSTELLATIONS: Constellation[] = [
   },
   {
     id: 'lightspeed', name: 'Telesat Lightspeed', operator: 'Telesat', orbitClass: 'LEO', color: '#b388ff', enabled: false, payloadId: 'pl-lightspeed-ka',
-    showOrbits: true, showCoverage: false, showLabels: false, propagator: 'kepler-j2',
+    showOrbits: false, showCoverage: false, showLabels: false, propagator: 'kepler-j2',
     description: '198 satellites: 78 polar (1,015 km) + 120 inclined (1,325 km). Regenerative Ka payload, optical ISLs.',
     source: {
       kind: 'walker', shells: [
@@ -138,7 +138,7 @@ export const CONSTELLATIONS: Constellation[] = [
   },
   {
     id: 'mpower', name: 'O3b mPOWER', operator: 'SES', orbitClass: 'MEO', color: '#06d6a0', enabled: true, payloadId: 'pl-mpower-ka',
-    showOrbits: true, showCoverage: true, showLabels: true, propagator: 'kepler-j2',
+    showOrbits: true, showCoverage: false, showLabels: true, propagator: 'kepler-j2',
     description: 'Equatorial MEO at 8,062 km (13-satellite build-out). Thousands of steerable Ka beams per satellite.',
     source: { kind: 'walker', shells: [{ altitudeKm: 8062, inclinationDeg: 0.0, planes: 1, satsPerPlane: 13, phasing: 0, pattern: 'delta' }] },
   },

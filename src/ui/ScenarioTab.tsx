@@ -24,7 +24,7 @@ export function focusConstellation(id: string) {
   const sat = best?.sat ?? pool[0];
   if (!sat) return;
   useStore.setState({ selectedSatId: sat.id, focusPayloadSatId: sat.id });
-  globe?.flyToSat(sat.id);
+  globe?.frameBeamLayout(sat.id);
 }
 
 function ShellEditor({ shell, onChange, onRemove }: { shell: WalkerShell; onChange: (s: WalkerShell) => void; onRemove?: () => void }) {

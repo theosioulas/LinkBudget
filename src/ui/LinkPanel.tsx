@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { useStore, activeTerminal, type LiveBeam } from '../store/store';
+import { useStore, activeTerminal, setView, type LiveBeam } from '../store/store';
 import type { LinkResult, DirectionResult, LineItem } from '../core/rf/linkbudget';
 import { Seg, download, fmtNum } from './controls';
 import { siteClimate } from '../core/itu/atmosphere';
-import { globe } from '../globe/GlobeView';
 
 type Which = 'auto' | 'A' | 'B' | 'sel';
 
@@ -76,7 +75,7 @@ export function LinkPanel() {
               {which !== 'sel' && <span className={`beam-badge ${which === 'A' ? 'a' : 'b'}`}>{which}</span>}
               <b>{sat.name}</b>
               <span className={`chip ${cons?.orbitClass.toLowerCase()}`}>{cons?.orbitClass}</span>
-              <button className="btn sm ghost right-align" onClick={() => globe?.flyToSat(sat.id)}>Fly to</button>
+              <button className="btn sm ghost right-align" onClick={() => setView('satellite', { satId: sat.id })}>Follow</button>
             </div>
             <div className="lc-sub">{cons?.name} · {L.bandKey}-band · {L.beam.beamLabel} · <span style={{ color: beam.active || which === 'sel' ? 'var(--good)' : 'var(--warn)' }}>{state}</span></div>
           </div>

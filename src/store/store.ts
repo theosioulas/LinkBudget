@@ -35,6 +35,8 @@ export interface Layers {
   cones: boolean;
   /** Field-of-view cones of the LEO/MEO satellites visible from the terminal */
   fovCones: boolean;
+  /** LEO/MEO service-cell grid around the terminal */
+  cellGrid: boolean;
   links: boolean;
   scanCone: boolean;
   walls: boolean;
@@ -46,7 +48,7 @@ export interface Layers {
 export const DEFAULT_LAYERS: Layers = {
   imagery: 'satellite', nightLights: true, lighting: true, atmosphere: true,
   dotsLEO: true, dotsMEO: true, dotsGEO: true, labels: true, orbits: true, coverage: true,
-  beams: true, cones: true, fovCones: true, links: true, scanCone: false, walls: true, groundTrack: true,
+  beams: true, cones: true, fovCones: false, cellGrid: false, links: true, scanCone: false, walls: true, groundTrack: true,
   allOrbitsOpacity: 0.35, pointSize: 3,
 };
 
@@ -76,6 +78,7 @@ interface State {
   selectedSatId: string | null;
   selectedPayloadId: string;
   focusPayloadSatId: string | null; // satellite whose full beam layout is drawn
+  view: { mode: 'terminal' | 'earth' | 'satellite'; satId?: string | null; rangeKm?: number; nonce: number };
   sim: SimResult | null;
   simStale: boolean;
   simRunning: boolean;
@@ -108,7 +111,7 @@ interface State {
   notify: (msg: string) => void;
 }
 
-const STORAGE_KEY = 'orbitlink.scenario.v2';
+const STORAGE_KEY = 'orbitlink.scenario.v3';
 const clone = <T,>(x: T): T => JSON.parse(JSON.stringify(x));
 
 function loadSaved(): Partial<ScenarioFile> | null {
@@ -141,6 +144,7 @@ export const useStore = create<State>((set, get) => ({
   selectedSatId: null,
   selectedPayloadId: (saved?.payloads ?? PAYLOADS)[0].id,
   focusPayloadSatId: null,
+  view: { mode: 'terminal', nonce: 0 },
   sim: null,
   simStale: false,
   simRunning: false,
@@ -262,6 +266,10 @@ export const resetScenario = () => {
     activeTerminalId: TERMINALS[0].id, analysis: DEFAULT_ANALYSIS, mbb: DEFAULT_MBB,
   });
 };
+
+/** Change the camera view (re-applies even if the mode is unchanged). */
+export const setView = (mode: 'terminal' | 'earth' | 'satellite', opts: { satId?: string | null; rangeKm?: number } = {}) =>
+  useStore.setState((s) => ({ view: { mode, ...opts, nonce: s.view.nonce + 1 } }));
 
 export const activeTerminal = (s: State) => s.terminals.find((t) => t.id === s.activeTerminalId) ?? s.terminals[0];
 
