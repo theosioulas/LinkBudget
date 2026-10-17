@@ -29,7 +29,7 @@ terminal beams. Click the globe in **Terminal → Pick on globe** to move the te
 - *Make-before-break*: both beams may use any satellite; the free beam acquires the next satellite before the serving one is lost.
 - *Dedicated beams*: tick which systems beam A and beam B may track (e.g. A → GEO, B → Starlink); each beam re-points within its own systems and traffic rides the better beam.
 
-The simulation re-runs automatically after structural changes. The *Payloads* panel edits the payload of each system in the scenario (*Make independent* gives a system its own copy of a shared payload). Ready-made setups are under **Templates**; applying one replaces the satellites, beam plan and simulation settings. The GEO wide beam is always present and follows the terminal, so there is a GEO fallback anywhere.
+The simulation re-runs automatically after structural changes. The *Payloads* panel edits the payload of each system in the scenario (*Make independent* gives a system its own copy of a shared payload). Ready-made setups are under **Templates**; applying one replaces the satellites, beam plan and simulation settings. Every system can be added or removed, including the GEO wide beam; its slot longitude and spot aim can optionally follow the terminal (switches in the Scenario and Payloads panels).
 
 Serving beams are drawn as sensor volumes: a translucent cone from the satellite to the −3 dB footprint edge, ray-cast onto the WGS-84 ellipsoid, so footprints follow the Earth's curvature and stretch at low elevation.
 

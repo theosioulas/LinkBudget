@@ -125,7 +125,7 @@ function SystemNode({ c }: { c: Constellation }) {
   const update = useStore((s) => s.updateConstellation);
   const remove = useStore((s) => s.removeConstellation);
   const n = useStore((s) => s.sats.filter((x) => x.constellationId === c.id).length);
-  const u = (p: Partial<Constellation>) => { update(c.id, p); if ('source' in p || 'payloadId' in p) { markCustom(); rerun(); } };
+  const u = (p: Partial<Constellation>) => { update(c.id, p); if ('source' in p || 'payloadId' in p || 'followTerminal' in p) { markCustom(); rerun(); } };
   const pl = payloads.find((p) => p.id === c.payloadId);
   const src = c.source;
   const drop = () => {
@@ -145,9 +145,7 @@ function SystemNode({ c }: { c: Constellation }) {
       right={<>
         <button className="ibtn sm" title="Edit this system's payload" onClick={() => useStore.setState({ payloadSystemId: c.id, drawer: 'payload' })}><Icon.payload /></button>
         <button className="ibtn sm" title="Show the best visible satellite and its beams" onClick={() => focusConstellation(c.id)}><Icon.target /></button>
-        {c.locked
-          ? <span className="ob-ico" title="Always in the scenario: the GEO fallback"><Icon.lock /></span>
-          : <button className="ibtn sm" title="Remove from scenario" onClick={drop}><Icon.close /></button>}
+        <button className="ibtn sm" title="Remove from scenario" onClick={drop}><Icon.close /></button>
       </>}>
       {c.description && <div className="small muted" style={{ margin: '6px 0' }}>{c.description}</div>}
       <div className="fgrid">
@@ -173,7 +171,9 @@ function SystemNode({ c }: { c: Constellation }) {
       )}
       {src.kind === 'geo' && (
         <>
-          {c.followTerminal && <div className="small dim" style={{ marginBottom: 6 }}>The slot longitude follows the terminal so the wide beam always covers it.</div>}
+          <div style={{ marginBottom: 6 }}>
+            <Toggle checked={!!c.followTerminal} onChange={(v) => u({ followTerminal: v })} label="Slot follows the terminal's longitude" title="Move the first slot over the terminal wherever it goes" />
+          </div>
           {src.slots.map((sl, i) => (
             <div key={i} className="fgrid three" style={{ marginBottom: 6 }}>
               <TextField label="Name" value={sl.name} onChange={(v) => u({ source: { kind: 'geo', slots: src.slots.map((x, j) => (j === i ? { ...x, name: v } : x)) } })} />
@@ -208,7 +208,7 @@ function AddSystems() {
   const notify = useStore((s) => s.notify);
   const [group, setGroup] = useState('oneweb');
   const [busy, setBusy] = useState(false);
-  const library = constellations.filter((c) => !c.enabled && !c.locked);
+  const library = constellations.filter((c) => !c.enabled);
   const color = () => PALETTE[constellations.length % PALETTE.length];
   const id = (p: string) => `${p}-${Date.now().toString(36)}`;
   const defaultPayload = (oc: OrbitClass) => (oc === 'GEO' ? 'pl-geo-ku-wide' : oc === 'MEO' ? 'pl-mpower-ka' : 'pl-starlink-ku');
@@ -286,7 +286,7 @@ function BeamPlan() {
   const mbb = useStore((s) => s.mbb);
   const terminal = useStore(activeTerminal);
   const constellations = useStore((s) => s.constellations);
-  const inScenario = constellations.filter((c) => c.enabled || c.locked);
+  const inScenario = constellations.filter((c) => c.enabled);
   const up = (p: Partial<typeof mbb>) => { useStore.getState().set({ mbb: { ...useStore.getState().mbb, ...p } }); markCustom(); rerun(); };
   const dual = terminal.beams === 2;
   const dedicated = dual && (mbb.orbitPolicy === 'dedicated' || mbb.orbitPolicy === 'geo-leo-dual');
@@ -377,7 +377,7 @@ export function ScenarioTab() {
   const scenarioId = useStore((s) => s.scenarioId);
   const constellations = useStore((s) => s.constellations);
   const sats = useStore((s) => s.sats);
-  const inScenario = constellations.filter((c) => c.enabled || c.locked);
+  const inScenario = constellations.filter((c) => c.enabled);
   const template = DEMOS.find((d) => d.id === scenarioId);
   const counts = { LEO: 0, MEO: 0, GEO: 0, HEO: 0 } as Record<OrbitClass, number>;
   const consMap = new Map(constellations.map((c) => [c.id, c]));

@@ -1,6 +1,6 @@
 import { useStore } from '../store/store';
 import type { Payload, BeamLayout, PatternKind, Polarization, ContourMeaning } from '../core/model';
-import { NumberField, SelectField, TextField, Sect, download, pickFile, fmtNum } from './controls';
+import { NumberField, SelectField, TextField, Toggle, Sect, download, pickFile, fmtNum } from './controls';
 import { PatternPlot } from './PatternPlot';
 import { parseKml, parseKmz, footprintsToKml } from '../core/kml/kml';
 import { beamContours, beamFootprints, hexBeamIds } from '../core/rf/beams';
@@ -29,7 +29,7 @@ export function PayloadTab() {
   const update = useStore((s) => s.updatePayload);
   const notify = useStore((s) => s.notify);
   // The payload editor works on the satellite systems of the current scenario.
-  const inScenario = constellations.filter((c) => c.enabled || c.locked);
+  const inScenario = constellations.filter((c) => c.enabled);
   const system = inScenario.find((c) => c.id === systemId) ?? inScenario[0];
   const p = system && payloads.find((x) => x.id === system.payloadId);
   if (!system || !p) return <div className="empty">Add satellites to the scenario to edit their payloads.</div>;
@@ -194,8 +194,15 @@ export function PayloadTab() {
           <div className="field"><label>Beams</label><div className="input-wrap mono">{1 + 3 * L.rings * (L.rings + 1)}</div></div>
         </>)}
         {L.kind === 'spot' && (<>
-          <NumberField label="Aim latitude" unit="°" value={L.aimLat} step={0.5} min={-90} max={90} onChange={(v) => upL({ aimLat: v })} />
-          <NumberField label="Aim longitude" unit="°" value={L.aimLon} step={0.5} min={-180} max={180} onChange={(v) => upL({ aimLon: v })} />
+          <div style={{ gridColumn: '1 / -1' }}>
+            <Toggle checked={!!L.followTerminal} onChange={(v) => { upL({ followTerminal: v }); setTimeout(() => useStore.getState().rebuildSats(), 0); }} label="Aim follows the terminal" title="Keep the spot centred on the terminal wherever it moves" />
+          </div>
+          {L.followTerminal
+            ? <div className="small dim" style={{ gridColumn: '1 / -1' }}>Aimed at the terminal ({L.aimLat.toFixed(2)}°, {L.aimLon.toFixed(2)}°). Switch off to aim it anywhere.</div>
+            : <>
+              <NumberField label="Aim latitude" unit="°" value={L.aimLat} step={0.5} min={-90} max={90} onChange={(v) => upL({ aimLat: v })} />
+              <NumberField label="Aim longitude" unit="°" value={L.aimLon} step={0.5} min={-180} max={180} onChange={(v) => upL({ aimLon: v })} />
+            </>}
         </>)}
         {L.kind === 'kml' && (<>
           <SelectField<ContourMeaning> label="Contour values are" value={L.meaning} onChange={(v) => upL({ meaning: v })}

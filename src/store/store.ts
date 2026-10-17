@@ -174,7 +174,7 @@ export const useStore = create<State>((set, get) => ({
   set: (p) => set(p as Partial<State>),
   updateConstellation: (id, p) => {
     set({ constellations: get().constellations.map((c) => (c.id === id ? { ...c, ...p } : c)) });
-    if ('enabled' in p || 'source' in p || 'propagator' in p) get().rebuildSats();
+    if ('enabled' in p || 'source' in p || 'propagator' in p || 'followTerminal' in p) get().rebuildSats();
   },
   addConstellation: (c, p) => {
     set({ constellations: [...get().constellations, c], payloads: p ? [...get().payloads, p] : get().payloads });

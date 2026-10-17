@@ -97,9 +97,7 @@ export interface Constellation {
   showLabels: boolean;
   propagator: 'kepler-j2' | 'sgp4';
   description?: string;
-  /** Cannot be disabled (the always-available GEO fallback). */
-  locked?: boolean;
-  /** GEO slot longitude tracks the terminal's longitude. */
+  /** GEO slot longitude tracks the terminal's longitude (optional, switchable). */
   followTerminal?: boolean;
 }
 
