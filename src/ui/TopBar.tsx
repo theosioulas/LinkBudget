@@ -63,13 +63,14 @@ export function TopBar() {
         <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="12" fill="#1f6feb" /><ellipse cx="32" cy="32" rx="28" ry="10" fill="none" stroke="#38d6f0" strokeWidth="3.5" transform="rotate(-25 32 32)" /><circle cx="56" cy="21" r="4.5" fill="#f472b6" /></svg>
         <span>OrbitLink</span>
       </div>
-      <button className="scenario-btn" onClick={() => set({ drawer: drawer === 'scenarios' ? null : 'scenarios' })} title="Choose a scenario">
+      <button className="scenario-btn" onClick={() => set({ drawer: drawer === 'scenario' ? null : 'scenario' })} title="Build the scenario: terminal, satellites, beam plan">
         <span style={{ minWidth: 0 }}>
-          <span className="lbl">Scenario</span>
-          <span className="val">{scenario?.name ?? 'Custom'}</span>
+          <span className="lbl">Scenario{scenario ? '' : ' · custom'}</span>
+          <span className="val">{name}</span>
         </span>
         <span style={{ color: 'var(--text-3)', display: 'flex' }}><span style={{ width: 16, height: 16, display: 'inline-flex' }}><Icon.chevronDown /></span></span>
       </button>
+      <button className="btn sm ghost" onClick={() => set({ templatesOpen: true })} title="Start from a ready-made scenario template">Templates</button>
       <div className="clock">
         <button className="ibtn sm" title={clock.playing ? 'Pause' : 'Play'} onClick={() => set({ clock: { ...clock, playing: !clock.playing } })}>{clock.playing ? <Icon.pause /> : <Icon.play />}</button>
         <select value={clock.multiplier} onChange={(e) => set({ clock: { ...clock, multiplier: +e.target.value } })} aria-label="Simulation speed">

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useStore } from './store/store';
+import { useStore, hadSavedScenario, setView } from './store/store';
 import { GlobeView } from './globe/GlobeView';
 import { TopBar } from './ui/TopBar';
 import { Rail, Drawer } from './ui/Drawer';
@@ -9,6 +9,7 @@ import { liveTick } from './app/live';
 import { loadItuGrids } from './core/itu/grids';
 import { applyDemo } from './app/demos';
 import { AccountDialog } from './ui/AccountDialog';
+import { TemplatesDialog } from './ui/TemplatesDialog';
 
 export default function App() {
   const bottomOpen = useStore((s) => s.bottomOpen);
@@ -22,8 +23,10 @@ export default function App() {
       .then(() => useStore.setState({ gridsReady: true }))
       .catch(() => useStore.getState().notify('ITU-R climate maps unavailable, using latitude-based estimates'));
     const id = setInterval(liveTick, 250);
-    // Open on the default multi-orbit scenario.
-    const t = setTimeout(() => applyDemo(useStore.getState().scenarioId), 1200);
+    // Restore the user's last scenario, or open on the default multi-orbit template.
+    const t = setTimeout(() => {
+      if (hadSavedScenario) { useStore.getState().runSim(); setView('terminal'); } else applyDemo('multi-orbit');
+    }, 1200);
     return () => { clearInterval(id); clearTimeout(t); };
   }, []);
 
@@ -41,6 +44,7 @@ export default function App() {
         <div className="pick-banner glass">Click the globe to place the terminal <button className="btn sm" onClick={() => set({ pickTerminal: false })}>Cancel</button></div>
       )}
       <AccountDialog />
+      <TemplatesDialog />
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );

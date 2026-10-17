@@ -1,7 +1,6 @@
 import type { ReactElement } from 'react';
 import { useStore, type LeftTab } from '../store/store';
 import { Icon } from './icons';
-import { ScenariosPanel } from './ScenariosPanel';
 import { ScenarioTab } from './ScenarioTab';
 import { PayloadTab } from './PayloadTab';
 import { TerminalTab } from './TerminalTab';
@@ -10,8 +9,7 @@ import { BeamLabTab } from './BeamLabTab';
 import { SettingsTab } from './SettingsTab';
 
 const ITEMS: [LeftTab, string, () => ReactElement][] = [
-  ['scenarios', 'Scenarios', Icon.scenarios],
-  ['scenario', 'Satellites', Icon.satellites],
+  ['scenario', 'Scenario', Icon.satellites],
   ['payload', 'Payloads', Icon.payload],
   ['terminal', 'Terminal', Icon.terminal],
   ['coverage', 'Coverage map', Icon.coverage],
@@ -50,7 +48,6 @@ export function Drawer() {
         <button className="ibtn sm" onClick={() => set({ drawer: null })} aria-label="Close panel"><Icon.close /></button>
       </div>
       <div className="scroll">
-        {drawer === 'scenarios' && <ScenariosPanel />}
         {drawer === 'scenario' && <ScenarioTab />}
         {drawer === 'payload' && <PayloadTab />}
         {drawer === 'terminal' && <TerminalTab />}

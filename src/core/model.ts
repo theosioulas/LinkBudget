@@ -152,12 +152,17 @@ export function isObstructed(t: Pick<Terminal, 'obstructions'>, azDeg: number, e
 }
 
 export type HandoverPolicy = 'max-elevation' | 'longest-visibility' | 'best-sinr';
-export type OrbitPolicy = 'leo-first' | 'geo-leo-dual' | 'single' | 'best-throughput';
+export type OrbitPolicy = 'leo-first' | 'geo-leo-dual' | 'single' | 'best-throughput' | 'dedicated';
+
+/** Dual-beam terminal with dedicated beams: the constellations each beam may use (empty = any). */
+export interface BeamAssignment { A: string[]; B: string[] }
 
 export interface MbbSettings {
   policy: HandoverPolicy;
   orbitPolicy: OrbitPolicy;
   allowedConstellations: string[]; // empty = all enabled
+  /** Used when orbitPolicy is 'dedicated': which systems beam A and beam B may track. */
+  beamAssign?: BeamAssignment;
   minElevationDeg: number; // terminal-side
   handoverElevationDeg: number; // trigger when serving falls below
   hysteresisDb: number;

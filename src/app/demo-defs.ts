@@ -36,9 +36,9 @@ export const DEMOS: Demo[] = [
   },
   {
     id: 'geo-leo', name: 'GEO + LEO together', systems: 'Starlink · GEO',
-    description: 'Beam A stays on the GEO wide beam, beam B tracks LEO. Traffic rides LEO; GEO covers the re-points.',
+    description: 'Dedicated beams: beam A stays on the GEO wide beam, beam B tracks Starlink. Traffic rides the better beam; GEO covers the LEO re-points.',
     enable: ['starlink', GEO],
-    mbb: { allowedConstellations: ['starlink', GEO], orbitPolicy: 'geo-leo-dual', policy: 'longest-visibility', durationMin: 20, stepSec: 2 }, beams: 2, obstructions: [],
+    mbb: { allowedConstellations: [], orbitPolicy: 'dedicated', beamAssign: { A: [GEO], B: ['starlink'] }, policy: 'longest-visibility', durationMin: 20, stepSec: 2 }, beams: 2, obstructions: [],
   },
   {
     id: 'meo', name: 'MEO (6 hours)', systems: 'O3b mPOWER · GEO',

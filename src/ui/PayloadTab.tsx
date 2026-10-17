@@ -24,13 +24,17 @@ function defaultLayout(kind: BeamLayout['kind'], p: Payload): BeamLayout {
 export function PayloadTab() {
   const payloads = useStore((s) => s.payloads);
   const constellations = useStore((s) => s.constellations);
-  const selId = useStore((s) => s.selectedPayloadId);
+  const systemId = useStore((s) => s.payloadSystemId);
   const set = useStore((s) => s.set);
   const update = useStore((s) => s.updatePayload);
   const notify = useStore((s) => s.notify);
-  const p = payloads.find((x) => x.id === selId) ?? payloads[0];
-  if (!p) return <div className="empty">No payloads.</div>;
+  // The payload editor works on the satellite systems of the current scenario.
+  const inScenario = constellations.filter((c) => c.enabled || c.locked);
+  const system = inScenario.find((c) => c.id === systemId) ?? inScenario[0];
+  const p = system && payloads.find((x) => x.id === system.payloadId);
+  if (!system || !p) return <div className="empty">Add satellites to the scenario to edit their payloads.</div>;
   const usedBy = constellations.filter((c) => c.payloadId === p.id);
+  const sharedWith = usedBy.filter((c) => c.id !== system.id);
   const up = (patch: Partial<Payload>) => update(p.id, { ...p, ...patch });
   const upF = (patch: Partial<Payload['forward']>) => up({ forward: { ...p.forward, ...patch } });
   const upR = (patch: Partial<Payload['ret']>) => up({ ret: { ...p.ret, ...patch } });
@@ -38,9 +42,12 @@ export function PayloadTab() {
   const L = p.layout;
   const upL = (patch: Partial<BeamLayout>) => up({ layout: { ...L, ...patch } as BeamLayout });
 
-  const duplicate = () => {
-    const np: Payload = { ...JSON.parse(JSON.stringify(p)), id: `pl-${Date.now().toString(36)}`, name: `${p.name} (copy)` };
+  /** Give this system its own copy of the payload so edits don't affect the other systems. */
+  const makeIndependent = () => {
+    const np: Payload = { ...JSON.parse(JSON.stringify(p)), id: `pl-${Date.now().toString(36)}`, name: `${p.name} (${system.name})` };
     useStore.getState().addPayload(np);
+    useStore.getState().updateConstellation(system.id, { payloadId: np.id });
+    notify(`${system.name} now has its own payload`);
   };
 
   const importKml = async () => {
@@ -93,13 +100,20 @@ export function PayloadTab() {
 
   return (
     <div>
-      <div className="row" style={{ marginBottom: 8 }}>
-        <div style={{ flex: 1 }}>
-          <SelectField label="Payload" value={p.id} options={payloads.map((x) => [x.id, x.name])} onChange={(v) => set({ selectedPayloadId: v })} />
+      <div className="field" style={{ marginBottom: 6 }}>
+        <label>Satellite system</label>
+        <div className="sys-tabs">
+          {inScenario.map((c) => (
+            <button key={c.id} className={`sys-tab ${c.id === system.id ? 'on' : ''}`} onClick={() => set({ payloadSystemId: c.id })}>
+              <span className="bdot" style={{ background: c.color }} />{c.name}<span className={`chip ${c.orbitClass.toLowerCase()}`}>{c.orbitClass}</span>
+            </button>
+          ))}
         </div>
-        <button className="btn sm" style={{ marginTop: 14 }} onClick={duplicate}>Duplicate</button>
       </div>
-      <div className="small dim" style={{ marginBottom: 6 }}>Used by: {usedBy.length ? usedBy.map((c) => c.name).join(', ') : 'no constellation'}</div>
+      <div className="small dim" style={{ marginBottom: 6 }}>
+        Payload: <b style={{ color: 'var(--text-2)' }}>{p.name}</b>
+        {sharedWith.length > 0 && <> · also used by {sharedWith.map((c) => c.name).join(', ')} <button className="btn sm ghost" onClick={makeIndependent} title="Edits will then apply to this system only">Make independent</button></>}
+      </div>
       {p.notes && <div className="small muted" style={{ marginBottom: 6 }}>{p.notes}</div>}
 
       <Sect>General</Sect>

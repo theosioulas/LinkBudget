@@ -20,7 +20,14 @@ The app opens over the terminal (Athens by default) with Starlink, OneWeb, O3b m
 satellites enabled, runs a 20-minute make-before-break timeline and shows live budgets for both
 terminal beams. Click the globe in **Terminal → Pick on globe** to move the terminal anywhere.
 
-**Scenarios** (top bar → *Scenario*): one click switches the satellites, handover policy and terminal set-up, and re-runs the simulation. The GEO wide beam is always on and follows the terminal, so there is a GEO fallback anywhere.
+**Scenario builder** (top bar → *Scenario*): an object browser in the spirit of STK. Set up the ground terminal (model, location, one or two simultaneous beams), add or remove satellite systems from the library or your own Walker / GEO / TLE sets, and choose the **beam plan**:
+
+- *Make-before-break*: both beams may use any satellite; the free beam acquires the next satellite before the serving one is lost.
+- *Dedicated beams*: tick which systems beam A and beam B may track (e.g. A → GEO, B → Starlink); each beam re-points within its own systems and traffic rides the better beam.
+
+The simulation re-runs automatically after structural changes. The *Payloads* panel edits the payload of each system in the scenario (*Make independent* gives a system its own copy of a shared payload). Ready-made setups are under **Templates**; applying one replaces the satellites, beam plan and simulation settings. The GEO wide beam is always present and follows the terminal, so there is a GEO fallback anywhere.
+
+Serving beams are drawn as sensor volumes: a translucent cone from the satellite to the −3 dB footprint edge, ray-cast onto the WGS-84 ellipsoid, so footprints follow the Earth's curvature and stretch at low elevation.
 
 | Demo | What it shows |
 | --- | --- |

@@ -6,11 +6,11 @@ import { gmst } from '../core/time';
 import type { Constellation, Payload, Terminal } from '../core/model';
 import { beamFootprints, coverageRing, steeredSpotFootprint, type Footprint } from '../core/rf/beams';
 import { evaluateBeam } from '../core/rf/beams';
-import { sub, unit as unit3, dot as dot3, norm as norm3, scale as scale3, angleBetween, type Vec3 } from '../core/vec';
+import { sub, unit as unit3, dot as dot3, norm as norm3, type Vec3 } from '../core/vec';
 import { geodeticToEcef } from '../core/geo/coords';
-import { scanEffects } from '../core/rf/antenna';
+import { pointInRing } from '../core/geo/polygon';
+import { BeamVolume } from './beamVolume';
 
-const angleDeg = (a: Vec3, b: Vec3) => (angleBetween(a, b) * 180) / Math.PI;
 import type { Layers } from '../store/store';
 
 export type ViewMode = 'terminal' | 'earth' | 'satellite';
@@ -54,7 +54,6 @@ export class GlobeController {
   private orbits = new Cesium.PolylineCollection();
   private coverage = new Cesium.PolylineCollection();
   private linkLines = new Cesium.PolylineCollection();
-  private cones = new Cesium.PolylineCollection();
   private footOutlines = new Cesium.PolylineCollection();
   private footFill: Cesium.Primitive | null = null;
   private activeFill: Cesium.Primitive | null = null;
@@ -119,7 +118,6 @@ export class GlobeController {
     scene.primitives.add(this.orbits);
     scene.primitives.add(this.coverage);
     scene.primitives.add(this.footOutlines);
-    scene.primitives.add(this.cones);
     scene.primitives.add(this.linkLines);
     scene.primitives.add(this.points);
     scene.primitives.add(this.labels);
@@ -214,7 +212,6 @@ export class GlobeController {
     s.globe.enableLighting = l.lighting;
     if (s.skyAtmosphere) s.skyAtmosphere.show = l.atmosphere;
     s.globe.showGroundAtmosphere = l.atmosphere;
-    this.cones.show = l.beams;
     this.footOutlines.show = l.beams;
     if (this.footFill) this.footFill.show = l.beams;
     if (this.scanCone) this.scanCone.show = l.scanCone;
@@ -471,8 +468,8 @@ export class GlobeController {
     return [c.x / 1000, c.y / 1000, c.z / 1000];
   }
 
-  private pool: Record<'A' | 'B', { glow: Cesium.Polyline; dash: Cesium.Polyline; ring: Cesium.Polyline; cone: BeamCone }> | null = null;
-  private fovPool: BeamCone[] = [];
+  private pool: Record<'A' | 'B', { glow: Cesium.Polyline; dash: Cesium.Polyline; vol: BeamVolume; ringCache?: { satId: string; at: number; ring: [number, number][] } }> | null = null;
+  private fovPool: BeamVolume[] = [];
   private lastFov = 0;
 
   private ensurePool() {
@@ -483,8 +480,7 @@ export class GlobeController {
       return {
         glow: this.linkLines.add({ positions: z, width: 9, show: false, material: Cesium.Material.fromType('PolylineGlow', { color, glowPower: 0.22, taperPower: 1 }) }),
         dash: this.linkLines.add({ positions: z, width: 4, show: false, material: Cesium.Material.fromType('PolylineDash', { color, gapColor: Cesium.Color.TRANSPARENT, dashLength: 18 }) }),
-        ring: this.cones.add({ positions: z, width: 2.5, show: false, material: Cesium.Material.fromType('Color', { color: color.withAlpha(0.95) }) }),
-        cone: new BeamCone(this.viewer, color, 0.32),
+        vol: new BeamVolume(this.viewer.scene, color, { coneAlpha: 0.2, fillAlpha: 0.28, lineAlpha: 0.95, lineWidth: 2.5, rays: 4 }),
       };
     };
     this.pool = { A: mk('A'), B: mk('B') };
@@ -499,8 +495,8 @@ export class GlobeController {
       const L = this.links[key];
       const s = L ? this.sats[this.satIndex.get(L.satId) ?? -1] : undefined;
       if (!t || !L || !s) {
-        P.glow.show = P.dash.show = P.ring.show = false;
-        P.cone.hide();
+        P.glow.show = P.dash.show = false;
+        P.vol.hide();
         continue;
       }
       const sp = satEcef(s, ms);
@@ -508,43 +504,62 @@ export class GlobeController {
       const line = [km(t), km(sp)];
       P.glow.show = tracking;
       P.dash.show = !tracking;
-      if (tracking) { P.glow.positions = line; P.glow.width = L.active ? 10 : 5; } else P.dash.positions = line;
-      // satellite-side spot beam toward the terminal's cell / beam centre
-      const c = this.consts.get(s.constellationId);
-      const pl = c && this.payloads.get(c.payloadId);
-      let ring: [number, number][] = [];
-            let aimLL: [number, number] | null = null;
-      let halfAngle = 0;
-      if (pl && this.terminal) {
-        if (pl.layout.kind === 'steerable-cells') {
-          aimLL = L.aim ?? [this.terminal.lat, this.terminal.lon];
-          ring = steeredSpotFootprint(pl, sp, aimLL[0], aimLL[1]);
-          const scan = angleDeg(scale3(sp, -1), sub(geodeticToEcef(aimLL[0], aimLL[1], 0), sp));
-          halfAngle = scanEffects(pl.pattern, scan).hpbwDeg / 2;
-        } else if (pl.layout.kind === 'spot' || pl.layout.kind === 'hex-grid') {
-          const ev = evaluateBeam(pl, { ecef: sp, velEcef: sub(satEcef(s, ms + 500), satEcef(s, ms - 500)) }, { lat: this.terminal.lat, lon: this.terminal.lon, alt: 0 });
-          if (ev.covered) { aimLL = ev.aim; halfAngle = pl.pattern.hpbwDeg / 2; ring = steeredSpotFootprint({ ...pl, pattern: { ...pl.pattern, kind: 'bessel' } }, sp, ev.aim[0], ev.aim[1]); }
-        } else if (pl.layout.kind === 'fixed-strips') {
-          aimLL = [this.terminal.lat, this.terminal.lon];
-          halfAngle = pl.layout.alongTrackDeg * 0.75;
-        }
-      }
-      const isActive = L.active && tracking;
-      const showRing = isActive && ring.length > 3 && (this.layers?.beams ?? true);
-      P.ring.show = showRing;
-      if (showRing) P.ring.positions = ring.map(([a, b]) => ll(a, b, 2500));
-      // Solid spot-beam cone for LEO/MEO serving satellites
-      if (isActive && aimLL && halfAngle > 0 && (this.layers?.cones ?? true)) P.cone.set(sp, geodeticToEcef(aimLL[0], aimLL[1], 0), halfAngle);
-      else P.cone.hide();
+      if (tracking) { P.glow.positions = line; P.glow.width = L.active ? 7 : 4; } else P.dash.positions = line;
+      // Satellite-side beam serving the terminal, drawn as a sensor volume onto the curved Earth.
+      const showCone = this.layers?.cones ?? true, showFoot = this.layers?.beams ?? true;
+      if (!tracking || (!showCone && !showFoot)) { P.vol.hide(); continue; }
+      const ring = this.servingBeamRing(key, L, s, sp, ms);
+      if (!ring) { P.vol.hide(); continue; }
+      const oc = this.consts.get(s.constellationId)?.orbitClass;
+      P.vol.setAlphas(oc === 'GEO' ? 0.05 : oc === 'MEO' ? 0.1 : 0.22, oc === 'GEO' ? 0.12 : 0.28);
+      P.vol.update(sp, ring, { cone: showCone, footprint: showFoot });
     }
     const wall = performance.now();
     if (wall - this.lastFov > 400) { this.lastFov = wall; this.drawFovCones(ms); }
   }
 
+  /** Footprint edge (−3 dB) of the beam that serves the terminal from satellite `s`, or null if not covered. */
+  private servingBeamRing(key: 'A' | 'B', L: NonNullable<LiveLinks['A']>, s: SatelliteDef, sp: Vec3, ms: number): [number, number][] | null {
+    const c = this.consts.get(s.constellationId);
+    const pl = c && this.payloads.get(c.payloadId);
+    if (!pl || !this.terminal) return null;
+    const user = { lat: this.terminal.lat, lon: this.terminal.lon, alt: 0 };
+    const pose = () => ({ ecef: sp, velEcef: sub(satEcef(s, ms + 500), satEcef(s, ms - 500)) });
+    switch (pl.layout.kind) {
+      case 'steerable-cells': {
+        const aim = L.aim ?? [user.lat, user.lon];
+        return steeredSpotFootprint(pl, sp, aim[0], aim[1]);
+      }
+      case 'spot':
+      case 'hex-grid': {
+        const ev = evaluateBeam(pl, pose(), user);
+        return ev.covered ? steeredSpotFootprint({ ...pl, pattern: { ...pl.pattern, kind: 'bessel', scanLossExp: 0 } }, sp, ev.aim[0], ev.aim[1]) : null;
+      }
+      case 'fixed-strips':
+      case 'kml': {
+        // Polygon beams: recompute at ~5 Hz (strips move with the satellite; KML beams are fixed).
+        const P = this.pool![key];
+        const wall = performance.now();
+        if (P.ringCache && P.ringCache.satId === s.id && wall - P.ringCache.at < (pl.layout.kind === 'kml' ? 2000 : 200)) return P.ringCache.ring;
+        const ev = evaluateBeam(pl, pose(), user);
+        let ring: [number, number][] | null = null;
+        if (ev.covered) {
+          const fps = beamFootprints(pl, pose(), user);
+          const mine = pl.layout.kind === 'kml' ? fps.filter((f) => f.id.startsWith(`${ev.beamId}#`)) : fps.filter((f) => f.id === ev.beamId);
+          // outermost (lowest-level) contour of the serving beam; prefer a ring containing the terminal
+          const outer = mine.filter((f) => f.level === mine[mine.length - 1]?.level);
+          ring = (outer.find((f) => pointInRing(user.lat, user.lon, f.ring)) ?? outer[0])?.ring ?? null;
+        }
+        P.ringCache = { satId: s.id, at: wall, ring: ring ?? [] };
+        return ring;
+      }
+    }
+  }
+
   /** Field-of-view cones (to the minimum-elevation edge) of the LEO/MEO satellites the terminal can see. */
   private drawFovCones(ms: number) {
     const MAX = 6;
-    if (!this.fovPool.length) for (let k = 0; k < MAX; k++) this.fovPool.push(new BeamCone(this.viewer, Cesium.Color.WHITE, 0.10, true));
+    if (!this.fovPool.length) for (let k = 0; k < MAX; k++) this.fovPool.push(new BeamVolume(this.viewer.scene, Cesium.Color.WHITE, { coneAlpha: 0.06, fillAlpha: 0.05, lineAlpha: 0.45, lineWidth: 1.5, rays: 0 }));
     const on = (this.layers?.fovCones ?? true) && this.terminal;
     const picked: { s: SatelliteDef; p: Vec3; el: number; minEl: number }[] = [];
     if (on) {
@@ -567,11 +582,8 @@ export class GlobeController {
       const x = picked[k];
       if (!x) { cone.hide(); return; }
       const c = this.consts.get(x.s.constellationId)!;
-      const altKm = norm3(x.p) - 6371;
-      const half = (Math.asin((6371 / (6371 + altKm)) * Math.cos((x.minEl * Math.PI) / 180)) * 180) / Math.PI;
-      const nadir = scale3(unit3(x.p), 6371);
       cone.setColor(Cesium.Color.fromCssColorString(c.color));
-      cone.set(x.p, nadir, half);
+      cone.update(x.p, coverageRing(x.p, x.minEl, 72), { cone: true, footprint: true });
     });
   }
 
@@ -705,10 +717,10 @@ export class GlobeController {
       this.followSatId = null;
     }
     const duration = opts.duration ?? 1.6;
-    const pitch = Cesium.Math.toRadians(opts.pitchDeg ?? -50);
+    const pitch = Cesium.Math.toRadians(opts.pitchDeg ?? (mode === 'terminal' ? -35 : -50));
     if (mode === 'terminal' && this.terminal) {
       const target = ll(this.terminal.lat, this.terminal.lon, 0);
-      const hpr = new Cesium.HeadingPitchRange(0, pitch, (opts.rangeKm ?? 9000) * 1000);
+      const hpr = new Cesium.HeadingPitchRange(0, pitch, (opts.rangeKm ?? 3500) * 1000);
       this.flying = true;
       cam.flyToBoundingSphere(new Cesium.BoundingSphere(target, 1), {
         offset: hpr, duration,
@@ -828,62 +840,4 @@ export class GlobeController {
   }
 
   destroy() { if (!this.viewer.isDestroyed()) this.viewer.destroy(); }
-}
-
-/**
- * A solid translucent cone from a satellite (apex) to a ground aim point, drawn as a Cesium
- * cylinder entity with a zero top radius whose pose is updated every frame.
- */
-class BeamCone {
-  private entity: Cesium.Entity;
-  private pos = new Cesium.Cartesian3();
-  private orient = new Cesium.Quaternion();
-  private length = 1;
-  private radius = 1;
-  private visible = false;
-  private color: Cesium.Color;
-
-  constructor(viewer: Cesium.Viewer, color: Cesium.Color, private alpha: number, faint = false) {
-    this.color = color;
-    const mat = new Cesium.ColorMaterialProperty(new Cesium.CallbackProperty(() => this.color.withAlpha(this.alpha), false));
-    this.entity = viewer.entities.add({
-      position: new Cesium.CallbackPositionProperty(() => this.pos, false),
-      orientation: new Cesium.CallbackProperty(() => this.orient, false),
-      cylinder: {
-        length: new Cesium.CallbackProperty(() => this.length, false),
-        topRadius: 0,
-        bottomRadius: new Cesium.CallbackProperty(() => this.radius, false),
-        material: mat,
-        outline: true,
-        outlineColor: new Cesium.CallbackProperty(() => this.color.withAlpha(faint ? 0.35 : 0.7), false),
-        numberOfVerticalLines: faint ? 6 : 10,
-        slices: 48,
-      },
-      show: false,
-    });
-  }
-
-  setColor(c: Cesium.Color) { this.color = c; }
-
-  /** apex and target in ECEF km; halfAngleDeg = cone half angle at the apex */
-  set(apexKm: Vec3, targetKm: Vec3, halfAngleDeg: number) {
-    const ax = apexKm[0] * 1000, ay = apexKm[1] * 1000, az = apexKm[2] * 1000;
-    const tx = targetKm[0] * 1000, ty = targetKm[1] * 1000, tz = targetKm[2] * 1000;
-    const dx = ax - tx, dy = ay - ty, dz = az - tz;
-    const L = Math.hypot(dx, dy, dz);
-    this.length = L;
-    this.radius = L * Math.tan((halfAngleDeg * Math.PI) / 180);
-    this.pos.x = (ax + tx) / 2; this.pos.y = (ay + ty) / 2; this.pos.z = (az + tz) / 2;
-    // rotate +Z (cylinder top, radius 0) onto the direction target → apex
-    const d = new Cesium.Cartesian3(dx / L, dy / L, dz / L);
-    const axis = Cesium.Cartesian3.cross(Cesium.Cartesian3.UNIT_Z, d, new Cesium.Cartesian3());
-    const n = Cesium.Cartesian3.magnitude(axis);
-    if (n < 1e-9) Cesium.Quaternion.clone(d.z > 0 ? Cesium.Quaternion.IDENTITY : Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.UNIT_X, Math.PI), this.orient);
-    else Cesium.Quaternion.fromAxisAngle(Cesium.Cartesian3.normalize(axis, axis), Math.acos(Math.max(-1, Math.min(1, d.z))), this.orient);
-    if (!this.visible) { this.entity.show = true; this.visible = true; }
-  }
-
-  hide() {
-    if (this.visible) { this.entity.show = false; this.visible = false; }
-  }
 }

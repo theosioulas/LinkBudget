@@ -38,6 +38,32 @@ export function liveTick() {
     };
     A = mk(st.A, 'A');
     B = mk(st.B, 'B');
+  } else if (ctx.terminal.beams === 2 && (s.mbb.orbitPolicy === 'dedicated' || s.mbb.orbitPolicy === 'geo-leo-dual')) {
+    // Instant view, dedicated beams: each beam sticks to its satellite while usable, else takes the best of its own systems.
+    const geoLeo = s.mbb.orbitPolicy === 'geo-leo-dual';
+    const isLeo = (x: SatelliteDef) => ctx.orbitClassOf(x.constellationId) === 'LEO';
+    const inSet = (ids?: string[]) => (x: SatelliteDef) => !ids?.length || ids.includes(x.constellationId);
+    const pools = { A: pool.filter(geoLeo ? (x) => !isLeo(x) : inSet(s.mbb.beamAssign?.A)), B: pool.filter(geoLeo ? isLeo : inSet(s.mbb.beamAssign?.B)) };
+    const now = performance.now();
+    const rerank = now - lastRankWall > 1000;
+    if (rerank) lastRankWall = now;
+    const pick = (b: 'A' | 'B', taken?: string) => {
+      const prev = s.live[b] && byId.get(s.live[b]!.satId);
+      if (prev && prev.id !== taken) {
+        const L = evalSatLink(prev, t, ctx);
+        if (L && L.forward.feasible && L.geometry.look.el >= s.mbb.handoverElevationDeg) return { satId: prev.id, phase: 'tracking' as const, active: false, link: L };
+      }
+      const key = b === 'A' ? 'a' : 'b';
+      if (rerank || !lastRank[key] || lastRank[key] === taken) lastRank[key] = rankCandidates(pools[b], t, ctx, s.mbb, new Set(taken ? [taken] : []))[0]?.sat.id;
+      const sat = lastRank[key] ? byId.get(lastRank[key]!) : undefined;
+      const L = sat && evalSatLink(sat, t, ctx);
+      return sat && L?.forward.feasible ? { satId: sat.id, phase: 'tracking' as const, active: false, link: L } : null;
+    };
+    A = pick('A');
+    B = pick('B', A?.satId);
+    const thr = (x: typeof A) => x?.link?.forward.throughputClearMbps ?? -1;
+    const act = geoLeo ? (B ? B : A) : thr(A) >= thr(B) ? A : B;
+    if (act) act.active = true;
   } else {
     // Instant view: beam A sticks to its satellite while usable, beam B pre-points at the best alternative.
     const prevA = s.live.A && byId.get(s.live.A.satId);
