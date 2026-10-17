@@ -8,7 +8,7 @@ export function applyDemo(id: string) {
   const d = DEMOS.find((x) => x.id === id);
   if (!d) return;
   const s = useStore.getState();
-  const constellations = s.constellations.map((c) => ({ ...c, enabled: c.locked || d.enable.includes(c.id) }));
+  const constellations = s.constellations.map((c) => ({ ...c, enabled: d.enable.includes(c.id) }));
   useStore.setState({ constellations, scenarioId: d.id, name: d.name, templatesOpen: false, mbb: { ...DEFAULT_MBB, ...d.mbb }, sim: null, selectedSatId: null, focusPayloadSatId: null });
   const t = activeTerminal(useStore.getState());
   useStore.getState().updateTerminal({

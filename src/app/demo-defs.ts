@@ -1,6 +1,6 @@
 import type { MbbSettings, Obstruction } from '../core/model';
 
-/** One-click scenarios. `enable` lists the systems switched on; the GEO wide beam is always on. */
+/** Scenario templates. `enable` lists the systems included in the scenario. */
 export interface Demo {
   id: string;
   name: string;

@@ -101,13 +101,24 @@ export class GlobeController {
     this.viewer.useBrowserRecommendedResolution = false;
     this.viewer.resolutionScale = 1;
     scene.postProcessStages.fxaa.enabled = true;
+    // Google Earth-style navigation: left drag grabs and moves the globe, the wheel zooms toward the
+    // cursor, middle drag (or Shift+drag) tilts and rotates around the point under the cursor,
+    // right drag zooms, Ctrl+drag looks around. The compass / N key turns north back up.
     const ssc = scene.screenSpaceCameraController;
-    ssc.enableLook = false;
-    // Left drag orbits/tilts, the middle button (press the wheel and drag) tilts as well, wheel and right drag zoom.
     ssc.rotateEventTypes = [Cesium.CameraEventType.LEFT_DRAG];
-    // Middle drag is handled below (tiltBy) so it works the same in every view.
-    ssc.tiltEventTypes = [Cesium.CameraEventType.PINCH, { eventType: Cesium.CameraEventType.LEFT_DRAG, modifier: Cesium.KeyboardEventModifier.CTRL }];
+    ssc.tiltEventTypes = [Cesium.CameraEventType.MIDDLE_DRAG, Cesium.CameraEventType.PINCH,
+      { eventType: Cesium.CameraEventType.LEFT_DRAG, modifier: Cesium.KeyboardEventModifier.SHIFT }];
     ssc.zoomEventTypes = [Cesium.CameraEventType.WHEEL, Cesium.CameraEventType.RIGHT_DRAG, Cesium.CameraEventType.PINCH];
+    ssc.lookEventTypes = [{ eventType: Cesium.CameraEventType.LEFT_DRAG, modifier: Cesium.KeyboardEventModifier.CTRL }];
+    ssc.enableLook = true;
+    ssc.inertiaSpin = 0.85;
+    ssc.inertiaTranslate = 0.85;
+    ssc.inertiaZoom = 0.6;
+    // High-resolution star background rendered from the Hipparcos catalogue (scripts/build_skybox.py).
+    const sky = (f: string) => new URL(`skybox/${f}.jpg`, document.baseURI).href;
+    scene.skyBox = new Cesium.SkyBox({
+      sources: { positiveX: sky('px'), negativeX: sky('mx'), positiveY: sky('py'), negativeY: sky('my'), positiveZ: sky('pz'), negativeZ: sky('mz') },
+    });
     scene.globe.tileCacheSize = 400;
     scene.globe.enableLighting = true;
     scene.globe.dynamicAtmosphereLighting = true;
@@ -147,16 +158,8 @@ export class GlobeController {
       const id = p && typeof p.id === 'string' && this.satIndex.has(p.id) ? (p.id as string) : null;
       this.onPick?.(id);
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
-    let mid: Cesium.Cartesian2 | null = null;
-    h.setInputAction((e: Cesium.ScreenSpaceEventHandler.PositionedEvent) => { mid = Cesium.Cartesian2.clone(e.position); }, Cesium.ScreenSpaceEventType.MIDDLE_DOWN);
-    h.setInputAction(() => { mid = null; }, Cesium.ScreenSpaceEventType.MIDDLE_UP);
     let lastHover = 0;
     h.setInputAction((e: Cesium.ScreenSpaceEventHandler.MotionEvent) => {
-      if (mid) {
-        this.tiltBy(e.endPosition.x - mid.x, e.endPosition.y - mid.y);
-        mid = Cesium.Cartesian2.clone(e.endPosition);
-        return;
-      }
       const now = performance.now();
       if (now - lastHover < 60) return;
       lastHover = now;
@@ -469,7 +472,7 @@ export class GlobeController {
       }
     }
     this.followCamera(ms);
-    this.lockNorth();
+    this.reportHeading();
     this.drawLinks(ms);
     this.drawIcons(ms);
     if (this.selectedId !== this.trackFor || Math.abs(ms - this.trackAt) > 60_000) this.drawGroundTrack(ms);
@@ -698,8 +701,9 @@ export class GlobeController {
 
   // ------------------------------------------------------------ camera
   /**
-   * View modes. Each one locks the camera's reference frame to its target (camera.lookAtTransform),
-   * so mouse rotation orbits the target and zoom moves toward it: the target always stays centred.
+   * View modes. Terminal and Earth fly to their target and then leave the camera free for
+   * Google Earth-style navigation; Satellite locks the camera's frame to the moving satellite
+   * (camera.lookAtTransform) so it stays centred while it moves.
    *  - terminal: orbit around the earth station
    *  - earth: orbit around the Earth's centre (whole globe and GEO belt)
    *  - satellite: follow a satellite as it moves
@@ -739,7 +743,7 @@ export class GlobeController {
       this.flying = true;
       cam.flyToBoundingSphere(new Cesium.BoundingSphere(target, 1), {
         offset: hpr, duration,
-        complete: () => { this.flying = false; if (this.viewMode === 'terminal') cam.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(target), hpr); },
+        complete: () => { this.flying = false; this.release(); },
         cancel: () => { this.flying = false; },
       });
     } else if (mode === 'earth') {
@@ -749,13 +753,7 @@ export class GlobeController {
       cam.flyTo({
         destination: Cesium.Cartesian3.fromDegrees(lon, lat, range), duration,
         orientation: { heading: 0, pitch: -Cesium.Math.PI_OVER_TWO, roll: 0 },
-        complete: () => {
-          this.flying = false;
-          if (this.viewMode !== 'earth') return;
-          // Orbit around the Earth's centre: an Earth-fixed frame at the origin, camera offset preserved.
-          const off = Cesium.Cartesian3.clone(cam.positionWC);
-          cam.lookAtTransform(Cesium.Matrix4.IDENTITY, off);
-        },
+        complete: () => { this.flying = false; this.release(); },
         cancel: () => { this.flying = false; },
       });
     } else if (mode === 'satellite' && this.followSatId) {
@@ -790,49 +788,34 @@ export class GlobeController {
     cam.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(km(satEcef(s, ms))), off);
   }
 
-  /**
-   * Middle-button drag (press the wheel and drag): up/down tilts the view around its target;
-   * in the Earth view it turns the globe. North stays up (see lockNorth).
-   */
-  private tiltBy(dxPx: number, dyPx: number) {
-    if (this.flying) return;
-    const cam = this.viewer.camera;
-    if (this.viewMode !== 'earth' && !Cesium.Matrix4.equals(cam.transform, Cesium.Matrix4.IDENTITY)) {
-      const p = cam.position;
-      const range = Cesium.Cartesian3.magnitude(p);
-      const elev = Math.atan2(p.z, Math.hypot(p.x, p.y)) + Cesium.Math.toRadians(dyPx * 0.3);
-      const e = Math.min(Cesium.Math.toRadians(89.5), Math.max(Cesium.Math.toRadians(8), elev));
-      cam.lookAtTransform(cam.transform, new Cesium.Cartesian3(0, -range * Math.cos(e), range * Math.sin(e)));
-    } else {
-      cam.rotateRight(Cesium.Math.toRadians(dxPx * 0.15));
-      cam.rotateUp(Cesium.Math.toRadians(dyPx * 0.15));
-    }
+  onHeading?: (deg: number) => void;
+  private lastHeading = NaN;
+  private reportHeading() {
+    const h = Cesium.Math.toDegrees(this.viewer.camera.heading);
+    if (Math.abs(h - this.lastHeading) > 0.5) { this.lastHeading = h; this.onHeading?.(h); }
   }
 
-  /**
-   * Keep north up in every view: the camera may orbit and tilt but never yaw. In the target-locked
-   * views (terminal / satellite) the camera's local offset is swung back to due south of the target,
-   * keeping range and tilt; in the Earth view the camera is re-aimed at the Earth's centre, north up.
-   */
-  private lockNorth() {
-    if (this.flying) return;
+  /** Turn the view back to north-up (like Google Earth's compass / N key), keeping tilt and range. */
+  resetNorth() {
     const cam = this.viewer.camera;
-    const local = !Cesium.Matrix4.equals(cam.transform, Cesium.Matrix4.IDENTITY);
-    if (local && this.viewMode !== 'earth') {
-      const p = cam.position;
-      const h = Math.hypot(p.x, p.y), range = Cesium.Cartesian3.magnitude(p);
-      // tilt limits: 8° above the horizon … 89.5° (straight down)
-      const elev = Math.min(Cesium.Math.toRadians(89.5), Math.max(Cesium.Math.toRadians(8), Math.atan2(p.z, h)));
-      const tx = 0, ty = -range * Math.cos(elev), tz = range * Math.sin(elev);
-      if (Math.abs(p.x - tx) + Math.abs(p.y - ty) + Math.abs(p.z - tz) < 1e-6 * range) return;
-      cam.lookAtTransform(cam.transform, new Cesium.Cartesian3(tx, ty, tz));
-    } else if (this.viewMode === 'earth') {
-      const hd = cam.heading;
-      const off = Math.min(Math.abs(hd), Math.abs(hd - Cesium.Math.TWO_PI));
-      if (off < 1e-4) return;
-      const pos = Cesium.Cartesian3.clone(cam.positionWC);
-      cam.lookAtTransform(Cesium.Matrix4.IDENTITY, pos);
+    const canvas = this.viewer.scene.canvas;
+    const center = cam.pickEllipsoid(new Cesium.Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2));
+    if (this.viewMode === 'satellite' && !Cesium.Matrix4.equals(cam.transform, Cesium.Matrix4.IDENTITY)) {
+      const p = cam.position, range = Cesium.Cartesian3.magnitude(p);
+      cam.lookAtTransform(cam.transform, new Cesium.HeadingPitchRange(0, -Math.atan2(p.z, Math.hypot(p.x, p.y)), range));
+      return;
     }
+    if (!center) { cam.flyTo({ destination: cam.positionWC, orientation: { heading: 0, pitch: cam.pitch, roll: 0 }, duration: 0.6 }); return; }
+    const inv = Cesium.Matrix4.inverseTransformation(Cesium.Transforms.eastNorthUpToFixedFrame(center), new Cesium.Matrix4());
+    const local = Cesium.Matrix4.multiplyByPoint(inv, cam.positionWC, new Cesium.Cartesian3());
+    const range = Cesium.Cartesian3.magnitude(local);
+    const pitch = -Math.atan2(local.z, Math.hypot(local.x, local.y));
+    this.flying = true;
+    cam.flyToBoundingSphere(new Cesium.BoundingSphere(center, 0), {
+      offset: new Cesium.HeadingPitchRange(0, pitch, range), duration: 0.6,
+      complete: () => { this.flying = false; this.release(); },
+      cancel: () => { this.flying = false; },
+    });
   }
 
   // Backwards-compatible helpers
@@ -861,7 +844,7 @@ export class GlobeController {
       this.flying = true;
       this.viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 1), {
         offset: hpr, duration: 1.6,
-        complete: () => { this.flying = false; this.viewer.camera.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(target), hpr); },
+        complete: () => { this.flying = false; this.release(); },
         cancel: () => { this.flying = false; },
       });
       this.onViewModeChange?.('terminal');

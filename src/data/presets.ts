@@ -86,7 +86,7 @@ export const PAYLOADS: Payload[] = [
     pattern: { kind: 's672', hpbwDeg: 6.0, sidelobeDb: -25, scanLossExp: 0, maxScanDeg: 9 },
     layout: { kind: 'spot', aimLat: 38, aimLon: 24, followTerminal: true },
     casiDb: 20, xpolIsoDb: 30, minElevationDeg: 5, maxBeamThroughputGbps: 0.15,
-    notes: 'Regional Ku wide beam (~4,000 km) that is always pointed at the terminal: the guaranteed GEO fallback in every scenario.',
+    notes: 'Regional Ku wide beam (~4,000 km). By default it aims at the terminal (switch off ‘Aim follows the terminal’ to point it anywhere).',
   },
 ];
 
@@ -156,8 +156,8 @@ export const CONSTELLATIONS: Constellation[] = [
   },
   {
     id: 'geo-ku', name: 'GEO wide beam', operator: 'Generic FSS', orbitClass: 'GEO', color: '#ef476f', enabled: true, payloadId: 'pl-geo-ku-wide',
-    showOrbits: true, showCoverage: false, showLabels: true, propagator: 'kepler-j2', locked: true, followTerminal: true,
-    description: 'Always-on Ku GEO with a ~6° wide beam. Its slot follows the terminal longitude and the beam aims at the terminal.',
+    showOrbits: true, showCoverage: false, showLabels: true, propagator: 'kepler-j2', followTerminal: true,
+    description: 'Ku GEO with a ~6° wide beam. By default its slot follows the terminal’s longitude and the beam aims at the terminal; switch either off to place it yourself.',
     source: { kind: 'geo', slots: [{ name: 'GEO wide beam', lon: 24, inc: 0.05 }] },
   },
 ];
