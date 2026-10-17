@@ -65,7 +65,7 @@ function ConstellationCard({ c }: { c: Constellation }) {
         <input type="color" value={c.color} onChange={(e) => u({ color: e.target.value })} style={{ width: 18, height: 18, border: 'none', padding: 0, background: 'none', cursor: 'pointer' }} title="Colour" />
         <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
         <span className={`chip ${c.orbitClass.toLowerCase()}`}>{c.orbitClass}</span>
-        <Toggle checked={c.enabled} onChange={(v) => u({ enabled: v })} label="" title="Enable / disable" />
+        <Toggle checked={c.enabled || !!c.locked} disabled={c.locked} onChange={(v) => u({ enabled: v })} label="" title={c.locked ? 'Always on: the GEO fallback for every scenario' : 'Show / hide this constellation'} />
       </div>
       <div className="row small dim" style={{ marginTop: 3 }}>
         <span>{c.operator} · {c.enabled ? `${n} sats` : 'disabled'} · {payloads.find((p) => p.id === c.payloadId)?.band ?? '?'}-band</span>
@@ -118,7 +118,7 @@ function ConstellationCard({ c }: { c: Constellation }) {
             </>
           )}
           <div className="row" style={{ marginTop: 8 }}>
-            <button className="btn sm danger right-align" onClick={() => remove(c.id)}>Delete constellation</button>
+            {!c.locked && <button className="btn sm danger right-align" onClick={() => remove(c.id)}>Delete constellation</button>}
           </div>
         </div>
       )}

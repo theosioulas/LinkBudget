@@ -1,45 +1,61 @@
 import type { MbbSettings, Obstruction } from '../core/model';
 
+/** One-click scenarios. `enable` lists the systems switched on; the GEO wide beam is always on. */
 export interface Demo {
   id: string;
   name: string;
   description: string;
+  systems: string;
   enable: string[];
   mbb: Partial<MbbSettings>;
   beams?: 1 | 2;
   obstructions?: Obstruction[];
 }
 
+const GEO = 'geo-ku';
+
 export const DEMOS: Demo[] = [
   {
-    id: 'leo-mbb', name: 'LEO ↔ LEO make-before-break (Starlink)', enable: ['starlink'],
-    description: 'Dual-beam ESA hands over between Starlink satellites every few minutes with zero interruption.',
-    mbb: { allowedConstellations: ['starlink'], orbitPolicy: 'leo-first', policy: 'longest-visibility', durationMin: 20, stepSec: 2 }, beams: 2, obstructions: [],
+    id: 'multi-orbit', name: 'Multi-orbit', systems: 'Starlink · OneWeb · O3b mPOWER · GEO',
+    description: 'LEO first, falling back to MEO and the GEO wide beam. Dual-beam make-before-break.',
+    enable: ['starlink', 'oneweb', 'mpower', GEO],
+    mbb: { allowedConstellations: [], orbitPolicy: 'leo-first', policy: 'longest-visibility', durationMin: 20, stepSec: 2 }, beams: 2, obstructions: [],
   },
   {
-    id: 'canyon', name: 'Multi-orbit MBB in an urban canyon (OneWeb + MEO + GEO)', enable: ['oneweb', 'mpower', 'geo-hts'],
-    description: 'East and west sky blocked below 60°: LEO-first policy falls back to O3b mPOWER and GEO whenever no OneWeb satellite is visible, without dropping traffic.',
-    mbb: { allowedConstellations: ['oneweb', 'mpower', 'geo-hts'], orbitPolicy: 'leo-first', policy: 'longest-visibility', durationMin: 60, stepSec: 4 }, beams: 2,
+    id: 'leo-mbb', name: 'LEO make-before-break', systems: 'Starlink · GEO',
+    description: 'Handovers between Starlink satellites every few minutes with zero interruption.',
+    enable: ['starlink', GEO],
+    mbb: { allowedConstellations: ['starlink', GEO], orbitPolicy: 'leo-first', policy: 'longest-visibility', durationMin: 20, stepSec: 2 }, beams: 2, obstructions: [],
+  },
+  {
+    id: 'canyon', name: 'Urban canyon', systems: 'OneWeb · O3b mPOWER · GEO',
+    description: 'East and west sky blocked below 60°. Traffic moves LEO → MEO → GEO and back without dropping.',
+    enable: ['oneweb', 'mpower', GEO],
+    mbb: { allowedConstellations: ['oneweb', 'mpower', GEO], orbitPolicy: 'leo-first', policy: 'longest-visibility', durationMin: 60, stepSec: 4 }, beams: 2,
     obstructions: [{ azFrom: 30, azTo: 150, elMax: 60 }, { azFrom: 210, azTo: 330, elMax: 60 }],
   },
   {
-    id: 'geo-leo', name: 'GEO anchor + LEO (dual-orbit, both beams active)', enable: ['starlink', 'geo-hts'],
-    description: 'Beam A stays on the GEO Ka-HTS, beam B tracks LEO satellites; traffic rides LEO for latency and GEO covers the LEO re-points.',
-    mbb: { allowedConstellations: ['starlink', 'geo-hts'], orbitPolicy: 'geo-leo-dual', policy: 'longest-visibility', durationMin: 20, stepSec: 2 }, beams: 2, obstructions: [],
+    id: 'geo-leo', name: 'GEO + LEO together', systems: 'Starlink · GEO',
+    description: 'Beam A stays on the GEO wide beam, beam B tracks LEO. Traffic rides LEO; GEO covers the re-points.',
+    enable: ['starlink', GEO],
+    mbb: { allowedConstellations: ['starlink', GEO], orbitPolicy: 'geo-leo-dual', policy: 'longest-visibility', durationMin: 20, stepSec: 2 }, beams: 2, obstructions: [],
   },
   {
-    id: 'meo', name: 'MEO make-before-break (O3b mPOWER, 6 h)', enable: ['mpower'],
-    description: 'Long passes from 8,062 km: a handful of MEO handovers over six hours.',
-    mbb: { allowedConstellations: ['mpower'], orbitPolicy: 'single', policy: 'longest-visibility', minElevationDeg: 10, handoverElevationDeg: 15, durationMin: 360, stepSec: 30 }, beams: 2, obstructions: [],
+    id: 'meo', name: 'MEO (6 hours)', systems: 'O3b mPOWER · GEO',
+    description: 'Long passes from 8,062 km and only a handful of handovers.',
+    enable: ['mpower', GEO],
+    mbb: { allowedConstellations: ['mpower', GEO], orbitPolicy: 'leo-first', policy: 'longest-visibility', minElevationDeg: 10, handoverElevationDeg: 15, durationMin: 360, stepSec: 30 }, beams: 2, obstructions: [],
   },
   {
-    id: 'oneweb', name: 'OneWeb push-broom beams (1 s resolution)', enable: ['oneweb'],
-    description: 'Watch the Es/N0 ripple as the terminal crosses the 16 fixed beams of each satellite, plus satellite handovers.',
-    mbb: { allowedConstellations: ['oneweb'], orbitPolicy: 'single', policy: 'longest-visibility', durationMin: 15, stepSec: 1 }, beams: 2, obstructions: [],
+    id: 'oneweb', name: 'OneWeb fixed beams', systems: 'OneWeb · GEO',
+    description: 'Watch the signal ripple as the 16 fixed beams of each satellite sweep over the terminal.',
+    enable: ['oneweb', GEO],
+    mbb: { allowedConstellations: ['oneweb', GEO], orbitPolicy: 'leo-first', policy: 'longest-visibility', durationMin: 15, stepSec: 1 }, beams: 2, obstructions: [],
   },
   {
-    id: 'single', name: 'Single-beam terminal: break-before-make outage', enable: ['starlink'],
-    description: 'Same LEO run with one beam: every handover costs the acquisition time.',
-    mbb: { allowedConstellations: ['starlink'], orbitPolicy: 'leo-first', policy: 'longest-visibility', durationMin: 20, stepSec: 1, acquisitionSec: 2 }, beams: 1, obstructions: [],
+    id: 'single', name: 'Single-beam terminal', systems: 'Starlink · GEO',
+    description: 'The same LEO run with one beam: every handover costs the acquisition time.',
+    enable: ['starlink', GEO],
+    mbb: { allowedConstellations: ['starlink', GEO], orbitPolicy: 'leo-first', policy: 'longest-visibility', durationMin: 20, stepSec: 1, acquisitionSec: 2 }, beams: 1, obstructions: [],
   },
 ];

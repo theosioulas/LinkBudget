@@ -55,10 +55,10 @@ export function SelectField<T extends string | number>(props: { label: string; v
   );
 }
 
-export function Toggle(props: { label: ReactNode; checked: boolean; onChange: (v: boolean) => void; title?: string }) {
+export function Toggle(props: { label: ReactNode; checked: boolean; onChange: (v: boolean) => void; title?: string; disabled?: boolean }) {
   return (
-    <label className="toggle" title={props.title}>
-      <input type="checkbox" checked={props.checked} onChange={(e) => props.onChange(e.target.checked)} />
+    <label className={`toggle ${props.disabled ? 'locked' : ''}`} title={props.title}>
+      <input type="checkbox" checked={props.checked} disabled={props.disabled} aria-label={typeof props.label === 'string' && props.label ? props.label : props.title} onChange={(e) => props.onChange(e.target.checked)} />
       <span className="sw" />
       {props.label}
     </label>

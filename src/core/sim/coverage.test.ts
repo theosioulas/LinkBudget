@@ -9,7 +9,7 @@ const T0 = Date.UTC(2026, 9, 16, 12, 0, 0);
 describe('coverage map', () => {
   beforeAll(() => loadGridsFromDisk());
   it('GEO Ka-HTS throughput map peaks inside beams and drops in rainy climates', () => {
-    const geo = buildSatellites(CONSTELLATIONS, T0).find((s) => s.constellationId === 'geo-hts')!;
+    const geo = buildSatellites(CONSTELLATIONS.map((c) => ({ ...c, enabled: true })), T0).find((s) => s.constellationId === 'geo-hts')!;
     const pl = PAYLOADS.find((p) => p.id === 'pl-geo-ka-eu')!;
     const t0 = performance.now();
     const r = computeCoverage(geo, T0, pl, 'GEO', TERMINALS[2], DEFAULT_ANALYSIS, 'esn0Fwd', 0.5);

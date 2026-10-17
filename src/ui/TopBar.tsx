@@ -1,18 +1,41 @@
+import { useEffect, useRef, useState } from 'react';
 import { useStore, type ScenarioFile } from '../store/store';
 import { globe } from '../globe/GlobeView';
-import { Seg, download, pickFile } from './controls';
+import { download, pickFile } from './controls';
 import { buildHtmlReport } from './report';
+import { DEMOS } from '../app/demos';
+import { Icon } from './icons';
+import { LayersMenu } from './LayersMenu';
 
-const SPEEDS: [number, string][] = [[1, '1×'], [10, '10×'], [60, '60×'], [300, '5m/s'], [1800, '30m/s']];
+const SPEEDS: [number, string][] = [[1, 'Real time'], [10, '10×'], [60, '60×'], [300, '5 min/s'], [1800, '30 min/s']];
+
+export function useClickAway(open: boolean, close: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) close(); };
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('mousedown', h);
+    window.addEventListener('keydown', k);
+    return () => { window.removeEventListener('mousedown', h); window.removeEventListener('keydown', k); };
+  }, [open, close]);
+  return ref;
+}
 
 export function TopBar() {
   const clock = useStore((s) => s.clock);
   const name = useStore((s) => s.name);
-  const live = useStore((s) => s.live);
+  const scenarioId = useStore((s) => s.scenarioId);
+  const drawer = useStore((s) => s.drawer);
   const set = useStore((s) => s.set);
+  const [menu, setMenu] = useState<'layers' | 'export' | null>(null);
+  const close = () => setMenu(null);
+  const layersRef = useClickAway(menu === 'layers', close);
+  const exportRef = useClickAway(menu === 'export', close);
   const d = new Date(clock.t);
-  const iso = d.toISOString().replace('T', ' ').slice(0, 19);
+  const iso = d.toISOString();
   const setT = (ms: number) => { globe?.setTime(ms); set({ clock: { ...clock, t: ms } }); };
+  const scenario = DEMOS.find((x) => x.id === scenarioId);
 
   const save = () => download(`${name.replace(/\s+/g, '_')}.orbitlink.json`, JSON.stringify(useStore.getState().exportScenario(), null, 2), 'application/json');
   const load = async () => {
@@ -24,40 +47,50 @@ export function TopBar() {
       useStore.getState().importScenario(j);
       useStore.getState().notify(`Loaded scenario "${j.name}"`);
     } catch (e) {
-      useStore.getState().notify(`Could not load: ${String(e)}`);
+      useStore.getState().notify(`Could not open the file: ${String(e)}`);
     }
   };
-  const report = () => {
-    const html = buildHtmlReport(useStore.getState());
-    download(`link-budget-report-${iso.replace(/[: ]/g, '-')}.html`, html, 'text/html');
-  };
+  const report = () => download(`link-budget-report-${iso.slice(0, 19).replace(/[:T]/g, '-')}.html`, buildHtmlReport(useStore.getState()), 'text/html');
 
   return (
-    <div className="topbar">
+    <header className="topbar glass">
       <div className="brand">
-        <svg className="brand-logo" viewBox="0 0 64 64"><circle cx="32" cy="32" r="13" fill="#1f6feb" /><ellipse cx="32" cy="32" rx="28" ry="10" fill="none" stroke="#22d3ee" strokeWidth="3" transform="rotate(-25 32 32)" /><circle cx="55" cy="22" r="4.5" fill="#f472b6" /></svg>
-        <div className="col" style={{ gap: 0 }}>
-          <span>OrbitLink Studio</span>
-          <small>Multi-orbit link budget</small>
-        </div>
+        <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="12" fill="#1f6feb" /><ellipse cx="32" cy="32" rx="28" ry="10" fill="none" stroke="#38d6f0" strokeWidth="3.5" transform="rotate(-25 32 32)" /><circle cx="56" cy="21" r="4.5" fill="#f472b6" /></svg>
+        <span>OrbitLink</span>
       </div>
-      <div className="sep" />
-      <button className="btn icon" title={clock.playing ? 'Pause' : 'Play'} onClick={() => set({ clock: { ...clock, playing: !clock.playing } })}>{clock.playing ? '❚❚' : '▶'}</button>
-      <Seg value={clock.multiplier} options={SPEEDS} onChange={(v) => set({ clock: { ...clock, multiplier: v } })} />
-      <div className="time" title="Simulation time (UTC)"><b>UTC</b> {iso}</div>
-      <button className="btn sm" title="Back 10 min" onClick={() => setT(clock.t - 600_000)}>−10m</button>
-      <button className="btn sm" title="Forward 10 min" onClick={() => setT(clock.t + 600_000)}>+10m</button>
-      <button className="btn sm" title="Jump to real time now" onClick={() => setT(Date.now())}>Now</button>
-      <div className="sep hide-sm" />
-      <span className="chip hide-sm" title="Satellites above the terminal's minimum elevation">{live.visible} visible</span>
-      <span className={`chip hide-sm ${live.mode === 'timeline' ? 'good' : ''}`} title="Links follow the simulated MBB timeline, or an instantaneous best-satellite view">{live.mode === 'timeline' ? 'Timeline links' : 'Instant links'}</span>
+      <button className="scenario-btn" onClick={() => set({ drawer: drawer === 'scenarios' ? null : 'scenarios' })} title="Choose a scenario">
+        <span style={{ minWidth: 0 }}>
+          <span className="lbl">Scenario</span>
+          <span className="val">{scenario?.name ?? 'Custom'}</span>
+        </span>
+        <span style={{ color: 'var(--text-3)', display: 'flex' }}><span style={{ width: 16, height: 16, display: 'inline-flex' }}><Icon.chevronDown /></span></span>
+      </button>
+      <div className="clock">
+        <button className="ibtn sm" title={clock.playing ? 'Pause' : 'Play'} onClick={() => set({ clock: { ...clock, playing: !clock.playing } })}>{clock.playing ? <Icon.pause /> : <Icon.play />}</button>
+        <select value={clock.multiplier} onChange={(e) => set({ clock: { ...clock, multiplier: +e.target.value } })} aria-label="Simulation speed">
+          {SPEEDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+        </select>
+        <span className="time" title="Simulation time (UTC)">{iso.slice(0, 10)} {iso.slice(11, 19)}<small>UTC</small></span>
+        <button className="btn sm ghost" onClick={() => setT(Date.now())} title="Jump to the current real time">Now</button>
+      </div>
       <div className="grow" />
-      <button className="btn sm" onClick={() => globe?.flyToTerminal(9000, -55)} title="Fly to the terminal">⌖ Terminal</button>
-      <button className="btn sm" onClick={() => globe?.flyGlobal()} title="Show the whole GEO belt">◎ Global</button>
-      <div className="sep" />
-      <button className="btn sm" onClick={save} title="Save scenario as JSON">Save</button>
-      <button className="btn sm" onClick={load} title="Open a scenario JSON">Open</button>
-      <button className="btn sm primary" onClick={report} title="Export a full HTML link-budget report">Export report</button>
-    </div>
+      <button className="ibtn" onClick={() => globe?.flyToTerminal(9000, -55)} title="Fly to the terminal"><Icon.target /></button>
+      <button className="ibtn" onClick={() => globe?.flyGlobal()} title="Show the whole Earth and the GEO belt"><Icon.globe /></button>
+      <div className="menu-wrap" ref={layersRef}>
+        <button className={`ibtn ${menu === 'layers' ? 'on' : ''}`} onClick={() => setMenu(menu === 'layers' ? null : 'layers')} title="Layers: choose what the globe shows"><Icon.layers /></button>
+        {menu === 'layers' && <div className="menu layers-menu"><LayersMenu /></div>}
+      </div>
+      <div className="vsep" />
+      <div className="menu-wrap" ref={exportRef}>
+        <button className="btn primary" onClick={() => setMenu(menu === 'export' ? null : 'export')}><Icon.download /> Export</button>
+        {menu === 'export' && (
+          <div className="menu">
+            <button className="item" onClick={() => { report(); close(); }}><Icon.report /> <span>Link-budget report <span className="hint">(HTML)</span></span></button>
+            <button className="item" onClick={() => { save(); close(); }}><Icon.download /> <span>Save scenario <span className="hint">(JSON)</span></span></button>
+            <button className="item" onClick={() => { load(); close(); }}><Icon.open /> <span>Open scenario…</span></button>
+          </div>
+        )}
+      </div>
+    </header>
   );
 }

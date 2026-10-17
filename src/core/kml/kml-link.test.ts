@@ -14,7 +14,7 @@ const T0 = Date.UTC(2026, 9, 16, 12, 0, 0);
 describe('KML EIRP + G/T contours drive the link budget', () => {
   beforeAll(() => loadGridsFromDisk());
   it('uses absolute EIRP forward and absolute G/T on return', () => {
-    const geo = buildSatellites(CONSTELLATIONS, T0).find((s) => s.constellationId === 'geo-hts')!;
+    const geo = buildSatellites(CONSTELLATIONS.map((c) => ({ ...c, enabled: true })), T0).find((s) => s.constellationId === 'geo-hts')!;
     const base = PAYLOADS.find((p) => p.id === 'pl-geo-ka-eu')!;
     const hex: Payload = { ...base, layout: { kind: 'hex-grid', aimLat: 38, aimLon: 23.7, spacingDeg: 0.38, rings: 1, reuseColors: 4 } };
     const fps = beamContours(hex, { ecef: satEcef(geo, T0), velEcef: [0, 0, 1] }, [-1, -2, -3, -4, -5, -6]);

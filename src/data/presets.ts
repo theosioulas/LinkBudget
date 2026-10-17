@@ -79,14 +79,14 @@ export const PAYLOADS: Payload[] = [
     notes: '~200 Ka spot beams with a digital channeliser (SES-17-class) serving aero & maritime routes.',
   },
   {
-    id: 'pl-geo-ku-wide', name: 'GEO Ku wide beam (Europe/MENA)', architecture: 'bent-pipe', band: 'Ku',
+    id: 'pl-geo-ku-wide', name: 'GEO Ku wide beam (follows terminal)', architecture: 'bent-pipe', band: 'Ku',
     forward: { freqGHz: 11.7, bandwidthMHz: 36, rolloff: 0.2, pol: 'H', eirpPeakDbw: 52.0, oboDb: 3.0, cimDb: 18 },
     ret: { freqGHz: 14.25, bandwidthMHz: 4, rolloff: 0.2, pol: 'V', gtPeakDbK: 4.0 },
     feeder: { fwdCnDb: 25, rtnCnDb: 25 },
-    pattern: { kind: 's672', hpbwDeg: 5.0, sidelobeDb: -25, scanLossExp: 0, maxScanDeg: 9 },
-    layout: { kind: 'spot', aimLat: 40, aimLon: 25 },
+    pattern: { kind: 's672', hpbwDeg: 6.0, sidelobeDb: -25, scanLossExp: 0, maxScanDeg: 9 },
+    layout: { kind: 'spot', aimLat: 38, aimLon: 24, followTerminal: true },
     casiDb: 20, xpolIsoDb: 30, minElevationDeg: 5, maxBeamThroughputGbps: 0.15,
-    notes: 'Classic shaped/wide Ku transponder beam, 36 MHz transponders, linear polarisation.',
+    notes: 'Regional Ku wide beam (~4,000 km) that is always pointed at the terminal: the guaranteed GEO fallback in every scenario.',
   },
 ];
 
@@ -143,7 +143,7 @@ export const CONSTELLATIONS: Constellation[] = [
     source: { kind: 'walker', shells: [{ altitudeKm: 8062, inclinationDeg: 0.0, planes: 1, satsPerPlane: 13, phasing: 0, pattern: 'delta' }] },
   },
   {
-    id: 'geo-hts', name: 'GEO Ka-HTS', operator: 'Generic HTS', orbitClass: 'GEO', color: '#ffd166', enabled: true, payloadId: 'pl-geo-ka-eu',
+    id: 'geo-hts', name: 'GEO Ka-HTS', operator: 'Generic HTS', orbitClass: 'GEO', color: '#ffd166', enabled: false, payloadId: 'pl-geo-ka-eu',
     showOrbits: true, showCoverage: false, showLabels: true, propagator: 'kepler-j2',
     description: 'Ka-band multibeam HTS at 9°E covering Europe (KA-SAT/KONNECT-class).',
     source: { kind: 'geo', slots: [{ name: 'Ka-HTS 9°E', lon: 9.0, inc: 0.05 }] },
@@ -155,10 +155,10 @@ export const CONSTELLATIONS: Constellation[] = [
     source: { kind: 'geo', slots: [{ name: 'Ka-HTS 67.1°W', lon: -67.1, inc: 0.05 }] },
   },
   {
-    id: 'geo-ku', name: 'GEO Ku wide-beam', operator: 'Generic FSS', orbitClass: 'GEO', color: '#ef476f', enabled: true, payloadId: 'pl-geo-ku-wide',
-    showOrbits: true, showCoverage: false, showLabels: true, propagator: 'kepler-j2',
-    description: 'Conventional Ku FSS satellite at 39°E with a regional beam over Europe/MENA.',
-    source: { kind: 'geo', slots: [{ name: 'Ku-FSS 39°E', lon: 39.0, inc: 0.05 }] },
+    id: 'geo-ku', name: 'GEO wide beam', operator: 'Generic FSS', orbitClass: 'GEO', color: '#ef476f', enabled: true, payloadId: 'pl-geo-ku-wide',
+    showOrbits: true, showCoverage: false, showLabels: true, propagator: 'kepler-j2', locked: true, followTerminal: true,
+    description: 'Always-on Ku GEO with a ~6° wide beam. Its slot follows the terminal longitude and the beam aims at the terminal.',
+    source: { kind: 'geo', slots: [{ name: 'GEO wide beam', lon: 24, inc: 0.05 }] },
   },
 ];
 

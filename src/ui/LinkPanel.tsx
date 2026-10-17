@@ -43,88 +43,93 @@ export function BudgetTable({ d }: { d: DirectionResult }) {
   );
 }
 
-function Kpis({ L, dir, tone }: { L: LinkResult; dir: 'forward' | 'return'; tone: string }) {
-  const d = dir === 'forward' ? L.forward : L.ret;
-  const k = (label: string, v: string, unit = '', title?: string) => (
-    <div className={`kpi ${tone}`} title={title}><div className="k">{label}</div><div className="v">{d.feasible || ['Elevation', 'Range', 'RTT', 'Term. scan', 'Doppler'].includes(label) ? v : '—'}<small>{unit}</small></div></div>
-  );
-  return (
-    <div className="kpis">
-      {k(useStore.getState().analysis.liveRainMmH ? 'Es/(N0+I) now' : 'Es/(N0+I) clr', fmtNum(d.esn0TotalClear, 1), 'dB', 'End-to-end Es/(N0+I0) in current conditions')}
-      {k('MODCOD', d.modcodClear?.name ?? (d.feasible ? 'OUTAGE' : '—'), '', 'Clear-sky ACM MODCOD')}
-      {k('Throughput', fmtNum(d.throughputClearMbps, 0), 'Mbps', 'Per carrier, clear sky')}
-      {k('Elevation', fmtNum(L.geometry.look.el, 1), '°')}
-      {k('Range', fmtNum(L.geometry.look.range, 0), 'km')}
-      {k('RTT', fmtNum(L.rttMs, 0), 'ms', 'User→sat→gateway→sat→user propagation')}
-      {k('Availability', fmtNum(d.availabilityPct, 3), '%', 'Annual availability at lowest MODCOD (ITU-R P.618)')}
-      {k('Doppler', fmtNum(dir === 'forward' ? L.dopplerFwdKHz : L.dopplerRtnKHz, 1), 'kHz')}
-      {k('Term. scan', fmtNum(L.geometry.terminalScanDeg, 1), '°', 'Angle off the panel normal')}
-    </div>
-  );
-}
-
 export function LinkPanel() {
   const live = useStore((s) => s.live);
   const sats = useStore((s) => s.sats);
   const constellations = useStore((s) => s.constellations);
   const terminal = useStore(activeTerminal);
   const analysis = useStore((s) => s.analysis);
-  const [pick, setWhich] = useState<Which>('auto');
-  const which: Exclude<Which, 'auto'> = pick !== 'auto' ? pick : live.B?.active && !live.A?.active ? 'B' : 'A';
+  const selectedSatId = useStore((s) => s.selectedSatId);
+  const [pick, setPick] = useState<Which>('auto');
   const [dir, setDir] = useState<'forward' | 'return'>('forward');
-  const beam: LiveBeam | null = which === 'A' ? live.A : which === 'B' ? live.B : live.selected ? { satId: useStore.getState().selectedSatId ?? '', phase: 'tracking', active: false, link: live.selected } : null;
+  const [details, setDetails] = useState(false);
+  const which: Exclude<Which, 'auto'> = pick !== 'auto' ? pick : live.B?.active && !live.A?.active ? 'B' : 'A';
+  const beam: LiveBeam | null = which === 'A' ? live.A : which === 'B' ? live.B : live.selected ? { satId: selectedSatId ?? '', phase: 'tracking', active: false, link: live.selected } : null;
   const sat = beam ? sats.find((s) => s.id === beam.satId) : undefined;
   const cons = sat ? constellations.find((c) => c.id === sat.constellationId) : undefined;
   const L = beam?.link ?? null;
+  const d = L ? (dir === 'forward' ? L.forward : L.ret) : null;
   const climate = siteClimate(terminal.lat, terminal.lon);
-  const tone = which === 'A' ? 'a' : which === 'B' ? 'b' : '';
+  const state = !beam ? '' : which === 'sel' ? 'selected' : beam.phase === 'tracking' ? (beam.active ? 'carrying traffic' : 'locked, overlapping') : live.mode === 'instant' ? 'standby' : 'acquiring';
+  const tabs: [Which, string][] = [['auto', 'Active'], ['A', 'Beam A'], ['B', 'Beam B'], ...(selectedSatId ? [['sel', 'Selected'] as [Which, string]] : [])];
+  const kpi = (k: string, v: string, unit = '', title?: string) => (
+    <div className="kpi" title={title}><div className="k">{k}</div><div className="v">{v}<small>{unit}</small></div></div>
+  );
 
   return (
-    <div className="panel right">
-      <div className="tabs">
-        <button className={`tab ${pick === 'auto' ? 'on' : ''}`} onClick={() => setWhich('auto')} title="Follow the beam that carries traffic">Active</button>
-        <button className={`tab ${pick === 'A' ? 'on' : ''}`} onClick={() => setWhich('A')}><span className="chip a">A</span> {live.A?.active ? '●' : ''}</button>
-        <button className={`tab ${pick === 'B' ? 'on' : ''}`} onClick={() => setWhich('B')}><span className="chip b">B</span> {live.B?.active ? '●' : ''}</button>
-        <button className={`tab ${pick === 'sel' ? 'on' : ''}`} onClick={() => setWhich('sel')}>Selected sat</button>
+    <section className="linkcard glass" aria-label="Link budget">
+      <div className="lc-head">
+        <Seg value={pick} options={tabs} onChange={setPick} />
+        {beam && L && sat ? (
+          <div>
+            <div className="lc-title">
+              {which !== 'sel' && <span className={`beam-badge ${which === 'A' ? 'a' : 'b'}`}>{which}</span>}
+              <b>{sat.name}</b>
+              <span className={`chip ${cons?.orbitClass.toLowerCase()}`}>{cons?.orbitClass}</span>
+              <button className="btn sm ghost right-align" onClick={() => globe?.flyToSat(sat.id)}>Fly to</button>
+            </div>
+            <div className="lc-sub">{cons?.name} · {L.bandKey}-band · {L.beam.beamLabel} · <span style={{ color: beam.active || which === 'sel' ? 'var(--good)' : 'var(--warn)' }}>{state}</span></div>
+          </div>
+        ) : null}
       </div>
-      <div className="row" style={{ padding: '6px 12px', borderBottom: '1px solid var(--border)', gap: 8 }} title="What-if: instantaneous rain rate at the terminal applied to the current-conditions budget (re-run the timeline to include it there)">
-        <span className="small muted" style={{ whiteSpace: 'nowrap' }}>☔ Rain now</span>
-        <input type="range" min={0} max={100} step={1} value={analysis.liveRainMmH ?? 0} onChange={(e) => useStore.getState().set({ analysis: { ...analysis, liveRainMmH: +e.target.value } })} />
-        <span className="mono small" style={{ width: 62, textAlign: 'right' }}>{analysis.liveRainMmH ? `${analysis.liveRainMmH} mm/h` : 'clear'}</span>
-      </div>
-      <div className="scroll">
-        {!beam || !L ? (
+      <div className="lc-body">
+        {!beam || !L || !d ? (
           <div className="empty">
-            {which === 'sel' ? 'Click any satellite on the globe to analyse its link to the terminal.' : terminal.beams === 1 && which === 'B' ? 'This terminal has a single beam (no make-before-break).' : 'No satellite assigned to this beam right now.'}
+            {which === 'sel' ? 'Click any satellite on the globe to analyse its link.' : terminal.beams === 1 && which === 'B' ? 'This terminal has a single beam, so there is no make-before-break.' : 'No satellite on this beam right now.'}
           </div>
         ) : (
           <>
-            <div className="row wrap" style={{ marginBottom: 6 }}>
-              <span className="dot" style={{ color: cons?.color, background: cons?.color }} />
-              {which !== 'sel' && <span className={`chip ${which === 'A' ? 'a' : 'b'}`}>{which}</span>}
-              <b style={{ fontSize: 14 }}>{sat?.name}</b>
-              <span className={`chip ${cons?.orbitClass.toLowerCase()}`}>{cons?.orbitClass}</span>
-              {which !== 'sel' && <span className={`chip ${beam.phase === 'tracking' ? 'good' : 'warn'}`}>{beam.phase === 'tracking' ? (beam.active ? 'carrying traffic' : 'locked · overlap') : live.mode === 'instant' ? 'standby (pre-pointed)' : 'acquiring'}</span>}
-              <button className="btn sm right-align" onClick={() => sat && globe?.flyToSat(sat.id)}>Fly to</button>
+            <div className="row" style={{ justifyContent: 'space-between', marginBottom: 6 }}>
+              <Seg value={dir} options={[['forward', 'Downlink'], ['return', 'Uplink']]} onChange={setDir} />
             </div>
-            <div className="row" style={{ marginBottom: 8 }}>
-              <span className="muted small">{cons?.name} · {L.bandKey}-band · {L.beam.beamLabel}</span>
-              <span className="right-align"><Seg value={dir} options={[['forward', 'Forward ↓'], ['return', 'Return ↑']]} onChange={setDir} /></span>
+            {d.feasible ? (
+              <div className="big">
+                <span className="num">{fmtNum(d.throughputClearMbps, 0)}<small>Mbps</small></span>
+                <span className="mc">{d.modcodClear?.name ?? 'outage'}<br />Es/(N0+I) {fmtNum(d.esn0TotalClear, 1)} dB</span>
+              </div>
+            ) : <div className="empty" style={{ padding: '10px 0' }}>{d.reason}</div>}
+            <div className="kpis">
+              {kpi('Elevation', fmtNum(L.geometry.look.el, 1), '°')}
+              {kpi('Range', fmtNum(L.geometry.look.range, 0), 'km')}
+              {kpi('Round trip', fmtNum(L.rttMs, 0), 'ms', 'User → satellite → gateway → satellite → user')}
+              {kpi('Availability', d.feasible ? fmtNum(d.availabilityPct, 3) : '—', '%', 'Annual availability at the lowest MODCOD (ITU-R P.618)')}
+              {kpi('Doppler', fmtNum(dir === 'forward' ? L.dopplerFwdKHz : L.dopplerRtnKHz, 1), 'kHz')}
+              {kpi('Antenna scan', fmtNum(L.geometry.terminalScanDeg, 1), '°', 'Angle off the terminal panel normal')}
             </div>
-            <Kpis L={L} dir={dir} tone={tone} />
-            <BudgetTable d={dir === 'forward' ? L.forward : L.ret} />
-            <h4 className="sect" style={{ marginTop: 14 }}>Site climate (ITU-R maps)</h4>
-            <div className="small muted">
-              R0.01 {fmtNum(analysis.R001Override ?? climate.R001, 1)} mm/h · rain height {fmtNum(climate.hRain, 2)} km · ρ {fmtNum(climate.rho, 1)} g/m³ · V {fmtNum(climate.V, 1)} kg/m² · Nwet {fmtNum(climate.Nwet, 0)} · alt {fmtNum(climate.hs * 1000, 0)} m
-              {climate.source === 'fallback' && <span className="chip warn" style={{ marginLeft: 6 }}>latitude fallback</span>}
+            <div className="row" style={{ gap: 10 }}>
+              <span className="small muted" style={{ whiteSpace: 'nowrap' }}>Rain now</span>
+              <input type="range" min={0} max={100} step={1} value={analysis.liveRainMmH ?? 0} aria-label="Rain rate at the terminal"
+                onChange={(e) => useStore.getState().set({ analysis: { ...analysis, liveRainMmH: +e.target.value } })} />
+              <span className="mono small" style={{ width: 64, textAlign: 'right' }}>{analysis.liveRainMmH ? `${analysis.liveRainMmH} mm/h` : 'clear'}</span>
             </div>
-            <div className="row wrap" style={{ marginTop: 10 }}>
-              <button className="btn sm" onClick={() => download(`budget-${sat?.name}.csv`, linkToCsv(`${sat?.name} → ${terminal.name} @ ${new Date(live.t).toISOString()}`, L), 'text/csv')}>Export CSV</button>
-              <button className="btn sm" onClick={() => download(`budget-${sat?.name}.json`, JSON.stringify({ satellite: sat?.name, time: new Date(live.t).toISOString(), terminal: terminal.name, link: L }, null, 2), 'application/json')}>Export JSON</button>
-            </div>
+            <button className="btn sm ghost" style={{ width: '100%', marginTop: 10 }} onClick={() => setDetails(!details)} aria-expanded={details}>
+              {details ? 'Hide full budget' : 'Show full budget'}
+            </button>
+            {details && (
+              <>
+                <BudgetTable d={d} />
+                <div className="small dim" style={{ marginTop: 10 }}>
+                  ITU climate: rain R0.01 {fmtNum(analysis.R001Override ?? climate.R001, 1)} mm/h · rain height {fmtNum(climate.hRain, 2)} km · vapour {fmtNum(climate.V, 1)} kg/m²
+                </div>
+                <div className="row wrap" style={{ marginTop: 10, gap: 6 }}>
+                  <button className="btn sm" onClick={() => download(`budget-${sat?.name}.csv`, linkToCsv(`${sat?.name} → ${terminal.name} @ ${new Date(live.t).toISOString()}`, L), 'text/csv')}>CSV</button>
+                  <button className="btn sm" onClick={() => download(`budget-${sat?.name}.json`, JSON.stringify({ satellite: sat?.name, time: new Date(live.t).toISOString(), terminal: terminal.name, link: L }, null, 2), 'application/json')}>JSON</button>
+                </div>
+              </>
+            )}
           </>
         )}
       </div>
-    </div>
+    </section>
   );
 }
