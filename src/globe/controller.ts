@@ -101,7 +101,13 @@ export class GlobeController {
     this.viewer.useBrowserRecommendedResolution = false;
     this.viewer.resolutionScale = 1;
     scene.postProcessStages.fxaa.enabled = true;
-    scene.screenSpaceCameraController.enableLook = false;
+    const ssc = scene.screenSpaceCameraController;
+    ssc.enableLook = false;
+    // Left drag orbits/tilts, the middle button (press the wheel and drag) tilts as well, wheel and right drag zoom.
+    ssc.rotateEventTypes = [Cesium.CameraEventType.LEFT_DRAG];
+    ssc.tiltEventTypes = [Cesium.CameraEventType.MIDDLE_DRAG, Cesium.CameraEventType.PINCH,
+      { eventType: Cesium.CameraEventType.LEFT_DRAG, modifier: Cesium.KeyboardEventModifier.CTRL }];
+    ssc.zoomEventTypes = [Cesium.CameraEventType.WHEEL, Cesium.CameraEventType.RIGHT_DRAG, Cesium.CameraEventType.PINCH];
     scene.globe.tileCacheSize = 400;
     scene.globe.enableLighting = true;
     scene.globe.dynamicAtmosphereLighting = true;
@@ -455,6 +461,7 @@ export class GlobeController {
       }
     }
     this.followCamera(ms);
+    this.lockNorth();
     this.drawLinks(ms);
     this.drawIcons(ms);
     if (this.selectedId !== this.trackFor || Math.abs(ms - this.trackAt) > 60_000) this.drawGroundTrack(ms);
@@ -773,6 +780,32 @@ export class GlobeController {
     if (Cesium.Matrix4.equals(cam.transform, Cesium.Matrix4.IDENTITY)) return;
     const off = Cesium.Cartesian3.clone(cam.position);
     cam.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(km(satEcef(s, ms))), off);
+  }
+
+  /**
+   * Keep north up in every view: the camera may orbit and tilt but never yaw. In the target-locked
+   * views (terminal / satellite) the camera's local offset is swung back to due south of the target,
+   * keeping range and tilt; in the Earth view the camera is re-aimed at the Earth's centre, north up.
+   */
+  private lockNorth() {
+    if (this.flying) return;
+    const cam = this.viewer.camera;
+    const local = !Cesium.Matrix4.equals(cam.transform, Cesium.Matrix4.IDENTITY);
+    if (local && this.viewMode !== 'earth') {
+      const p = cam.position;
+      const h = Math.hypot(p.x, p.y), range = Cesium.Cartesian3.magnitude(p);
+      // tilt limits: 8° above the horizon … 89.5° (straight down)
+      const elev = Math.min(Cesium.Math.toRadians(89.5), Math.max(Cesium.Math.toRadians(8), Math.atan2(p.z, h)));
+      const tx = 0, ty = -range * Math.cos(elev), tz = range * Math.sin(elev);
+      if (Math.abs(p.x - tx) + Math.abs(p.y - ty) + Math.abs(p.z - tz) < 1e-6 * range) return;
+      cam.lookAtTransform(cam.transform, new Cesium.Cartesian3(tx, ty, tz));
+    } else if (this.viewMode === 'earth') {
+      const hd = cam.heading;
+      const off = Math.min(Math.abs(hd), Math.abs(hd - Cesium.Math.TWO_PI));
+      if (off < 1e-4) return;
+      const pos = Cesium.Cartesian3.clone(cam.positionWC);
+      cam.lookAtTransform(Cesium.Matrix4.IDENTITY, pos);
+    }
   }
 
   // Backwards-compatible helpers
