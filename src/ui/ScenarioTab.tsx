@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useStore, activeTerminal, markCustom, setView } from '../store/store';
-import type { Constellation, OrbitClass, Payload } from '../core/model';
+import type { Constellation, OrbitClass, Payload, HandoverPolicy } from '../core/model';
+import { resolveBeams, isDedicated, trafficMode, type BeamConfig } from '../core/sim/beamplan';
 import type { WalkerShell } from '../core/orbit/walker';
 import { NumberField, SelectField, TextField, Toggle, Sect, Seg, pickFile } from './controls';
 import { Icon } from './icons';
@@ -179,8 +180,9 @@ function SystemNode({ c }: { c: Constellation }) {
   const src = c.source;
   const drop = () => {
     const st = useStore.getState();
-    const a = st.mbb.beamAssign;
-    if (a) st.set({ mbb: { ...st.mbb, beamAssign: { A: a.A.filter((x) => x !== c.id), B: a.B.filter((x) => x !== c.id) } } });
+    const a = st.mbb.beamAssign, bc = st.mbb.beamCfg;
+    const strip = (x?: Partial<BeamConfig>) => x && { ...x, systems: x.systems?.filter((id) => id !== c.id), satId: x.satId && st.sats.find((q) => q.id === x.satId)?.constellationId === c.id ? null : x.satId };
+    st.set({ mbb: { ...st.mbb, beamAssign: a && { A: a.A.filter((x) => x !== c.id), B: a.B.filter((x) => x !== c.id) }, beamCfg: bc && { A: strip(bc.A), B: strip(bc.B) } } });
     update(c.id, { enabled: false });
     markCustom();
     rerun();
@@ -332,63 +334,117 @@ function AddSystems() {
 }
 
 // ------------------------------------------------------------------ beam plan
+const POLICIES: [HandoverPolicy, string][] = [['longest-visibility', 'Longest visibility'], ['max-elevation', 'Highest elevation'], ['best-sinr', 'Best signal']];
+const BEAM_COLOR = { A: '#22d3ee', B: '#f472b6' };
+
+function SystemChips({ ids, value, onChange, all }: { ids: Constellation[]; value: string[]; onChange: (v: string[]) => void; all?: string }) {
+  return (
+    <div className="sys-tabs">
+      {ids.map((c) => {
+        const on = value.includes(c.id);
+        return (
+          <button key={c.id} className={`sys-tab ${on ? 'on' : ''}`} onClick={() => onChange(on ? value.filter((x) => x !== c.id) : [...value, c.id])} aria-pressed={on}>
+            <span className="bdot" style={{ background: c.color }} />{c.name}<span className={`chip ${c.orbitClass.toLowerCase()}`}>{c.orbitClass}</span>
+          </button>
+        );
+      })}
+      {!value.length && all && <span className="small dim" style={{ alignSelf: 'center' }}>{all}</span>}
+    </div>
+  );
+}
+
+function BeamCard({ b, cfg, systems, onChange }: { b: 'A' | 'B'; cfg: BeamConfig; systems: Constellation[]; onChange: (p: Partial<BeamConfig>) => void }) {
+  const sats = useStore((s) => s.sats);
+  const names = (cfg.systems.length ? systems.filter((c) => cfg.systems.includes(c.id)) : systems).map((c) => c.name);
+  const candidates = sats.filter((x) => !cfg.systems.length || cfg.systems.includes(x.constellationId));
+  const pinned = cfg.satId ? sats.find((x) => x.id === cfg.satId) : undefined;
+  return (
+    <div className={`beam-card ${cfg.on ? '' : 'off'}`} style={{ borderLeftColor: BEAM_COLOR[b] }}>
+      <div className="beam-head">
+        <span className="bdot" style={{ background: BEAM_COLOR[b] }} />
+        <b>Beam {b} →</b>
+        <span className="grow ellipsis small">{cfg.on ? (pinned ? pinned.name : names.join(' / ') || 'no system') : 'off'}</span>
+        <Toggle checked={cfg.on} onChange={(v) => onChange({ on: v })} label="" title={cfg.on ? `Switch beam ${b} off` : `Switch beam ${b} on`} />
+      </div>
+      {cfg.on && (
+        <div className="beam-body">
+          <div className="small dim">Systems</div>
+          <SystemChips ids={systems} value={cfg.systems} onChange={(v) => onChange({ systems: v, satId: null })} all="none ticked = any system" />
+          <div className="fgrid" style={{ marginTop: 8 }}>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <SelectField label="Satellite" value={cfg.satId ?? ''} onChange={(v) => onChange({ satId: v || null })}
+                options={[['', candidates.length > 400 ? `Automatic (best of ${candidates.length})` : 'Automatic (best available)'],
+                  ...(candidates.length <= 400 ? candidates.map((x) => [x.id, x.name] as [string, string]).sort((p, q) => p[1].localeCompare(q[1])) : [])]} />
+            </div>
+            <SelectField label="Choose by" value={cfg.policy} options={POLICIES} onChange={(v) => onChange({ policy: v })} />
+            <NumberField label="Min elevation" unit="°" value={cfg.minElevationDeg} min={0} max={85} step={1} onChange={(v) => onChange({ minElevationDeg: v })} />
+            <NumberField label="Hand over below" unit="°" value={cfg.handoverElevationDeg} min={0} max={89} step={1} onChange={(v) => onChange({ handoverElevationDeg: v })} />
+          </div>
+          {candidates.length > 400 && <div className="small dim" style={{ marginTop: 4 }}>Pinning a single satellite is available for systems with up to 400 satellites (GEO, MEO, small LEO sets).</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function BeamPlan() {
   const mbb = useStore((s) => s.mbb);
   const terminal = useStore(activeTerminal);
   const constellations = useStore((s) => s.constellations);
   const inScenario = constellations.filter((c) => c.enabled);
-  const up = (p: Partial<typeof mbb>) => { useStore.getState().set({ mbb: { ...useStore.getState().mbb, ...p } }); markCustom(); rerun(); };
+  const orbitOf = (id: string) => constellations.find((c) => c.id === id)?.orbitClass ?? 'LEO';
+  const cfg = resolveBeams(mbb, orbitOf, inScenario.map((c) => c.id));
   const dual = terminal.beams === 2;
-  const dedicated = dual && (mbb.orbitPolicy === 'dedicated' || mbb.orbitPolicy === 'geo-leo-dual');
-  const assign = mbb.orbitPolicy === 'geo-leo-dual'
-    ? { A: inScenario.filter((c) => c.orbitClass !== 'LEO').map((c) => c.id), B: inScenario.filter((c) => c.orbitClass === 'LEO').map((c) => c.id) }
-    : mbb.beamAssign ?? { A: [], B: [] };
-  const setMode = (m: 'mbb' | 'dedicated') => {
-    if (m === 'mbb') { up({ orbitPolicy: 'leo-first' }); return; }
-    const A = inScenario.filter((c) => c.orbitClass !== 'LEO').map((c) => c.id);
-    const B = inScenario.filter((c) => c.orbitClass === 'LEO').map((c) => c.id);
-    up({ orbitPolicy: 'dedicated', beamAssign: mbb.beamAssign?.A.length || mbb.beamAssign?.B.length ? mbb.beamAssign : { A, B: B.length ? B : A } });
-  };
-  const toggle = (b: 'A' | 'B', id: string, on: boolean) => {
-    const cur = { ...assign, [b]: on ? [...assign[b], id] : assign[b].filter((x) => x !== id) };
-    up({ orbitPolicy: 'dedicated', beamAssign: cur });
-  };
-  const col = (b: 'A' | 'B') => {
-    const ids = assign[b].filter((id) => inScenario.some((c) => c.id === id));
-    return (
-      <div className="beam-col">
-        <h5><span className="bdot" style={{ background: b === 'A' ? '#22d3ee' : '#f472b6' }} /> Beam {b}</h5>
-        {inScenario.map((c) => (
-          <label key={c.id} className="chk">
-            <input type="checkbox" checked={ids.includes(c.id)} onChange={(e) => toggle(b, c.id, e.target.checked)} />
-            <span className="ellipsis">{c.name}</span>
-          </label>
-        ))}
-        {!ids.length && <div className="small" style={{ color: 'var(--warn)', marginTop: 4 }}>No system: beam {b} stays idle</div>}
-      </div>
-    );
+  const dedicated = isDedicated(mbb);
+  const up = (p: Partial<typeof mbb>) => { useStore.getState().set({ mbb: { ...useStore.getState().mbb, ...p } }); markCustom(); rerun(); };
+  const setBeam = (b: 'A' | 'B', p: Partial<BeamConfig>) => up({
+    orbitPolicy: mbb.orbitPolicy === 'geo-leo-dual' ? 'dedicated' : mbb.orbitPolicy,
+    beamCfg: { A: { ...cfg.A }, B: { ...cfg.B }, [b]: { ...cfg[b], ...p } },
+  });
+  const setMode = (m: 'dedicated' | 'shared') => {
+    if (m === 'shared') { up({ orbitPolicy: 'leo-first' }); return; }
+    // sensible start: GEO/MEO on beam A, LEO on beam B
+    const nonLeo = inScenario.filter((c) => c.orbitClass !== 'LEO').map((c) => c.id), leo = inScenario.filter((c) => c.orbitClass === 'LEO').map((c) => c.id);
+    up({ orbitPolicy: 'dedicated', beamCfg: { A: { ...cfg.A, systems: nonLeo.length ? nonLeo : leo }, B: { ...cfg.B, systems: leo.length ? leo : nonLeo } } });
   };
   return (
     <div>
-      {dual ? (
-        <Seg value={dedicated ? 'dedicated' : 'mbb'} onChange={setMode} options={[['mbb', 'Make-before-break'], ['dedicated', 'Dedicated beams']]} />
-      ) : null}
+      {dual && <Seg value={dedicated ? 'dedicated' : 'shared'} onChange={setMode} options={[['dedicated', 'Each beam its own systems'], ['shared', 'Shared make-before-break']]} />}
       <div className="small muted" style={{ margin: '8px 0' }}>
-        {!dual
-          ? 'Single-beam terminal: every handover breaks the link for the acquisition time.'
-          : dedicated
-            ? 'Each beam tracks only the systems ticked below and re-points within them. Traffic rides the beam with the higher throughput, so one beam always covers the other’s re-pointing.'
-            : 'Both beams may use any satellite in the scenario. Before the serving satellite is lost, the free beam acquires the next one and traffic switches with no interruption.'}
+        {!dual ? 'Single-beam terminal: every handover breaks the link for the acquisition time.'
+          : dedicated ? 'Choose what each beam tracks. A beam re-points within its own systems; the traffic setting decides which beam carries the data.'
+            : 'Both beams draw from the same systems: before the serving satellite is lost the free beam locks the next one and traffic switches with no interruption.'}
       </div>
-      {dedicated && <div className="beam-plan">{col('A')}{col('B')}</div>}
-      <div className="fgrid" style={{ marginTop: 8 }}>
-        <SelectField label="Satellite choice" value={mbb.policy} onChange={(v) => up({ policy: v })}
-          options={[['longest-visibility', 'Longest visibility'], ['max-elevation', 'Highest elevation'], ['best-sinr', 'Best signal']]} />
-        {!dedicated && (
-          <SelectField label="Orbit preference" value={mbb.orbitPolicy === 'dedicated' || mbb.orbitPolicy === 'geo-leo-dual' ? 'leo-first' : mbb.orbitPolicy} onChange={(v) => up({ orbitPolicy: v })}
-            options={[['leo-first', 'LEO → MEO → GEO'], ['best-throughput', 'Best throughput'], ['single', 'No preference']]} />
-        )}
-      </div>
+      {dual && dedicated ? (
+        <>
+          <SelectField label="Traffic" value={trafficMode(mbb)} onChange={(v) => up({ traffic: v, orbitPolicy: mbb.orbitPolicy === 'geo-leo-dual' ? 'dedicated' : mbb.orbitPolicy, beamCfg: { A: cfg.A, B: cfg.B } })}
+            options={[['best', 'Faster beam carries the traffic'], ['A', 'Beam A primary, B backup'], ['B', 'Beam B primary, A backup'], ['bonded', 'Both beams bonded (throughputs add)']]} />
+          <div style={{ marginTop: 8 }}>
+            <BeamCard b="A" cfg={cfg.A} systems={inScenario} onChange={(p) => setBeam('A', p)} />
+            <BeamCard b="B" cfg={cfg.B} systems={inScenario} onChange={(p) => setBeam('B', p)} />
+          </div>
+        </>
+      ) : (
+        <div className="beam-card" style={{ borderLeftColor: BEAM_COLOR.A }}>
+          <div className="beam-head">
+            <span className="bdot" style={{ background: BEAM_COLOR.A }} />{dual && <span className="bdot" style={{ background: BEAM_COLOR.B, marginLeft: -4 }} />}
+            <b>{dual ? 'Beams A + B →' : 'Beam →'}</b>
+            <span className="grow" />
+            {dual && <Toggle checked={cfg.B.on} onChange={(v) => setBeam('B', { on: v })} label="Use beam B" title="Switch off to run with one beam" />}
+          </div>
+          <div className="beam-body">
+            <div className="small dim">Systems</div>
+            <SystemChips ids={inScenario} value={cfg.A.systems} onChange={(v) => up({ beamCfg: { A: { ...cfg.A, systems: v }, B: { ...cfg.B, systems: v } } })} all="none ticked = any system" />
+            <div className="fgrid" style={{ marginTop: 8 }}>
+              <SelectField label="Choose by" value={mbb.policy} options={POLICIES} onChange={(v) => up({ policy: v, beamCfg: { A: { ...cfg.A, policy: v }, B: { ...cfg.B, policy: v } } })} />
+              <SelectField label="Orbit preference" value={mbb.orbitPolicy === 'dedicated' || mbb.orbitPolicy === 'geo-leo-dual' ? 'leo-first' : mbb.orbitPolicy} onChange={(v) => up({ orbitPolicy: v })}
+                options={[['leo-first', 'LEO → MEO → GEO'], ['best-throughput', 'Best throughput'], ['single', 'No preference']]} />
+              <NumberField label="Min elevation" unit="°" value={mbb.minElevationDeg} min={0} max={85} step={1} onChange={(v) => up({ minElevationDeg: v })} />
+              <NumberField label="Hand over below" unit="°" value={mbb.handoverElevationDeg} min={0} max={89} step={1} onChange={(v) => up({ handoverElevationDeg: v })} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -406,8 +462,6 @@ function SimSettings() {
       <div className="fgrid">
         <NumberField label="Duration" unit="min" value={mbb.durationMin} min={1} max={720} step={5} onChange={(v) => up({ durationMin: v })} />
         <NumberField label="Time step" unit="s" value={mbb.stepSec} min={0.5} max={120} step={0.5} onChange={(v) => up({ stepSec: v })} />
-        <NumberField label="Min elevation" unit="°" value={mbb.minElevationDeg} min={0} max={80} step={1} onChange={(v) => up({ minElevationDeg: v })} />
-        <NumberField label="Hand over below" unit="°" value={mbb.handoverElevationDeg} min={0} max={85} step={1} onChange={(v) => up({ handoverElevationDeg: v })} />
         <NumberField label="Acquisition time" unit="s" value={mbb.acquisitionSec} min={0} max={60} step={0.5} onChange={(v) => up({ acquisitionSec: v })} />
         <NumberField label="MBB overlap" unit="s" value={mbb.overlapSec} min={0} max={60} step={0.5} onChange={(v) => up({ overlapSec: v })} />
       </div>

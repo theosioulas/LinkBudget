@@ -78,6 +78,11 @@ export function LinkPanel() {
               <button className="btn sm ghost right-align" onClick={() => setView('satellite', { satId: sat.id })}>Follow</button>
             </div>
             <div className="lc-sub">{cons?.name} · {L.bandKey}-band · {L.beam.beamLabel} · <span style={{ color: beam.active || which === 'sel' ? 'var(--good)' : 'var(--warn)' }}>{state}</span></div>
+            {live.A?.active && live.B?.active && (
+              <div className="lc-sub" style={{ color: 'var(--good)' }}>
+                Bonded A + B: {fmtNum((live.A.link?.forward.throughputClearMbps ?? 0) + (live.B.link?.forward.throughputClearMbps ?? 0), 0)} Mbps down · {fmtNum((live.A.link?.ret.throughputClearMbps ?? 0) + (live.B.link?.ret.throughputClearMbps ?? 0), 0)} Mbps up
+              </div>
+            )}
           </div>
         ) : null}
       </div>

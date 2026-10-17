@@ -98,6 +98,27 @@ describe('engine', () => {
     expect(r.steps.some((x) => x.active === 'B')).toBe(true);
   }, 60_000);
 
+  it('per-beam options: pinned satellite, beam off, bonded traffic', () => {
+    const cons = CONSTELLATIONS;
+    const sats = buildSatellites(cons, T0);
+    const ctx = makeEvalContext(TERMINALS[0], DEFAULT_ANALYSIS, cons, PAYLOADS);
+    const geo = sats.find((x) => x.constellationId === 'geo-ku')!;
+    const base = { ...DEFAULT_MBB, orbitPolicy: 'dedicated' as const, durationMin: 10, stepSec: 2 };
+    // A pinned to the GEO satellite, B on Starlink, both bonded
+    const r = runHandoverSim(sats, ctx, { ...base, traffic: 'bonded', beamCfg: { A: { satId: geo.id }, B: { systems: ['starlink'] } } }, T0);
+    expect(new Set(r.steps.map((x) => x.A.satId))).toEqual(new Set([geo.id]));
+    const both = r.steps.filter((x) => x.A.phase === 'tracking' && x.B.phase === 'tracking');
+    expect(both.length).toBeGreaterThan(0);
+    for (const x of both) expect(x.activeThrFwd).toBeCloseTo(x.A.thrFwd + x.B.thrFwd, 6);
+    // B switched off: only beam A is ever used
+    const off = runHandoverSim(sats, ctx, { ...base, beamCfg: { A: { systems: ['geo-ku'] }, B: { on: false, systems: ['starlink'] } } }, T0);
+    expect(off.steps.every((x) => x.B.satId === null)).toBe(true);
+    expect(off.summary.availabilityPct).toBe(100);
+    // traffic pinned to A: A carries traffic whenever it is locked
+    const pa = runHandoverSim(sats, ctx, { ...base, traffic: 'A', beamCfg: { A: { systems: ['geo-ku'] }, B: { systems: ['starlink'] } } }, T0);
+    expect(pa.steps.filter((x) => x.A.phase === 'tracking').every((x) => x.active === 'A')).toBe(true);
+  }, 60_000);
+
   it('what-if rain degrades Ka more than Ku and obstructions block satellites', () => {
     const sats = buildSatellites(CONSTELLATIONS.map((c) => ({ ...c, enabled: true })), T0);
     const geoKa = sats.find((s) => s.constellationId === 'geo-hts')!;
