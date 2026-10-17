@@ -108,8 +108,10 @@ export class GlobeController {
     ssc.rotateEventTypes = [Cesium.CameraEventType.LEFT_DRAG];
     ssc.tiltEventTypes = [Cesium.CameraEventType.MIDDLE_DRAG, Cesium.CameraEventType.PINCH,
       { eventType: Cesium.CameraEventType.LEFT_DRAG, modifier: Cesium.KeyboardEventModifier.SHIFT }];
-    ssc.zoomEventTypes = [Cesium.CameraEventType.WHEEL, Cesium.CameraEventType.RIGHT_DRAG, Cesium.CameraEventType.PINCH];
-    ssc.lookEventTypes = [{ eventType: Cesium.CameraEventType.LEFT_DRAG, modifier: Cesium.KeyboardEventModifier.CTRL }];
+    ssc.zoomEventTypes = [Cesium.CameraEventType.WHEEL, Cesium.CameraEventType.PINCH];
+    // Right drag (or Ctrl+drag): look around from where the camera is, e.g. tilt down near the
+    // terminal and turn to look up at the satellites passing overhead.
+    ssc.lookEventTypes = [Cesium.CameraEventType.RIGHT_DRAG, { eventType: Cesium.CameraEventType.LEFT_DRAG, modifier: Cesium.KeyboardEventModifier.CTRL }];
     ssc.enableLook = true;
     ssc.inertiaSpin = 0.85;
     ssc.inertiaTranslate = 0.85;
@@ -129,7 +131,7 @@ export class GlobeController {
     scene.fog.enabled = true;
     scene.globe.maximumScreenSpaceError = 1.2;
     if (scene.skyAtmosphere) scene.skyAtmosphere.show = true;
-    scene.screenSpaceCameraController.minimumZoomDistance = 50_000;
+    scene.screenSpaceCameraController.minimumZoomDistance = 2_000;
     scene.screenSpaceCameraController.maximumZoomDistance = 120_000_000;
     this.viewer.clock.clockRange = Cesium.ClockRange.UNBOUNDED;
     scene.primitives.add(this.orbits);
@@ -812,9 +814,11 @@ export class GlobeController {
     const h = cam.positionCartographic.height;
     // High up (whole-globe views): keep the Earth centred on screen. Zoom goes toward the cursor,
     // which otherwise walks the globe off to one side; ease the view back onto the Earth's centre.
-    if (h > 6e6) { this.centreOnEarth(0.12); return; }
-    const lo = 300e3, hi = 25e6;
-    const maxTilt = h <= lo ? 85 : h >= hi ? 0 : 85 * (1 - Math.log(h / lo) / Math.log(hi / lo));
+    if (h > 15e6) { this.centreOnEarth(0.12); return; }
+    // Below 4,000 km the camera is completely free: any tilt down to the horizon, looking up at the sky.
+    if (h < 4e6) return;
+    // In between, tilt is limited a little more the higher the camera (88° at 4,000 km → 30° at 15,000 km).
+    const maxTilt = 88 - 58 * (Math.log(h / 4e6) / Math.log(15e6 / 4e6));
     const canvas = this.viewer.scene.canvas;
     const center = cam.pickEllipsoid(new Cesium.Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2));
     if (!center) {

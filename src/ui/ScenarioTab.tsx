@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useStore, activeTerminal, markCustom, setView } from '../store/store';
-import type { Constellation, OrbitClass } from '../core/model';
+import type { Constellation, OrbitClass, Payload } from '../core/model';
 import type { WalkerShell } from '../core/orbit/walker';
 import { NumberField, SelectField, TextField, Toggle, Sect, Seg, pickFile } from './controls';
 import { Icon } from './icons';
@@ -118,6 +118,55 @@ function TerminalNode() {
   );
 }
 
+
+const LAYOUT_NAME: Record<Payload['layout']['kind'], string> = {
+  'steerable-cells': 'Steerable spot beams over ground cells', 'fixed-strips': 'Fixed strip beams', 'hex-grid': 'Multibeam hex grid',
+  spot: 'Single spot / regional beam', kml: 'Beams from KML contours',
+};
+const POL_NAME: Record<string, string> = { RHCP: 'RHCP', LHCP: 'LHCP', H: 'linear H', V: 'linear V' };
+const ghz = (f: number) => `${+f.toFixed(3)} GHz`;
+const mhz = (b: number) => (b >= 1000 ? `${+(b / 1000).toFixed(2)} GHz` : `${+b.toFixed(1)} MHz`);
+
+/** One-line RF summary: band, downlink / uplink frequency and polarisation. */
+export function rfSummary(pl?: Payload): string {
+  if (!pl) return 'no payload';
+  return `${pl.band}-band · ↓ ${ghz(pl.forward.freqGHz)} ${POL_NAME[pl.forward.pol]} · ↑ ${ghz(pl.ret.freqGHz)} ${POL_NAME[pl.ret.pol]}`;
+}
+
+function orbitSummary(c: Constellation, n: number): string {
+  const src = c.source;
+  if (src.kind === 'walker') return src.shells.map((sh) => `${sh.altitudeKm.toLocaleString()} km · ${sh.inclinationDeg}° · ${sh.planes}×${sh.satsPerPlane}`).join(' + ') + ` (${n} sats)`;
+  if (src.kind === 'geo') return src.slots.map((x) => `${Math.abs(x.lon).toFixed(1)}°${x.lon >= 0 ? 'E' : 'W'}`).join(', ') + (c.followTerminal ? ' (follows terminal)' : '') + ' · 35,786 km';
+  return `${n} satellites from TLE · ${src.label}`;
+}
+
+/** Everything about a system's RF set-up at a glance (band, frequencies, polarisation, power, beams, orbit). */
+function SystemSpecs({ c, pl, n }: { c: Constellation; pl?: Payload; n: number }) {
+  const rows: [string, string][] = [['Orbit', `${c.orbitClass} · ${orbitSummary(c, n)}`]];
+  if (pl) {
+    const L = pl.layout;
+    const beams = L.kind === 'fixed-strips' ? `${L.count} × ${L.alongTrackDeg}° × ${L.crossTrackDeg}° strips`
+      : L.kind === 'steerable-cells' ? `${L.beamsPerSat} beams · ${pl.pattern.hpbwDeg}° HPBW · ${L.cellDiameterKm} km cells · ${L.reuseColors}-colour reuse`
+        : L.kind === 'hex-grid' ? `${3 * L.rings * (L.rings + 1) + 1} beams · ${pl.pattern.hpbwDeg}° HPBW · ${L.reuseColors}-colour reuse`
+          : L.kind === 'kml' ? `${L.beams.length} beams · ${L.sourceName || 'KML'}`
+            : `${pl.pattern.hpbwDeg}° HPBW${L.followTerminal ? ' · aimed at terminal' : ` · aimed at ${L.aimLat.toFixed(1)}°, ${L.aimLon.toFixed(1)}°`}`;
+    rows.push(
+      ['Band', `${pl.band}-band · ${pl.architecture === 'regenerative' ? 'regenerative (OBP)' : 'transparent (bent-pipe)'}`],
+      ['Downlink', `${ghz(pl.forward.freqGHz)} · ${mhz(pl.forward.bandwidthMHz)} · ${POL_NAME[pl.forward.pol]}`],
+      ['Uplink', `${ghz(pl.ret.freqGHz)} · ${mhz(pl.ret.bandwidthMHz)} · ${POL_NAME[pl.ret.pol]}`],
+      ['EIRP / G/T', `${pl.forward.eirpPeakDbw} dBW · ${pl.ret.gtPeakDbK} dB/K per beam (peak)`],
+      ['Beams', `${LAYOUT_NAME[L.kind]} · ${beams}`],
+      ['Service', `min elevation ${pl.minElevationDeg}° · payload “${pl.name}”`],
+    );
+  }
+  return (
+    <div className="specs">
+      {rows.map(([k, v]) => <div key={k} className="spec"><span>{k}</span><b>{v}</b></div>)}
+      {(c.description || pl?.notes) && <p className="small muted" style={{ margin: '6px 0 0' }}>{c.description}{c.description && pl?.notes ? ' ' : ''}{pl?.notes}</p>}
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------ satellite systems
 function SystemNode({ c }: { c: Constellation }) {
   const [open, setOpen] = useState(false);
@@ -140,14 +189,15 @@ function SystemNode({ c }: { c: Constellation }) {
     <Node
       icon={<input type="color" value={c.color} onChange={(e) => u({ color: e.target.value })} className="cdot" title="Colour" />}
       title={c.name}
-      sub={`${c.orbitClass} · ${n} sats · ${pl?.band ?? '?'}-band · ${c.operator}`}
+      sub={<>{c.orbitClass} · {n} sats · {c.operator}<br />{rfSummary(pl)}</>}
       open={open} onToggle={() => setOpen(!open)}
       right={<>
         <button className="ibtn sm" title="Edit this system's payload" onClick={() => useStore.setState({ payloadSystemId: c.id, drawer: 'payload' })}><Icon.payload /></button>
         <button className="ibtn sm" title="Show the best visible satellite and its beams" onClick={() => focusConstellation(c.id)}><Icon.target /></button>
         <button className="ibtn sm" title="Remove from scenario" onClick={drop}><Icon.close /></button>
       </>}>
-      {c.description && <div className="small muted" style={{ margin: '6px 0' }}>{c.description}</div>}
+      <SystemSpecs c={c} pl={pl} n={n} />
+      <h4 className="sect">Properties</h4>
       <div className="fgrid">
         <TextField label="Name" value={c.name} onChange={(v) => u({ name: v })} />
         <TextField label="Operator" value={c.operator} onChange={(v) => u({ operator: v })} />
@@ -246,7 +296,7 @@ function AddSystems() {
         {library.map((c) => (
           <div key={c.id} className="lib-item">
             <span className="bdot" style={{ background: c.color }} />
-            <span className="grow ellipsis small">{c.name} <span className="dim">· {c.operator}</span></span>
+            <span className="grow small" style={{ minWidth: 0 }}>{c.name} <span className="dim">· {c.operator}</span><br /><span className="dim">{rfSummary(payloads.find((p) => p.id === c.payloadId))}</span></span>
             <span className={`chip ${c.orbitClass.toLowerCase()}`}>{c.orbitClass}</span>
             <button className="btn sm" onClick={() => { update(c.id, { enabled: true }); markCustom(); rerun(); }}>＋ Add</button>
           </div>

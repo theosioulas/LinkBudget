@@ -20,7 +20,7 @@ The app opens over the terminal (Athens by default) with Starlink, OneWeb, O3b m
 satellites enabled, runs a 20-minute make-before-break timeline and shows live budgets for both
 terminal beams. Click the globe in **Terminal → Pick on globe** to move the terminal anywhere.
 
-**Camera (Google Earth controls):** left drag moves the globe, the wheel zooms toward the cursor, middle drag or Shift+drag tilts and rotates, right drag zooms, Ctrl+drag looks around. The compass (bottom right) or the **N** key turns north back up, **C** re-centres the current view. When high up the view keeps the Earth centred, and tilt is limited with altitude so the globe never drifts off screen. *Terminal / Earth / Satellite* in the top bar fly to the terminal, the whole Earth, or follow the serving satellite.
+**Camera (Google Earth controls):** left drag moves the globe, the wheel zooms toward the cursor, middle drag or Shift+drag tilts and rotates (down to the horizon), right drag or Ctrl+drag looks around from where the camera is (e.g. from just above the terminal up at the satellites). The compass (bottom right) or the **N** key turns north back up, **C** re-centres the current view. Below 4,000 km the camera is completely free; higher up tilt is limited gradually, and above 15,000 km the view keeps the Earth centred so the globe never drifts off screen. *Terminal / Earth / Satellite* in the top bar fly to the terminal, the whole Earth, or follow the serving satellite.
 
 **Sky:** the star background is rendered from the Hipparcos catalogue (≈118,000 stars to magnitude 14, with B–V colours) and the Milky Way outlines from [d3-celestial](https://github.com/ofrohn/d3-celestial) (BSD-3-Clause), at 2048 px per cube face (`scripts/build_skybox.py`).
 
