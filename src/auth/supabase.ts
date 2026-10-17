@@ -11,10 +11,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
 });
 
-/** Where e-mail links (confirm sign-up, reset password) send the user back to. */
-export const siteUrl = () => new URL('.', document.baseURI).href;
-
-export type AccountMode = 'signin' | 'signup' | 'forgot' | 'newPassword' | 'account';
+export type AccountMode = 'newPassword' | 'account';
 
 interface AuthState {
   ready: boolean;
@@ -31,7 +28,7 @@ export const useAuth = create<AuthState>((set, get) => ({
   session: null,
   user: null,
   dialog: null,
-  open: (mode) => set({ dialog: mode ?? (get().user ? 'account' : 'signin') }),
+  open: (mode) => set({ dialog: get().user ? mode ?? 'account' : null }),
   close: () => set({ dialog: null }),
 }));
 
@@ -44,12 +41,33 @@ supabase.auth.onAuthStateChange((event, session) => {
 
 export const MIN_PASSWORD = 8;
 
+// Accounts are created by the owner in the Supabase dashboard (public sign-up is off).
+// Supabase identifies users by e-mail, so a plain username such as "guest" is stored as
+// "guest@<USERNAME_DOMAIN>". The domain is a placeholder: no mail is ever sent to it.
+export const USERNAME_DOMAIN = 'linkbudget.local';
+
+/** "guest" → "guest@linkbudget.local"; a full e-mail address is used as is. */
+export function loginEmail(id: string): string {
+  const v = id.trim().toLowerCase();
+  return v.includes('@') ? v : `${v}@${USERNAME_DOMAIN}`;
+}
+
+/** Username for placeholder accounts, the e-mail address otherwise. */
+export function displayName(user: User | null): string {
+  const e = user?.email ?? '';
+  return e.endsWith(`@${USERNAME_DOMAIN}`) ? e.slice(0, -USERNAME_DOMAIN.length - 1) : e;
+}
+
+/** Role set by the owner in app_metadata (users cannot change it themselves). */
+export function userRole(user: User | null): 'admin' | 'guest' {
+  return user?.app_metadata?.role === 'admin' ? 'admin' : 'guest';
+}
+
 /** Turn Supabase auth errors into short, user-facing messages. */
 export function authMessage(e: unknown): string {
   const m = e instanceof Error ? e.message : String(e);
-  if (/invalid login credentials/i.test(m)) return 'Wrong e-mail or password.';
-  if (/email not confirmed/i.test(m)) return 'Please confirm your e-mail first: check your inbox for the link.';
-  if (/already registered|already exists/i.test(m)) return 'An account with this e-mail already exists. Sign in instead.';
+  if (/invalid login credentials/i.test(m)) return 'Wrong username or password.';
+  if (/email not confirmed/i.test(m)) return 'This account is not confirmed yet. Confirm it in the Supabase dashboard.';
   if (/rate limit|too many/i.test(m)) return 'Too many attempts. Please wait a few minutes and try again.';
   if (/failed to fetch|network/i.test(m)) return 'Could not reach the account server. Check your connection.';
   return m;

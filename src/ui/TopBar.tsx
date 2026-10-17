@@ -6,7 +6,7 @@ import { buildHtmlReport } from './report';
 import { DEMOS } from '../app/demos';
 import { Icon } from './icons';
 import { LayersMenu } from './LayersMenu';
-import { useAuth } from '../auth/supabase';
+import { useAuth, displayName } from '../auth/supabase';
 
 const SPEEDS: [number, string][] = [[1, 'Real time'], [10, '10×'], [60, '60×'], [300, '5 min/s'], [1800, '30 min/s']];
 
@@ -100,8 +100,8 @@ export function TopBar() {
           </div>
         )}
       </div>
-      <button className={`ibtn ${user ? 'on' : ''}`} onClick={() => openAccount()} title={user ? `Signed in as ${user.email}: cloud scenarios, sign out` : 'Sign in to save scenarios to the cloud'}>
-        {user ? <span className="avatar">{(user.email ?? '?').slice(0, 1).toUpperCase()}</span> : <Icon.user />}
+      <button className={`ibtn ${user ? 'on' : ''}`} onClick={() => openAccount()} title={`Signed in as ${displayName(user)}: cloud scenarios, password, sign out`}>
+        {user ? <span className="avatar">{displayName(user).slice(0, 1).toUpperCase()}</span> : <Icon.user />}
       </button>
     </header>
   );

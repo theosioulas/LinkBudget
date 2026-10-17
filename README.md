@@ -108,17 +108,24 @@ Imagery (falls back to the bundled offline Natural Earth II), night lights: NASA
 
 ## Accounts and cloud scenarios
 
-The app is open to everyone. Signing in (top-right person icon) adds cloud save/load of
-scenarios, available on any device. Accounts use e-mail + password via
-[Supabase Auth](https://supabase.com/docs/guides/auth): passwords are hashed (bcrypt) by
-Supabase and never stored or seen by this app; sessions are short-lived signed tokens.
+The app requires a login. There is no public sign-up: the owner creates accounts in the
+Supabase dashboard, and each account can save, open and delete its own scenarios in the
+cloud and change its own password. Accounts use [Supabase Auth](https://supabase.com/docs/guides/auth):
+passwords are hashed (bcrypt) by Supabase and never stored or seen by this app.
 
+- **Usernames:** Supabase identifies users by e-mail, so a username-only account such as
+  `guest` is created as `guest@linkbudget.local` and signs in with just `guest`.
+  Accounts with a real e-mail sign in with the full address.
+- **Roles:** `admin` / `guest`, stored in the user's `app_metadata` (not editable by the
+  user). Both roles currently have the same permissions.
 - `src/auth/supabase.ts`: the client. The project URL and **publishable** key are public
   by design and may be committed; override them with `VITE_SUPABASE_URL` /
   `VITE_SUPABASE_PUBLISHABLE_KEY`. **Never** put a `service_role` / secret key in the app.
-- `supabase/schema.sql`: the `scenarios` table with Row Level Security: each user can only
-  read and write their own rows; anonymous visitors get no access. Run it once in the
-  Supabase dashboard → SQL Editor.
-- Dashboard → Authentication → URL Configuration: Site URL
-  `https://theosioulas.github.io/LinkBudget/`, plus `http://localhost:5173/**` as a
-  redirect URL for local development.
+- `supabase/schema.sql`: the `scenarios` table with Row Level Security (each user only
+  sees their own rows; anonymous visitors get nothing), plus how to create accounts and
+  set roles. Run it once in the Supabase dashboard → SQL Editor.
+- Dashboard → Authentication → Sign In / Providers: turn **off** "Allow new users to sign
+  up", otherwise anyone could create an account through the public API.
+
+Because GitHub Pages serves files publicly, the login protects the data and the running
+app, not the app's source code (which is in this public repository anyway).
