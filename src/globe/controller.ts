@@ -473,6 +473,7 @@ export class GlobeController {
     }
     this.followCamera(ms);
     this.reportHeading();
+    this.limitTilt();
     this.drawLinks(ms);
     this.drawIcons(ms);
     if (this.selectedId !== this.trackFor || Math.abs(ms - this.trackAt) > 60_000) this.drawGroundTrack(ms);
@@ -793,6 +794,37 @@ export class GlobeController {
   private reportHeading() {
     const h = Cesium.Math.toDegrees(this.viewer.camera.heading);
     if (Math.abs(h - this.lastHeading) > 0.5) { this.lastHeading = h; this.onHeading?.(h); }
+  }
+
+  /**
+   * Like Google Earth: the higher the camera, the less it may tilt, so zooming out of a tilted view
+   * swings back toward looking down and the Earth stays on screen instead of sinking to the bottom.
+   * Applied gradually (eases each frame) so it never fights a drag.
+   */
+  private limitTilt() {
+    if (this.flying || this.viewMode === 'satellite') return;
+    const cam = this.viewer.camera;
+    if (!Cesium.Matrix4.equals(cam.transform, Cesium.Matrix4.IDENTITY)) return;
+    const h = cam.positionCartographic.height;
+    const lo = 300e3, hi = 25e6;
+    const maxTilt = h <= lo ? 85 : h >= hi ? 0 : 85 * (1 - Math.log(h / lo) / Math.log(hi / lo));
+    const canvas = this.viewer.scene.canvas;
+    const center = cam.pickEllipsoid(new Cesium.Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2));
+    if (!center) {
+      // looking past the Earth: tip the view down toward it
+      const pitch = cam.pitch + (-Cesium.Math.PI_OVER_TWO - cam.pitch) * 0.12;
+      cam.setView({ orientation: { heading: cam.heading, pitch, roll: 0 } });
+      return;
+    }
+    const inv = Cesium.Matrix4.inverseTransformation(Cesium.Transforms.eastNorthUpToFixedFrame(center), new Cesium.Matrix4());
+    const local = Cesium.Matrix4.multiplyByPoint(inv, cam.positionWC, new Cesium.Cartesian3());
+    const range = Cesium.Cartesian3.magnitude(local);
+    const tilt = Cesium.Math.toDegrees(Math.acos(Math.min(1, Math.max(-1, local.z / range))));
+    if (tilt <= maxTilt + 0.3) return;
+    const newTilt = tilt - Math.max(0.3, (tilt - maxTilt) * 0.15);
+    const heading = Math.atan2(-local.x, -local.y);
+    cam.lookAt(center, new Cesium.HeadingPitchRange(heading, -Cesium.Math.toRadians(90 - newTilt), range));
+    cam.lookAtTransform(Cesium.Matrix4.IDENTITY);
   }
 
   /** Turn the view back to north-up (like Google Earth's compass / N key), keeping tilt and range. */
