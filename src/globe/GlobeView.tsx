@@ -49,7 +49,10 @@ export function GlobeView() {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
-      if ((e.key === 'n' || e.key === 'N') && !e.ctrlKey && !e.metaKey && !e.altKey) g.resetNorth();
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === 'n' || e.key === 'N') g.resetNorth();
+      // C: re-centre on the current view mode's target (terminal / whole Earth / satellite)
+      if (e.key === 'c' || e.key === 'C') useStore.setState((s) => ({ view: { ...s.view, nonce: s.view.nonce + 1 } }));
     };
     window.addEventListener('keydown', onKey);
     g.setTime(useStore.getState().clock.t);
@@ -86,7 +89,7 @@ export function GlobeView() {
     <>
       <div className="globe" ref={host} style={{ cursor: pickTerminal ? 'crosshair' : undefined }} />
       <div className="credits" ref={credit} />
-      <button className="compass glass" onClick={() => globe?.resetNorth()} title="North up (N) · Drag: move · Wheel: zoom · Middle-drag or Shift+drag: tilt & rotate · Ctrl+drag: look around" aria-label="Reset north">
+      <button className="compass glass" onClick={() => globe?.resetNorth()} title="North up (N) · Re-centre (C) · Drag: move · Wheel: zoom · Middle-drag or Shift+drag: tilt & rotate · Ctrl+drag: look around" aria-label="Reset north">
         <svg viewBox="0 0 40 40" style={{ transform: `rotate(${-heading}deg)` }} aria-hidden="true">
           <circle cx="20" cy="20" r="17" fill="none" stroke="rgba(160,185,225,0.35)" strokeWidth="1.2" />
           <path d="M20 6 L24.5 20 L15.5 20 Z" fill="#f87171" />
