@@ -20,6 +20,8 @@ The app opens over the terminal (Athens by default) with Starlink, OneWeb, O3b m
 satellites enabled, runs a 20-minute make-before-break timeline and shows live budgets for both
 terminal beams. Click the globe in **Terminal → Pick on globe** to move the terminal anywhere.
 
+**Camera:** north is always up. Left drag or middle-button drag (press the wheel) tilts around the target; the wheel or right drag zooms. *Terminal / Earth / Satellite* in the top bar choose what the camera orbits.
+
 **Scenario builder** (top bar → *Scenario*): an object browser in the spirit of STK. Set up the ground terminal (model, location, one or two simultaneous beams), add or remove satellite systems from the library or your own Walker / GEO / TLE sets, and choose the **beam plan**:
 
 - *Make-before-break*: both beams may use any satellite; the free beam acquires the next satellite before the serving one is lost.

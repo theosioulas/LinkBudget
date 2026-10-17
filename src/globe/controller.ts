@@ -105,8 +105,8 @@ export class GlobeController {
     ssc.enableLook = false;
     // Left drag orbits/tilts, the middle button (press the wheel and drag) tilts as well, wheel and right drag zoom.
     ssc.rotateEventTypes = [Cesium.CameraEventType.LEFT_DRAG];
-    ssc.tiltEventTypes = [Cesium.CameraEventType.MIDDLE_DRAG, Cesium.CameraEventType.PINCH,
-      { eventType: Cesium.CameraEventType.LEFT_DRAG, modifier: Cesium.KeyboardEventModifier.CTRL }];
+    // Middle drag is handled below (tiltBy) so it works the same in every view.
+    ssc.tiltEventTypes = [Cesium.CameraEventType.PINCH, { eventType: Cesium.CameraEventType.LEFT_DRAG, modifier: Cesium.KeyboardEventModifier.CTRL }];
     ssc.zoomEventTypes = [Cesium.CameraEventType.WHEEL, Cesium.CameraEventType.RIGHT_DRAG, Cesium.CameraEventType.PINCH];
     scene.globe.tileCacheSize = 400;
     scene.globe.enableLighting = true;
@@ -147,8 +147,16 @@ export class GlobeController {
       const id = p && typeof p.id === 'string' && this.satIndex.has(p.id) ? (p.id as string) : null;
       this.onPick?.(id);
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+    let mid: Cesium.Cartesian2 | null = null;
+    h.setInputAction((e: Cesium.ScreenSpaceEventHandler.PositionedEvent) => { mid = Cesium.Cartesian2.clone(e.position); }, Cesium.ScreenSpaceEventType.MIDDLE_DOWN);
+    h.setInputAction(() => { mid = null; }, Cesium.ScreenSpaceEventType.MIDDLE_UP);
     let lastHover = 0;
     h.setInputAction((e: Cesium.ScreenSpaceEventHandler.MotionEvent) => {
+      if (mid) {
+        this.tiltBy(e.endPosition.x - mid.x, e.endPosition.y - mid.y);
+        mid = Cesium.Cartesian2.clone(e.endPosition);
+        return;
+      }
       const now = performance.now();
       if (now - lastHover < 60) return;
       lastHover = now;
@@ -780,6 +788,25 @@ export class GlobeController {
     if (Cesium.Matrix4.equals(cam.transform, Cesium.Matrix4.IDENTITY)) return;
     const off = Cesium.Cartesian3.clone(cam.position);
     cam.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(km(satEcef(s, ms))), off);
+  }
+
+  /**
+   * Middle-button drag (press the wheel and drag): up/down tilts the view around its target;
+   * in the Earth view it turns the globe. North stays up (see lockNorth).
+   */
+  private tiltBy(dxPx: number, dyPx: number) {
+    if (this.flying) return;
+    const cam = this.viewer.camera;
+    if (this.viewMode !== 'earth' && !Cesium.Matrix4.equals(cam.transform, Cesium.Matrix4.IDENTITY)) {
+      const p = cam.position;
+      const range = Cesium.Cartesian3.magnitude(p);
+      const elev = Math.atan2(p.z, Math.hypot(p.x, p.y)) + Cesium.Math.toRadians(dyPx * 0.3);
+      const e = Math.min(Cesium.Math.toRadians(89.5), Math.max(Cesium.Math.toRadians(8), elev));
+      cam.lookAtTransform(cam.transform, new Cesium.Cartesian3(0, -range * Math.cos(e), range * Math.sin(e)));
+    } else {
+      cam.rotateRight(Cesium.Math.toRadians(dxPx * 0.15));
+      cam.rotateUp(Cesium.Math.toRadians(dyPx * 0.15));
+    }
   }
 
   /**
