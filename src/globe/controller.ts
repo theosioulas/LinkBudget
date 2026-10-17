@@ -130,7 +130,7 @@ export class GlobeController {
     scene.globe.maximumScreenSpaceError = 1.2;
     if (scene.skyAtmosphere) scene.skyAtmosphere.show = true;
     scene.screenSpaceCameraController.minimumZoomDistance = 50_000;
-    scene.screenSpaceCameraController.maximumZoomDistance = 250_000_000;
+    scene.screenSpaceCameraController.maximumZoomDistance = 120_000_000;
     this.viewer.clock.clockRange = Cesium.ClockRange.UNBOUNDED;
     scene.primitives.add(this.orbits);
     scene.primitives.add(this.coverage);
@@ -147,6 +147,9 @@ export class GlobeController {
     this.setImagery('satellite');
 
     scene.preRender.addEventListener(() => this.frame());
+    // Pointer state: auto-adjustments never run while a mouse button is held.
+    scene.canvas.addEventListener('pointerdown', () => { this.pointerDown = true; });
+    window.addEventListener('pointerup', () => { this.pointerDown = false; });
     const h = new Cesium.ScreenSpaceEventHandler(scene.canvas);
     h.setInputAction((e: Cesium.ScreenSpaceEventHandler.PositionedEvent) => {
       if (this.pickGroundMode) {
@@ -801,11 +804,15 @@ export class GlobeController {
    * swings back toward looking down and the Earth stays on screen instead of sinking to the bottom.
    * Applied gradually (eases each frame) so it never fights a drag.
    */
+  private pointerDown = false;
   private limitTilt() {
-    if (this.flying || this.viewMode === 'satellite') return;
+    if (this.flying || this.viewMode === 'satellite' || this.pointerDown) return;
     const cam = this.viewer.camera;
     if (!Cesium.Matrix4.equals(cam.transform, Cesium.Matrix4.IDENTITY)) return;
     const h = cam.positionCartographic.height;
+    // High up (whole-globe views): keep the Earth centred on screen. Zoom goes toward the cursor,
+    // which otherwise walks the globe off to one side; ease the view back onto the Earth's centre.
+    if (h > 6e6) { this.centreOnEarth(0.12); return; }
     const lo = 300e3, hi = 25e6;
     const maxTilt = h <= lo ? 85 : h >= hi ? 0 : 85 * (1 - Math.log(h / lo) / Math.log(hi / lo));
     const canvas = this.viewer.scene.canvas;
@@ -825,6 +832,23 @@ export class GlobeController {
     const heading = Math.atan2(-local.x, -local.y);
     cam.lookAt(center, new Cesium.HeadingPitchRange(heading, -Cesium.Math.toRadians(90 - newTilt), range));
     cam.lookAtTransform(Cesium.Matrix4.IDENTITY);
+  }
+
+  /** Turn the camera (in place) toward the Earth's centre by fraction k of the remaining angle; k = 1 snaps. */
+  centreOnEarth(k = 1) {
+    const cam = this.viewer.camera;
+    const want = Cesium.Cartesian3.normalize(Cesium.Cartesian3.negate(cam.positionWC, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+    const dir = cam.directionWC;
+    const ang = Cesium.Cartesian3.angleBetween(dir, want);
+    if (ang < 2e-4) return;
+    const t = ang < 0.002 ? 1 : k;
+    const nd = Cesium.Cartesian3.normalize(Cesium.Cartesian3.lerp(dir, want, t, new Cesium.Cartesian3()), new Cesium.Cartesian3());
+    // keep north up: up = the Earth's axis projected perpendicular to the view direction
+    const z = Cesium.Cartesian3.UNIT_Z;
+    let up = Cesium.Cartesian3.subtract(z, Cesium.Cartesian3.multiplyByScalar(nd, Cesium.Cartesian3.dot(z, nd), new Cesium.Cartesian3()), new Cesium.Cartesian3());
+    if (Cesium.Cartesian3.magnitude(up) < 1e-6) up = Cesium.Cartesian3.clone(cam.upWC);
+    Cesium.Cartesian3.normalize(up, up);
+    cam.setView({ destination: Cesium.Cartesian3.clone(cam.positionWC), orientation: { direction: nd, up } });
   }
 
   /** Turn the view back to north-up (like Google Earth's compass / N key), keeping tilt and range. */
