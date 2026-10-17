@@ -25,5 +25,6 @@ export const Icon = {
   chevronDown: () => <I><path d="M6 9l6 6 6-6" /></I>,
   run: () => <I><path d="M4 12a8 8 0 1 0 3-6.2" /><path d="M4 4v4h4" /></I>,
   check: () => <I><path d="M5 12l5 5 9-10" /></I>,
+  user: () => <I><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></I>,
   lock: () => <I><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></I>,
 };

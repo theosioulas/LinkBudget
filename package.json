@@ -12,6 +12,7 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
     "@xmldom/xmldom": "^0.8.10",
     "cesium": "^1.134.0",
     "fflate": "^0.8.2",

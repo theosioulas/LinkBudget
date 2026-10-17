@@ -6,6 +6,7 @@ import { buildHtmlReport } from './report';
 import { DEMOS } from '../app/demos';
 import { Icon } from './icons';
 import { LayersMenu } from './LayersMenu';
+import { useAuth } from '../auth/supabase';
 
 const SPEEDS: [number, string][] = [[1, 'Real time'], [10, '10×'], [60, '60×'], [300, '5 min/s'], [1800, '30 min/s']];
 
@@ -30,6 +31,8 @@ export function TopBar() {
   const view = useStore((s) => s.view);
   const servingId = useStore((s) => (s.live.A?.active ? s.live.A.satId : s.live.B?.active ? s.live.B.satId : s.live.A?.satId ?? null));
   const set = useStore((s) => s.set);
+  const user = useAuth((s) => s.user);
+  const openAccount = useAuth((s) => s.open);
   const [menu, setMenu] = useState<'layers' | 'export' | null>(null);
   const close = () => setMenu(null);
   const layersRef = useClickAway(menu === 'layers', close);
@@ -93,9 +96,13 @@ export function TopBar() {
             <button className="item" onClick={() => { report(); close(); }}><Icon.report /> <span>Link-budget report <span className="hint">(HTML)</span></span></button>
             <button className="item" onClick={() => { save(); close(); }}><Icon.download /> <span>Save scenario <span className="hint">(JSON)</span></span></button>
             <button className="item" onClick={() => { load(); close(); }}><Icon.open /> <span>Open scenario…</span></button>
+            <button className="item" onClick={() => { openAccount(); close(); }}><Icon.user /> <span>Cloud scenarios… <span className="hint">(account)</span></span></button>
           </div>
         )}
       </div>
+      <button className={`ibtn ${user ? 'on' : ''}`} onClick={() => openAccount()} title={user ? `Signed in as ${user.email}: cloud scenarios, sign out` : 'Sign in to save scenarios to the cloud'}>
+        {user ? <span className="avatar">{(user.email ?? '?').slice(0, 1).toUpperCase()}</span> : <Icon.user />}
+      </button>
     </header>
   );
 }

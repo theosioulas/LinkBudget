@@ -105,3 +105,20 @@ Orbital shells follow public FCC/ITU filings. Payload RF values (EIRP, G/T, beam
 **representative estimates** reconstructed from public filings, papers and operator statements — every
 value is editable so you can load your own data sheets or operator KML contours. Imagery: Esri World
 Imagery (falls back to the bundled offline Natural Earth II), night lights: NASA Black Marble via GIBS.
+
+## Accounts and cloud scenarios
+
+The app is open to everyone. Signing in (top-right person icon) adds cloud save/load of
+scenarios, available on any device. Accounts use e-mail + password via
+[Supabase Auth](https://supabase.com/docs/guides/auth): passwords are hashed (bcrypt) by
+Supabase and never stored or seen by this app; sessions are short-lived signed tokens.
+
+- `src/auth/supabase.ts`: the client. The project URL and **publishable** key are public
+  by design and may be committed; override them with `VITE_SUPABASE_URL` /
+  `VITE_SUPABASE_PUBLISHABLE_KEY`. **Never** put a `service_role` / secret key in the app.
+- `supabase/schema.sql`: the `scenarios` table with Row Level Security: each user can only
+  read and write their own rows; anonymous visitors get no access. Run it once in the
+  Supabase dashboard → SQL Editor.
+- Dashboard → Authentication → URL Configuration: Site URL
+  `https://theosioulas.github.io/LinkBudget/`, plus `http://localhost:5173/**` as a
+  redirect URL for local development.
