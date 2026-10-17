@@ -83,6 +83,21 @@ describe('engine', () => {
     console.log('geo-leo-dual', dual.summary);
   }, 60_000);
 
+  it('dedicated beams keep each beam on its own systems', () => {
+    const cons = CONSTELLATIONS;
+    const sats = buildSatellites(cons, T0);
+    const ctx = makeEvalContext(TERMINALS[0], DEFAULT_ANALYSIS, cons, PAYLOADS);
+    const r = runHandoverSim(sats, ctx, { ...DEFAULT_MBB, orbitPolicy: 'dedicated', beamAssign: { A: ['geo-ku'], B: ['starlink'] }, durationMin: 15, stepSec: 2 }, T0);
+    const sysOf = (id: string | null) => sats.find((x) => x.id === id)?.constellationId;
+    const aSys = new Set(r.steps.map((x) => sysOf(x.A.satId)).filter(Boolean));
+    const bSys = new Set(r.steps.map((x) => sysOf(x.B.satId)).filter(Boolean));
+    expect([...aSys]).toEqual(['geo-ku']);
+    expect([...bSys]).toEqual(['starlink']);
+    // GEO always covers Starlink re-pointing, so traffic never stops
+    expect(r.summary.availabilityPct).toBe(100);
+    expect(r.steps.some((x) => x.active === 'B')).toBe(true);
+  }, 60_000);
+
   it('what-if rain degrades Ka more than Ku and obstructions block satellites', () => {
     const sats = buildSatellites(CONSTELLATIONS.map((c) => ({ ...c, enabled: true })), T0);
     const geoKa = sats.find((s) => s.constellationId === 'geo-hts')!;

@@ -7,7 +7,7 @@ import type { SimResult } from '../core/sim/handover';
 import type { LinkResult } from '../core/rf/linkbudget';
 import type { SimRequest } from '../core/sim/sim.worker';
 
-export type LeftTab = 'scenarios' | 'scenario' | 'payload' | 'terminal' | 'coverage' | 'beamlab' | 'settings';
+export type LeftTab = 'scenario' | 'payload' | 'terminal' | 'coverage' | 'beamlab' | 'settings';
 export type Imagery = 'satellite' | 'natural' | 'dark';
 
 export interface LiveBeam {
@@ -55,6 +55,8 @@ export const DEFAULT_LAYERS: Layers = {
 export interface ScenarioFile {
   version: 1;
   name: string;
+  /** Template the scenario was started from ('custom' once edited). */
+  scenarioId?: string;
   constellations: Constellation[];
   payloads: Payload[];
   terminals: Terminal[];
@@ -78,6 +80,9 @@ interface State {
   selectedSatId: string | null;
   selectedPayloadId: string;
   focusPayloadSatId: string | null; // satellite whose full beam layout is drawn
+  /** Constellation whose payload the Payload panel edits. */
+  payloadSystemId: string | null;
+  templatesOpen: boolean;
   view: { mode: 'terminal' | 'earth' | 'satellite'; satId?: string | null; rangeKm?: number; nonce: number };
   sim: SimResult | null;
   simStale: boolean;
@@ -124,6 +129,8 @@ function loadSaved(): Partial<ScenarioFile> | null {
 }
 
 const saved = typeof window !== 'undefined' ? loadSaved() : null;
+/** True when the app restored the user's own scenario from the previous session. */
+export const hadSavedScenario = !!saved;
 const epoch = Math.floor(Date.now() / 60000) * 60000;
 
 let worker: Worker | null = null;
@@ -131,7 +138,7 @@ let toastTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const useStore = create<State>((set, get) => ({
   name: saved?.name ?? 'Multi-orbit scenario',
-  scenarioId: 'multi-orbit',
+  scenarioId: saved?.scenarioId ?? 'multi-orbit',
   constellations: saved?.constellations ?? clone(CONSTELLATIONS),
   payloads: saved?.payloads ?? clone(PAYLOADS),
   terminals: saved?.terminals ?? clone(TERMINALS),
@@ -144,6 +151,8 @@ export const useStore = create<State>((set, get) => ({
   selectedSatId: null,
   selectedPayloadId: (saved?.payloads ?? PAYLOADS)[0].id,
   focusPayloadSatId: null,
+  payloadSystemId: null,
+  templatesOpen: false,
   view: { mode: 'terminal', nonce: 0 },
   sim: null,
   simStale: false,
@@ -152,7 +161,7 @@ export const useStore = create<State>((set, get) => ({
   simError: null,
   gridsReady: false,
   pickTerminal: false,
-  leftTab: 'scenarios',
+  leftTab: 'scenario',
   drawer: null,
   leftOpen: true,
   rightOpen: true,
@@ -207,11 +216,11 @@ export const useStore = create<State>((set, get) => ({
   },
   exportScenario: () => {
     const s = get();
-    return { version: 1, name: s.name, constellations: s.constellations, payloads: s.payloads, terminals: s.terminals, activeTerminalId: s.activeTerminalId, analysis: s.analysis, mbb: s.mbb };
+    return { version: 1, name: s.name, scenarioId: s.scenarioId, constellations: s.constellations, payloads: s.payloads, terminals: s.terminals, activeTerminalId: s.activeTerminalId, analysis: s.analysis, mbb: s.mbb };
   },
   importScenario: (f) => {
     set({
-      name: f.name, constellations: f.constellations, payloads: f.payloads, terminals: f.terminals, activeTerminalId: f.activeTerminalId,
+      name: f.name, scenarioId: f.scenarioId ?? 'custom', constellations: f.constellations, payloads: f.payloads, terminals: f.terminals, activeTerminalId: f.activeTerminalId,
       analysis: { ...DEFAULT_ANALYSIS, ...f.analysis }, mbb: { ...DEFAULT_MBB, ...f.mbb }, sim: null, selectedPayloadId: f.payloads[0]?.id ?? '',
     });
     get().rebuildSats();
@@ -251,7 +260,7 @@ function followTerminal(rebuild = true) {
 // Persist scenario edits (debounced); storage may be unavailable.
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 useStore.subscribe((s, prev) => {
-  if (s.constellations === prev.constellations && s.payloads === prev.payloads && s.terminals === prev.terminals && s.analysis === prev.analysis && s.mbb === prev.mbb && s.name === prev.name && s.activeTerminalId === prev.activeTerminalId) return;
+  if (s.constellations === prev.constellations && s.payloads === prev.payloads && s.terminals === prev.terminals && s.analysis === prev.analysis && s.mbb === prev.mbb && s.name === prev.name && s.activeTerminalId === prev.activeTerminalId && s.scenarioId === prev.scenarioId) return;
   if (s.sim && !s.simStale && s.sim === prev.sim) useStore.setState({ simStale: true });
   clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
@@ -262,7 +271,7 @@ useStore.subscribe((s, prev) => {
 export const resetScenario = () => {
   try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
   useStore.getState().importScenario({
-    version: 1, name: 'Multi-orbit scenario', constellations: clone(CONSTELLATIONS), payloads: clone(PAYLOADS), terminals: clone(TERMINALS),
+    version: 1, name: 'Multi-orbit scenario', scenarioId: 'multi-orbit', constellations: clone(CONSTELLATIONS), payloads: clone(PAYLOADS), terminals: clone(TERMINALS),
     activeTerminalId: TERMINALS[0].id, analysis: DEFAULT_ANALYSIS, mbb: DEFAULT_MBB,
   });
 };
@@ -274,3 +283,6 @@ export const setView = (mode: 'terminal' | 'earth' | 'satellite', opts: { satId?
 export const activeTerminal = (s: State) => s.terminals.find((t) => t.id === s.activeTerminalId) ?? s.terminals[0];
 
 if (typeof window !== 'undefined') (window as unknown as { __store: typeof useStore }).__store = useStore;
+
+/** Mark the scenario as user-built (no longer identical to the template it started from). */
+export const markCustom = () => { if (useStore.getState().scenarioId !== 'custom') useStore.setState({ scenarioId: 'custom' }); };

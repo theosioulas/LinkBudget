@@ -9,12 +9,12 @@ export function applyDemo(id: string) {
   if (!d) return;
   const s = useStore.getState();
   const constellations = s.constellations.map((c) => ({ ...c, enabled: c.locked || d.enable.includes(c.id) }));
-  useStore.setState({ constellations, scenarioId: d.id, drawer: null, mbb: { ...DEFAULT_MBB, ...d.mbb }, sim: null, selectedSatId: null, focusPayloadSatId: null });
+  useStore.setState({ constellations, scenarioId: d.id, name: d.name, templatesOpen: false, mbb: { ...DEFAULT_MBB, ...d.mbb }, sim: null, selectedSatId: null, focusPayloadSatId: null });
   const t = activeTerminal(useStore.getState());
   useStore.getState().updateTerminal({
     beams: d.beams ?? t.beams, obstructions: d.obstructions ?? t.obstructions,
     type: d.beams === 2 && t.type === 'parabolic' ? 'phased-array' : t.type,
   });
   useStore.getState().rebuildSats();
-  setTimeout(() => { useStore.getState().runSim(); setView('terminal', { rangeKm: d.obstructions?.length ? 2500 : 12000 }); }, 100);
+  setTimeout(() => { useStore.getState().runSim(); setView('terminal', { rangeKm: d.obstructions?.length ? 2000 : 3500 }); }, 100);
 }
