@@ -293,3 +293,8 @@ svg text { font-family: var(--sans); }
 .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .alist { display: flex; flex-direction: column; gap: 6px; }
 .aitem { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255,255,255,0.02); }
+.login-screen { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; background: radial-gradient(ellipse at 50% 40%, #0d1a2e 0%, var(--bg) 70%); }
+.login-card { width: min(380px, 100%); }
+.login-brand { display: flex; align-items: center; gap: 12px; padding: 20px 16px 6px; }
+.login-brand svg { width: 40px; height: 40px; }
+.login-title { font-size: 18px; font-weight: 600; }

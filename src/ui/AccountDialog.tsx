@@ -1,12 +1,10 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
-import { supabase, useAuth, siteUrl, authMessage, MIN_PASSWORD, type AccountMode } from '../auth/supabase';
+import { supabase, useAuth, authMessage, loginEmail, displayName, userRole, MIN_PASSWORD, type AccountMode } from '../auth/supabase';
 import { listScenarios, saveScenario, loadScenario, deleteScenario, type CloudScenario } from '../auth/cloud';
 import { useStore } from '../store/store';
 import { Icon } from './icons';
 
-const TITLES: Record<AccountMode, string> = {
-  signin: 'Sign in', signup: 'Create account', forgot: 'Reset password', newPassword: 'Choose a new password', account: 'Your account',
-};
+const TITLES: Record<AccountMode, string> = { newPassword: 'Change password', account: 'Your account' };
 
 export function AccountDialog() {
   const mode = useAuth((s) => s.dialog);
@@ -25,7 +23,7 @@ export function AccountDialog() {
           <h3 id="account-title">{TITLES[mode]}</h3>
           <button className="ibtn sm" onClick={close} title="Close"><Icon.close /></button>
         </div>
-        {mode === 'account' ? <AccountView /> : <AuthForm mode={mode} />}
+        {mode === 'account' ? <AccountView /> : <NewPasswordForm />}
       </div>
     </div>
   );
@@ -35,78 +33,76 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   return <label className="afield"><span>{label}</span>{children}</label>;
 }
 
-function AuthForm({ mode }: { mode: Exclude<AccountMode, 'account'> }) {
-  const open = useAuth((s) => s.open);
-  const [email, setEmail] = useState('');
+/** Full-screen sign-in shown until there is a session: the app requires login. */
+export function LoginScreen() {
+  const [user, setUser] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null); setBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: loginEmail(user), password });
+      if (error) throw error;
+    } catch (err) {
+      setError(authMessage(err));
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="login-screen">
+      <form className="modal glass login-card" onSubmit={submit}>
+        <div className="login-brand">
+          <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="12" fill="#1f6feb" /><ellipse cx="32" cy="32" rx="28" ry="10" fill="none" stroke="#38d6f0" strokeWidth="3.5" transform="rotate(-25 32 32)" /><circle cx="56" cy="21" r="4.5" fill="#f472b6" /></svg>
+          <div>
+            <div className="login-title">OrbitLink</div>
+            <div className="dim small">Multi-orbit link budget studio</div>
+          </div>
+        </div>
+        <div className="modal-body">
+          <Field label="Username or e-mail"><input type="text" required autoComplete="username" autoCapitalize="none" spellCheck={false} autoFocus value={user} onChange={(e) => setUser(e.target.value)} /></Field>
+          <Field label="Password"><input type="password" required autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
+          {error && <div className="amsg bad" role="alert">{error}</div>}
+          <button className="btn primary wide" type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+          <p className="dim small" style={{ margin: 0, textAlign: 'center' }}>Access is by invitation. Ask the administrator for an account.</p>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+function NewPasswordForm() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
-  useEffect(() => { setError(null); setInfo(null); setPassword(''); setConfirm(''); }, [mode]);
-
-  const needsNewPassword = mode === 'signup' || mode === 'newPassword';
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    setError(null); setInfo(null);
-    if (needsNewPassword) {
-      if (password.length < MIN_PASSWORD) return setError(`Use at least ${MIN_PASSWORD} characters.`);
-      if (password !== confirm) return setError('The two passwords do not match.');
-    }
+    setError(null);
+    if (password.length < MIN_PASSWORD) return setError(`Use at least ${MIN_PASSWORD} characters.`);
+    if (password !== confirm) return setError('The two passwords do not match.');
     setBusy(true);
     try {
-      if (mode === 'signin') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        useAuth.getState().open('account');
-        useStore.getState().notify('Signed in');
-      } else if (mode === 'signup') {
-        const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: siteUrl() } });
-        if (error) throw error;
-        if (data.session) { useAuth.getState().open('account'); useStore.getState().notify('Account created'); }
-        else setInfo(`Almost done: we sent a confirmation link to ${email}. Open it to activate your account, then sign in.`);
-      } else if (mode === 'forgot') {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: siteUrl() });
-        if (error) throw error;
-        setInfo(`If an account exists for ${email}, a reset link is on its way.`);
-      } else {
-        const { error } = await supabase.auth.updateUser({ password });
-        if (error) throw error;
-        useAuth.getState().open('account');
-        useStore.getState().notify('Password updated');
-      }
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+      useAuth.getState().open('account');
+      useStore.getState().notify('Password updated');
     } catch (err) {
       setError(authMessage(err));
     } finally {
       setBusy(false);
     }
   };
-
   return (
     <form className="modal-body" onSubmit={submit}>
-      {mode === 'signin' && <p className="muted small">Sign in to save scenarios to the cloud and open them on any device.</p>}
-      {mode === 'forgot' && <p className="muted small">Enter your e-mail and we'll send you a link to set a new password.</p>}
-      {mode !== 'newPassword' && (
-        <Field label="E-mail"><input type="email" required autoComplete="email" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-      )}
-      {mode !== 'forgot' && (
-        <Field label={needsNewPassword ? `New password (min. ${MIN_PASSWORD} characters)` : 'Password'}>
-          <input type="password" required autoComplete={needsNewPassword ? 'new-password' : 'current-password'} autoFocus={mode === 'newPassword'} minLength={needsNewPassword ? MIN_PASSWORD : undefined} value={password} onChange={(e) => setPassword(e.target.value)} />
-        </Field>
-      )}
-      {needsNewPassword && (
-        <Field label="Repeat password"><input type="password" required autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></Field>
-      )}
+      <Field label={`New password (min. ${MIN_PASSWORD} characters)`}>
+        <input type="password" required autoComplete="new-password" autoFocus minLength={MIN_PASSWORD} value={password} onChange={(e) => setPassword(e.target.value)} />
+      </Field>
+      <Field label="Repeat password"><input type="password" required autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} /></Field>
       {error && <div className="amsg bad" role="alert">{error}</div>}
-      {info && <div className="amsg good" role="status">{info}</div>}
-      <button className="btn primary wide" type="submit" disabled={busy}>
-        {busy ? 'Please wait…' : mode === 'signin' ? 'Sign in' : mode === 'signup' ? 'Create account' : mode === 'forgot' ? 'Send reset link' : 'Save new password'}
-      </button>
-      <div className="alinks">
-        {mode === 'signin' && <><button type="button" onClick={() => open('forgot')}>Forgot password?</button><button type="button" onClick={() => open('signup')}>Create an account</button></>}
-        {mode === 'signup' && <button type="button" onClick={() => open('signin')}>Already have an account? Sign in</button>}
-        {mode === 'forgot' && <button type="button" onClick={() => open('signin')}>Back to sign in</button>}
-      </div>
+      <button className="btn primary wide" type="submit" disabled={busy}>{busy ? 'Please wait…' : 'Save new password'}</button>
+      <div className="alinks"><button type="button" onClick={() => useAuth.getState().open('account')}>Back</button></div>
     </form>
   );
 }
@@ -145,14 +141,13 @@ function AccountView() {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
     useAuth.getState().close();
-    useStore.getState().notify('Signed out');
   });
 
   return (
     <div className="modal-body">
       <div className="row acct-id">
-        <span className="avatar">{(user?.email ?? '?').slice(0, 1).toUpperCase()}</span>
-        <span className="grow ellipsis">{user?.email}</span>
+        <span className="avatar">{displayName(user).slice(0, 1).toUpperCase()}</span>
+        <span className="grow ellipsis">{displayName(user)} <span className={`chip ${userRole(user) === 'admin' ? 'a' : ''}`}>{userRole(user)}</span></span>
         <button className="btn sm ghost" onClick={() => useAuth.getState().open('newPassword')}>Change password</button>
         <button className="btn sm" onClick={signOut} disabled={busy === 'out'}>Sign out</button>
       </div>

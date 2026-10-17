@@ -41,3 +41,19 @@ end $$;
 drop trigger if exists scenarios_touch on public.scenarios;
 create trigger scenarios_touch before update on public.scenarios
   for each row execute function public.scenarios_touch();
+
+-- ---------------------------------------------------------------------------
+-- Accounts (no public sign-up: Authentication → Sign In / Providers → turn OFF
+-- "Allow new users to sign up"). Create users in Authentication → Users → Add user
+-- with "Auto Confirm User" ticked. A username-only account such as "guest" is
+-- created with the e-mail  guest@linkbudget.local  and signs in as just "guest".
+--
+-- Roles live in app_metadata, which users cannot edit themselves. Example
+-- (replace the e-mail addresses, then run):
+--
+--   update auth.users set raw_app_meta_data = raw_app_meta_data || '{"role":"admin"}'
+--    where email = 'you@example.com';
+--   update auth.users set raw_app_meta_data = raw_app_meta_data || '{"role":"guest"}'
+--    where email = 'guest@linkbudget.local';
+--
+-- A role change takes effect at the user's next sign-in.
