@@ -11,9 +11,10 @@ const ROWS: [string, [BoolKey, string, string?][]][] = [
     ['groundTrack', 'Ground track (selected)'],
   ]],
   ['Beams', [
-    ['cones', 'Serving beam cones (LEO/MEO)'],
-    ['fovCones', 'Field-of-view cones (visible LEO/MEO)'],
-    ['beams', 'Beam footprints'],
+    ['cones', 'Active beam cone'],
+    ['beams', 'Active beam footprint'],
+    ['fovCones', 'Field of view of visible LEO/MEO'],
+    ['cellGrid', 'LEO/MEO service cells'],
   ]],
   ['Terminal', [
     ['walls', 'Obstruction walls'],
@@ -31,7 +32,7 @@ export function LayersMenu() {
   const layers = useStore((s) => s.layers);
   const set = useStore((s) => s.set);
   const up = (p: Partial<Layers>) => set({ layers: { ...layers, ...p } });
-  const allOff = () => up({ dotsLEO: false, dotsMEO: false, dotsGEO: false, labels: false, orbits: false, coverage: false, beams: false, cones: false, fovCones: false, links: false, scanCone: false, walls: false, groundTrack: false });
+  const allOff = () => up({ dotsLEO: false, dotsMEO: false, dotsGEO: false, labels: false, orbits: false, coverage: false, beams: false, cones: false, fovCones: false, cellGrid: false, links: false, scanCone: false, walls: false, groundTrack: false });
   return (
     <div>
       <h5>Satellites</h5>

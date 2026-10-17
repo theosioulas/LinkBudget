@@ -31,13 +31,13 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #root { height: 100%; margin: 0; }
+html, body, #root { height: 100%; margin: 0; overflow: clip; overscroll-behavior: none; }
 body { background: var(--bg); color: var(--text); font: 13px/1.45 var(--sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font: inherit; color: inherit; }
 a { color: var(--accent); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-.app { position: relative; height: 100%; width: 100%; }
+.app { position: fixed; inset: 0; overflow: clip; }
 .globe { position: absolute; inset: 0; }
 .globe .cesium-viewer, .globe .cesium-widget { width: 100%; height: 100%; }
 .credits { position: absolute; left: 50%; transform: translateX(-50%); bottom: 2px; z-index: 3; font-size: 10px; color: var(--text-3); max-width: 50vw; white-space: nowrap; overflow: hidden; }
@@ -265,3 +265,8 @@ svg text { font-family: var(--sans); }
   .events { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.view-seg button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; }
+.view-seg button svg { width: 15px; height: 15px; }
+.view-seg button:disabled { opacity: 0.4; cursor: default; }
+@media (max-width: 1100px) { .view-seg button { font-size: 0; gap: 0; padding: 0 9px; } .view-seg button svg { width: 17px; height: 17px; } }

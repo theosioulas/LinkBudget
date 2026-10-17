@@ -1,6 +1,5 @@
-import { useStore, activeTerminal } from '../store/store';
+import { useStore, activeTerminal, setView } from '../store/store';
 import { DEFAULT_MBB } from '../data/presets';
-import { globe } from '../globe/GlobeView';
 import { DEMOS } from './demo-defs';
 
 export { DEMOS };
@@ -17,5 +16,5 @@ export function applyDemo(id: string) {
     type: d.beams === 2 && t.type === 'parabolic' ? 'phased-array' : t.type,
   });
   useStore.getState().rebuildSats();
-  setTimeout(() => { useStore.getState().runSim(); globe?.flyToTerminal(d.obstructions?.length ? 2500 : 12000, -55); }, 100);
+  setTimeout(() => { useStore.getState().runSim(); setView('terminal', { rangeKm: d.obstructions?.length ? 2500 : 12000 }); }, 100);
 }

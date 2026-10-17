@@ -12,6 +12,8 @@ import { scanEffects } from '../core/rf/antenna';
 
 const angleDeg = (a: Vec3, b: Vec3) => (angleBetween(a, b) * 180) / Math.PI;
 import type { Layers } from '../store/store';
+
+export type ViewMode = 'terminal' | 'earth' | 'satellite';
 import { rampColor, type CoverageResult } from '../core/sim/coverage';
 
 export const REUSE_COLORS = ['#4cc9f0', '#06d6a0', '#ffd166', '#ef476f', '#b388ff', '#ff9f43', '#90e0ef'];
@@ -85,6 +87,7 @@ export class GlobeController {
   onPickGround?: (lat: number, lon: number) => void;
   onHover?: (satId: string | null, x: number, y: number) => void;
   onTick?: (ms: number) => void;
+  onViewModeChange?: (m: ViewMode) => void;
   pickGroundMode = false;
 
   constructor(container: HTMLElement, creditContainer: HTMLElement) {
@@ -95,6 +98,12 @@ export class GlobeController {
       skyBox: undefined,
     });
     const scene = this.viewer.scene;
+    // Render at the display's native resolution (sharp on HiDPI/Retina screens) with FXAA on top of MSAA.
+    this.viewer.useBrowserRecommendedResolution = false;
+    this.viewer.resolutionScale = 1;
+    scene.postProcessStages.fxaa.enabled = true;
+    scene.screenSpaceCameraController.enableLook = false;
+    scene.globe.tileCacheSize = 400;
     scene.globe.enableLighting = true;
     scene.globe.dynamicAtmosphereLighting = true;
     scene.globe.dynamicAtmosphereLightingFromSun = true;
@@ -102,7 +111,7 @@ export class GlobeController {
     scene.globe.baseColor = Cesium.Color.fromCssColorString('#0b1a2e');
     scene.globe.atmosphereLightIntensity = 12;
     scene.fog.enabled = true;
-    scene.globe.maximumScreenSpaceError = 1.5;
+    scene.globe.maximumScreenSpaceError = 1.2;
     if (scene.skyAtmosphere) scene.skyAtmosphere.show = true;
     scene.screenSpaceCameraController.minimumZoomDistance = 50_000;
     scene.screenSpaceCameraController.maximumZoomDistance = 250_000_000;
@@ -286,7 +295,9 @@ export class GlobeController {
   }
 
   setTerminal(t: Terminal) {
+    const moved = this.terminal && (this.terminal.lat !== t.lat || this.terminal.lon !== t.lon);
     this.terminal = t;
+    if (moved && this.viewMode === 'terminal') setTimeout(() => this.setView('terminal', { duration: 1.2 }), 0);
     const pos = ll(t.lat, t.lon, t.altM);
     if (!this.terminalEntity) {
       this.terminalEntity = this.viewer.entities.add({
@@ -347,6 +358,11 @@ export class GlobeController {
     if (changed) {
       for (const id of [...old, l.A?.satId, l.B?.satId]) this.restyle(id);
       this.lastFoot = 0;
+      // Satellite view: glide to the new serving satellite after a handover.
+      const serving = this.servingSatId();
+      if (this.viewMode === 'satellite' && this.followServing && serving && serving !== this.followSatId) {
+        this.setView('satellite', { satId: 'serving', duration: 1.2 });
+      }
     }
   }
 
@@ -441,6 +457,7 @@ export class GlobeController {
         line.positions = ring.map(([la, lo]) => ll(la, lo, 3000));
       }
     }
+    this.followCamera(ms);
     this.drawLinks(ms);
     this.drawIcons(ms);
     if (this.selectedId !== this.trackFor || Math.abs(ms - this.trackAt) > 60_000) this.drawGroundTrack(ms);
@@ -496,8 +513,7 @@ export class GlobeController {
       const c = this.consts.get(s.constellationId);
       const pl = c && this.payloads.get(c.payloadId);
       let ring: [number, number][] = [];
-      const orbit = c?.orbitClass;
-      let aimLL: [number, number] | null = null;
+            let aimLL: [number, number] | null = null;
       let halfAngle = 0;
       if (pl && this.terminal) {
         if (pl.layout.kind === 'steerable-cells') {
@@ -513,11 +529,12 @@ export class GlobeController {
           halfAngle = pl.layout.alongTrackDeg * 0.75;
         }
       }
-      const showRing = ring.length > 3 && (this.layers?.beams ?? true);
+      const isActive = L.active && tracking;
+      const showRing = isActive && ring.length > 3 && (this.layers?.beams ?? true);
       P.ring.show = showRing;
       if (showRing) P.ring.positions = ring.map(([a, b]) => ll(a, b, 2500));
       // Solid spot-beam cone for LEO/MEO serving satellites
-      if (aimLL && halfAngle > 0 && orbit !== 'GEO' && (this.layers?.cones ?? true)) P.cone.set(sp, geodeticToEcef(aimLL[0], aimLL[1], 0), halfAngle);
+      if (isActive && aimLL && halfAngle > 0 && (this.layers?.cones ?? true)) P.cone.set(sp, geodeticToEcef(aimLL[0], aimLL[1], 0), halfAngle);
       else P.cone.hide();
     }
     const wall = performance.now();
@@ -603,12 +620,16 @@ export class GlobeController {
     this.footOutlines.removeAll();
     if (this.footFill) { this.viewer.scene.primitives.remove(this.footFill); this.footFill = null; }
     if (this.activeFill) { this.viewer.scene.primitives.remove(this.activeFill); this.activeFill = null; }
-    if (!(this.layers?.beams ?? true)) return;
+    // Full beam layouts only for an explicitly focused satellite (Focus / Beam Lab); the LEO cell grid
+    // around the terminal only when the "cell grid" layer is on.
     const focusIds = new Set<string>();
     if (this.focusId) focusIds.add(this.focusId);
-    if (this.selectedId) focusIds.add(this.selectedId);
-    if (this.links.A?.satId) focusIds.add(this.links.A.satId);
-    if (this.links.B?.satId) focusIds.add(this.links.B.satId);
+    const active = this.links.A?.active ? this.links.A : this.links.B?.active ? this.links.B : null;
+    if (this.layers?.cellGrid && active) {
+      const s = this.sats[this.satIndex.get(active.satId) ?? -1];
+      const pl = s && this.payloads.get(this.consts.get(s.constellationId)?.payloadId ?? '');
+      if (pl?.layout.kind === 'steerable-cells') focusIds.add(active.satId);
+    }
     const instances: Cesium.GeometryInstance[] = [];
     const user = this.terminal ? { lat: this.terminal.lat, lon: this.terminal.lon, alt: 0 } : undefined;
     const drawnLayouts = new Set<string>();
@@ -649,45 +670,133 @@ export class GlobeController {
   }
 
   // ------------------------------------------------------------ camera
-  flyToTerminal(rangeKm = 9000, pitchDeg = -60, duration = 1.6) {
-    if (!this.terminal || this.viewer.isDestroyed()) return;
-    const target = ll(this.terminal.lat, this.terminal.lon, 0);
-    this.viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 1), {
-      offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(pitchDeg), rangeKm * 1000), duration,
-    });
+  /**
+   * View modes. Each one locks the camera's reference frame to its target (camera.lookAtTransform),
+   * so mouse rotation orbits the target and zoom moves toward it: the target always stays centred.
+   *  - terminal: orbit around the earth station
+   *  - earth: orbit around the Earth's centre (whole globe and GEO belt)
+   *  - satellite: follow a satellite as it moves
+   */
+  viewMode: ViewMode = 'terminal';
+  private followSatId: string | null = null;
+  /** Satellite view tracks whichever satellite carries traffic (switches on handover). */
+  private followServing = false;
+  private flying = false;
+
+  private servingSatId(): string | null {
+    return this.links.A?.active ? this.links.A.satId : this.links.B?.active ? this.links.B.satId : this.links.A?.satId ?? this.links.B?.satId ?? null;
   }
-  flyGlobal() {
-    const lon = this.terminal?.lon ?? 0;
-    this.viewer.camera.flyTo({ destination: Cesium.Cartesian3.fromDegrees(lon, 15, 1.25e8), duration: 1.8 });
+
+  private release() {
+    this.viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
   }
-  /** Frame a satellite together with its ground footprint (or its payload's aim point for GEO/spot layouts). */
-  flyToSat(id: string) {
+
+  setView(mode: ViewMode, opts: { satId?: string | null; rangeKm?: number; pitchDeg?: number; duration?: number } = {}) {
+    if (this.viewer.isDestroyed()) return;
+    const cam = this.viewer.camera;
+    cam.cancelFlight();
+    this.release();
+    this.viewMode = mode;
+    if (mode === 'satellite') {
+      this.followServing = !opts.satId || opts.satId === 'serving';
+      this.followSatId = this.followServing ? this.servingSatId() : opts.satId!;
+    } else {
+      this.followServing = false;
+      this.followSatId = null;
+    }
+    const duration = opts.duration ?? 1.6;
+    const pitch = Cesium.Math.toRadians(opts.pitchDeg ?? -50);
+    if (mode === 'terminal' && this.terminal) {
+      const target = ll(this.terminal.lat, this.terminal.lon, 0);
+      const hpr = new Cesium.HeadingPitchRange(0, pitch, (opts.rangeKm ?? 9000) * 1000);
+      this.flying = true;
+      cam.flyToBoundingSphere(new Cesium.BoundingSphere(target, 1), {
+        offset: hpr, duration,
+        complete: () => { this.flying = false; if (this.viewMode === 'terminal') cam.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(target), hpr); },
+        cancel: () => { this.flying = false; },
+      });
+    } else if (mode === 'earth') {
+      const lon = this.terminal?.lon ?? 0, lat = Math.max(-30, Math.min(30, this.terminal?.lat ?? 0));
+      const range = (opts.rangeKm ?? 110_000) * 1000;
+      this.flying = true;
+      cam.flyTo({
+        destination: Cesium.Cartesian3.fromDegrees(lon, lat, range), duration,
+        orientation: { heading: 0, pitch: -Cesium.Math.PI_OVER_TWO, roll: 0 },
+        complete: () => {
+          this.flying = false;
+          if (this.viewMode !== 'earth') return;
+          // Orbit around the Earth's centre: an Earth-fixed frame at the origin, camera offset preserved.
+          const off = Cesium.Cartesian3.clone(cam.positionWC);
+          cam.lookAtTransform(Cesium.Matrix4.IDENTITY, off);
+        },
+        cancel: () => { this.flying = false; },
+      });
+    } else if (mode === 'satellite' && this.followSatId) {
+      const s = this.sats[this.satIndex.get(this.followSatId) ?? -1];
+      if (!s) return;
+      const p = km(satEcef(s, this.currentMs()));
+      const altKm = Cesium.Cartesian3.magnitude(p) / 1000 - 6371;
+      const range = (opts.rangeKm ?? (altKm > 30000 ? 30000 : altKm > 5000 ? 12000 : 2200)) * 1000;
+      const hpr = new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-35), range);
+      this.flying = true;
+      cam.flyToBoundingSphere(new Cesium.BoundingSphere(p, 1), {
+        offset: hpr, duration,
+        complete: () => {
+          this.flying = false;
+          if (this.viewMode !== 'satellite') return;
+          const now = km(satEcef(s, this.currentMs()));
+          cam.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(now), hpr);
+        },
+        cancel: () => { this.flying = false; },
+      });
+    }
+  }
+
+  /** Keep the satellite-follow frame on the moving satellite while preserving the user's orbit offset. */
+  private followCamera(ms: number) {
+    if (this.viewMode !== 'satellite' || !this.followSatId || this.flying) return;
+    const s = this.sats[this.satIndex.get(this.followSatId) ?? -1];
+    if (!s) return;
+    const cam = this.viewer.camera;
+    if (Cesium.Matrix4.equals(cam.transform, Cesium.Matrix4.IDENTITY)) return;
+    const off = Cesium.Cartesian3.clone(cam.position);
+    cam.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(km(satEcef(s, ms))), off);
+  }
+
+  // Backwards-compatible helpers
+  flyToTerminal(rangeKm = 9000, pitchDeg = -50, duration = 1.6) { this.setView('terminal', { rangeKm, pitchDeg, duration }); }
+  flyGlobal() { this.setView('earth'); }
+  flyToSat(id: string) { this.setView('satellite', { satId: id }); }
+
+  /** Frame a satellite's full beam layout (used by Focus / Beam Lab). */
+  frameBeamLayout(id: string) {
     const s = this.sats[this.satIndex.get(id) ?? -1];
     if (!s) return;
     const c = this.consts.get(s.constellationId);
     const pl = c && this.payloads.get(c.payloadId);
-    const p = satEcef(s, this.currentMs());
-    const sub = Cesium.Cartographic.fromCartesian(km(p));
-    const alt = sub.height;
-    let lat = Cesium.Math.toDegrees(sub.latitude), lon = Cesium.Math.toDegrees(sub.longitude);
-    let range: number;
-    if (pl && (pl.layout.kind === 'hex-grid' || pl.layout.kind === 'spot')) {
-      lat = pl.layout.aimLat; lon = pl.layout.aimLon;
-      range = pl.layout.kind === 'hex-grid' ? Math.max(2.5e6, pl.layout.spacingDeg * (2 * pl.layout.rings + 1) * 37_000 * Cesium.Math.RADIANS_PER_DEGREE * 1e3 * 1.6) : 9e6;
-    } else if (pl && pl.layout.kind === 'kml' && pl.layout.beams.length) {
-      const b = pl.layout.beams;
-      lat = b.reduce((a, x) => a + x.centroid[0], 0) / b.length;
-      lon = b.reduce((a, x) => a + x.centroid[1], 0) / b.length;
-      range = 6e6;
-    } else if (pl && pl.layout.kind === 'steerable-cells' && this.terminal) {
-      lat = this.terminal.lat; lon = this.terminal.lon;
-      range = Math.max(alt * 2.6, 1.6e6);
+    if (pl && (pl.layout.kind === 'hex-grid' || pl.layout.kind === 'spot' || pl.layout.kind === 'kml')) {
+      let lat: number, lon: number;
+      if (pl.layout.kind === 'kml') {
+        const b = pl.layout.beams;
+        lat = b.reduce((a, x) => a + x.centroid[0], 0) / Math.max(1, b.length);
+        lon = b.reduce((a, x) => a + x.centroid[1], 0) / Math.max(1, b.length);
+      } else { lat = pl.layout.aimLat; lon = pl.layout.aimLon; }
+      const range = pl.layout.kind === 'hex-grid' ? Math.max(3500, pl.layout.spacingDeg * (2 * pl.layout.rings + 1) * 37_000 * Cesium.Math.RADIANS_PER_DEGREE * 1.4) : 8000;
+      this.release();
+      this.viewMode = 'terminal';
+      const target = ll(lat, lon, 0);
+      const hpr = new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(-70), range * 1000);
+      this.flying = true;
+      this.viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(target, 1), {
+        offset: hpr, duration: 1.6,
+        complete: () => { this.flying = false; this.viewer.camera.lookAtTransform(Cesium.Transforms.eastNorthUpToFixedFrame(target), hpr); },
+        cancel: () => { this.flying = false; },
+      });
+      this.onViewModeChange?.('terminal');
     } else {
-      range = Math.max(alt * 3.2, 2.5e6);
+      this.setView('satellite', { satId: id });
+      this.onViewModeChange?.('satellite');
     }
-    this.viewer.camera.flyToBoundingSphere(new Cesium.BoundingSphere(ll(lat, lon, 0), 1), {
-      offset: new Cesium.HeadingPitchRange(0, Cesium.Math.toRadians(alt > 1e7 ? -75 : -48), range), duration: 1.8,
-    });
   }
 
   satEci(id: string, ms: number) {

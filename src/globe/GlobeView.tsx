@@ -17,6 +17,7 @@ export function GlobeView() {
   const live = useStore((s) => s.live);
   const selectedSatId = useStore((s) => s.selectedSatId);
   const focus = useStore((s) => s.focusPayloadSatId);
+  const view = useStore((s) => s.view);
   const pickTerminal = useStore((s) => s.pickTerminal);
   const clockMult = useStore((s) => s.clock.multiplier);
   const playing = useStore((s) => s.clock.playing);
@@ -34,7 +35,8 @@ export function GlobeView() {
         useStore.setState({ clock: { ...c, t: ms } });
       }
     };
-    g.onPick = (id) => useStore.setState({ selectedSatId: id, focusPayloadSatId: id });
+    g.onPick = (id) => useStore.setState({ selectedSatId: id });
+    g.onViewModeChange = (mode) => useStore.setState((s) => ({ view: { ...s.view, mode } }));
     g.onPickGround = (lat, lon) => {
       useStore.getState().updateTerminal({ lat: +lat.toFixed(4), lon: +lon.toFixed(4) });
       useStore.setState({ pickTerminal: false, sim: null });
@@ -45,8 +47,8 @@ export function GlobeView() {
     const st = useStore.getState();
     g.applyLayers(st.layers);
     g.setTerminal(activeTerminal(st));
-    g.flyToTerminal(26000, -78, 0);
-    const intro = setTimeout(() => g.flyToTerminal(17000, -62, 3), 600);
+    g.setView('terminal', { rangeKm: 30000, pitchDeg: -80, duration: 0 });
+    const intro = setTimeout(() => g.setView('terminal', { rangeKm: 12000, pitchDeg: -55, duration: 3 }), 600);
     g.onImageryFallback = () => useStore.getState().notify('Satellite imagery unreachable – using the offline Natural Earth II globe');
     return () => { clearTimeout(intro); g.destroy(); if (globe === g) globe = null; };
   }, []);
@@ -58,6 +60,10 @@ export function GlobeView() {
   useEffect(() => { globe?.setClock(clockMult, playing); }, [clockMult, playing]);
   useEffect(() => { if (globe) globe.pickGroundMode = pickTerminal; }, [pickTerminal]);
   useEffect(() => { globe?.setSelected(selectedSatId, focus); }, [selectedSatId, focus]);
+  useEffect(() => {
+    if (!globe || view.nonce === 0) return;
+    globe.setView(view.mode, { satId: view.satId ?? undefined, rangeKm: view.rangeKm });
+  }, [view.nonce]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     globe?.setLinks({
       A: live.A ? { satId: live.A.satId, phase: live.A.phase, active: live.A.active, aim: live.A.link?.beam.aim } : null,

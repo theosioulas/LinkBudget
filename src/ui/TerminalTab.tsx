@@ -1,7 +1,6 @@
-import { useStore, activeTerminal } from '../store/store';
+import { useStore, activeTerminal, setView } from '../store/store';
 import type { Terminal, TerminalBand, Obstruction } from '../core/model';
 import { NumberField, SelectField, TextField, Toggle, Sect, fmtNum } from './controls';
-import { globe } from '../globe/GlobeView';
 import { siteClimate } from '../core/itu/atmosphere';
 
 const PLACES: [string, number, number][] = [
@@ -83,7 +82,7 @@ export function TerminalTab() {
       </div>
       <div className="row wrap" style={{ gap: 5, marginTop: 6 }}>
         <button className={`btn sm ${pick ? 'active' : ''}`} onClick={() => set({ pickTerminal: !pick })}>{pick ? 'Click the globe…' : '⌖ Pick on globe'}</button>
-        <button className="btn sm" onClick={() => globe?.flyToTerminal(9000, -55)}>Fly to</button>
+        <button className="btn sm" onClick={() => setView('terminal')}>Fly to</button>
         <select className="btn sm" value="" onChange={(e) => { const p = PLACES.find((x) => x[0] === e.target.value); if (p) u({ lat: p[1], lon: p[2] }); }}>
           <option value="">Quick locations…</option>
           {PLACES.map(([n]) => <option key={n} value={n}>{n}</option>)}
