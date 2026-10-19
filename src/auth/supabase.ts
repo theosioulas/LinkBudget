@@ -8,7 +8,12 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://alknxjvvrggsx
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_Vu1bDZ1cMdbN4ykwiJ9ABA_1dv5P5M4';
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  auth: {
+    persistSession: true, autoRefreshToken: true, detectSessionInUrl: true,
+    // No cross-tab Web Lock around session access: with several tabs (or a stalled token refresh) the
+    // default lock can wait indefinitely and leave the app on a blank screen until a reload.
+    lock: async (_name, _acquireTimeout, fn) => fn(),
+  },
 });
 
 export type AccountMode = 'newPassword' | 'account';
@@ -32,7 +37,12 @@ export const useAuth = create<AuthState>((set, get) => ({
   close: () => set({ dialog: null }),
 }));
 
-supabase.auth.getSession().then(({ data }) => useAuth.setState({ ready: true, session: data.session, user: data.session?.user ?? null }));
+supabase.auth.getSession()
+  .then(({ data }) => useAuth.setState({ ready: true, session: data.session, user: data.session?.user ?? null }))
+  .catch(() => useAuth.setState({ ready: true }));
+// Never wait for the auth check forever (e.g. a token refresh on a slow network): after a few seconds
+// show the login screen; a session that arrives later still signs the user in.
+setTimeout(() => { if (!useAuth.getState().ready) useAuth.setState({ ready: true }); }, 5000);
 supabase.auth.onAuthStateChange((event, session) => {
   useAuth.setState({ ready: true, session, user: session?.user ?? null });
   // Arrived from a "reset password" e-mail: ask for the new password straight away.

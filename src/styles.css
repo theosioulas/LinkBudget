@@ -356,3 +356,6 @@ svg text { font-family: var(--sans); }
 .pick:hover:not(:disabled) { background: var(--hover); }
 .pick.on { background: var(--accent-soft); }
 .pick:disabled { opacity: 0.4; cursor: default; }
+.splash { display: flex; flex-direction: column; align-items: center; gap: 14px; color: var(--text-2); font-size: 13px; text-align: center; max-width: 420px; padding: 16px; }
+.splash svg { width: 54px; height: 54px; animation: splash-pulse 1.6s ease-in-out infinite; }
+@keyframes splash-pulse { 50% { opacity: 0.55; } }
