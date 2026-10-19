@@ -6,6 +6,18 @@
     <title>OrbitLink Studio</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="description" content="Multi-orbit LEO/MEO/GEO satellite link budget analysis studio" />
+    <style>html,body{margin:0;height:100%;background:#04070d}</style>
+    <script>
+      // After a new deploy an old cached page can point at files that no longer exist: reload once.
+      window.addEventListener('error', function (e) {
+        var t = e.target;
+        if (!t || (t.tagName !== 'SCRIPT' && t.tagName !== 'LINK')) return;
+        try { if (sessionStorage.getItem('orbitlink-reloaded')) return; sessionStorage.setItem('orbitlink-reloaded', '1'); } catch (_) {}
+        location.reload();
+      }, true);
+      window.addEventListener('vite:preloadError', function () { location.reload(); });
+      window.addEventListener('load', function () { setTimeout(function () { try { sessionStorage.removeItem('orbitlink-reloaded'); } catch (_) {} }, 10000); });
+    </script>
   </head>
   <body>
     <div id="root"></div>
