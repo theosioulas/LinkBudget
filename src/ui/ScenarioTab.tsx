@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useStore, activeTerminal, markCustom, setView } from '../store/store';
-import type { Constellation, OrbitClass, Payload, HandoverPolicy } from '../core/model';
+import type { Constellation, OrbitClass, Payload, HandoverPolicy, BeamLayout, ContourMeaning } from '../core/model';
+import { ownPayload, importBeamKml, importGtKml } from './kmlImport';
 import { resolveBeams, isDedicated, trafficMode, type BeamConfig } from '../core/sim/beamplan';
 import type { WalkerShell } from '../core/orbit/walker';
 import { NumberField, SelectField, TextField, Toggle, Sect, Seg, pickFile } from './controls';
@@ -168,6 +169,47 @@ function SystemSpecs({ c, pl, n }: { c: Constellation; pl?: Payload; n: number }
   );
 }
 
+/** Beam coverage of a system: import detailed KML / KMZ contours (EIRP, relative gain or edges, plus G/T). */
+function BeamCoverage({ c, pl }: { c: Constellation; pl: Payload }) {
+  const terminal = useStore(activeTerminal);
+  const L = pl.layout;
+  const upd = (layout: BeamLayout) => { const own = ownPayload(c.id); if (own) useStore.getState().updatePayload(own.id, { ...own, layout }); };
+  const sample = new URL('samples/ka-hts-europe-eirp.kml', document.baseURI).href;
+  return (
+    <div>
+      <h4 className="sect">Beam coverage</h4>
+      <div className="small muted" style={{ marginBottom: 6 }}>
+        {L.kind === 'kml'
+          ? <>Contours from <b>{L.sourceName || 'KML'}</b>: {L.beams.length} beam(s), {L.beams.reduce((a, b) => a + b.contours.length, 0)} contour levels{L.gtBeams?.length ? `, G/T from ${L.gtSourceName}` : ''}. Drawn on the globe.</>
+          : <>Modelled as {LAYOUT_NAME[L.kind].toLowerCase()}. Import an operator KML / KMZ to use detailed contours instead.</>}
+      </div>
+      <div className="row wrap" style={{ gap: 6 }}>
+        <button className="btn sm primary" onClick={async () => { const own = ownPayload(c.id); if (own) { await importBeamKml(own); markCustom(); rerun(); } }}>
+          {L.kind === 'kml' ? 'Replace contours (KML / KMZ)…' : 'Import contours (KML / KMZ)…'}
+        </button>
+        {L.kind === 'kml' && (
+          <button className="btn sm" onClick={async () => { const own = ownPayload(c.id); if (own) { await importGtKml(own); rerun(); } }}>{L.gtBeams?.length ? 'Replace G/T contours…' : 'Import G/T contours…'}</button>
+        )}
+        {L.kind === 'kml' && (
+          <button className="btn sm ghost" onClick={() => { upd({ kind: 'spot', aimLat: terminal.lat, aimLon: terminal.lon, followTerminal: true }); rerun(); }}>Back to a single spot</button>
+        )}
+      </div>
+      {L.kind === 'kml' && (
+        <div className="fgrid" style={{ marginTop: 8 }}>
+          <SelectField<ContourMeaning> label="Contour values are" value={L.meaning} onChange={(v) => { upd({ ...L, meaning: v }); rerun(); }}
+            options={[['absolute-eirp', 'Absolute EIRP (dBW)'], ['relative', 'Relative gain (dB re peak)'], ['edge-only', 'Beam edges only']]} />
+          {L.meaning !== 'absolute-eirp' && (
+            <NumberField label="Edge level (re peak)" unit="dB" value={L.edgeRelDb} step={0.5} max={0} onChange={(v) => { upd({ ...L, edgeRelDb: v }); rerun(); }} />
+          )}
+        </div>
+      )}
+      <div className="small dim" style={{ marginTop: 6 }}>
+        One Placemark per beam with nested contour polygons; the level is read from the name, description or ExtendedData (e.g. “52 dBW”). <a href={sample} download style={{ color: 'var(--accent)' }}>Download a sample KML</a>
+      </div>
+    </div>
+  );
+}
+
 // ------------------------------------------------------------------ satellite systems
 function SystemNode({ c }: { c: Constellation }) {
   const [open, setOpen] = useState(false);
@@ -199,6 +241,7 @@ function SystemNode({ c }: { c: Constellation }) {
         <button className="ibtn sm" title="Remove from scenario" onClick={drop}><Icon.close /></button>
       </>}>
       <SystemSpecs c={c} pl={pl} n={n} />
+      {pl && <BeamCoverage c={c} pl={pl} />}
       <h4 className="sect">Properties</h4>
       <div className="fgrid">
         <TextField label="Name" value={c.name} onChange={(v) => u({ name: v })} />

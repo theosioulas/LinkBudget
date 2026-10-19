@@ -91,7 +91,10 @@ export class BeamVolume {
   update(apexKm: Vec3, ring: [number, number][], opts: { cone: boolean; footprint: boolean }) {
     if (ring.length < 4 || (!opts.cone && !opts.footprint)) { this.hide(); return; }
     this.visible = true;
-    const closed = ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1] ? ring : [...ring, ring[0]];
+    // close the ring (tolerant compare: the first and last ray-cast points differ by rounding only)
+    const first = ring[0], last = ring[ring.length - 1];
+    const isClosed = Math.abs(first[0] - last[0]) < 1e-7 && Math.abs(first[1] - last[1]) < 1e-7;
+    const closed = isClosed ? [...ring.slice(0, -1), first] : [...ring, first];
     const edge = closed.map(([la, lo]) => Cesium.Cartesian3.fromDegrees(lo, la, LINE_HEIGHT));
     const apex = new Cesium.Cartesian3(apexKm[0] * 1000, apexKm[1] * 1000, apexKm[2] * 1000);
 
@@ -109,10 +112,12 @@ export class BeamVolume {
 
     // cone surface: triangle fan apex → edge; rebuilt only when the apex or the footprint has moved
     // by more than ~200 m (a LEO beam every frame, a GEO beam rarely), so it never shimmers.
+    // tolerance grows with the beam length: ~200 m for LEO, ~1 km for GEO (invisible either way)
+    const tol = Math.max(200, 2.5e-5 * Cesium.Cartesian3.distance(apex, edge[0]));
     if (!opts.cone) {
       this.cone = this.swap(this.cone, null);
       this.coneN = 0;
-    } else if (this.coneN !== edge.length || Cesium.Cartesian3.distance(apex, this.coneApex) > 200 || Cesium.Cartesian3.distance(edge[0], this.coneEdge0) > 200) {
+    } else if (this.coneN !== edge.length || Cesium.Cartesian3.distance(apex, this.coneApex) > tol || Cesium.Cartesian3.distance(edge[0], this.coneEdge0) > 200) {
       this.cone = this.swap(this.cone, this.scene.primitives.add(this.fan(apex, edge)));
       Cesium.Cartesian3.clone(apex, this.coneApex);
       Cesium.Cartesian3.clone(edge[0], this.coneEdge0);
