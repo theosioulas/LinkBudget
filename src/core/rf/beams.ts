@@ -317,12 +317,19 @@ function coneFootprint(sat: Vec3, axis: Vec3, halfAngleDeg: number, n = 48): [nu
   for (let k = 0; k <= n; k++) {
     const ang = (2 * Math.PI * k) / n;
     const dir = unit(add(a, add(scale(e1, t * Math.cos(ang)), scale(e2, t * Math.sin(ang)))));
-    const hit = rayEllipsoid(sat, dir);
-    if (!hit) continue;
-    const g = ecefToGeodetic(hit);
+    // A ray that passes the Earth's limb lands on the limb (the satellite's horizon) instead of being
+    // dropped: the footprint keeps a fixed number of points, so it doesn't jitter as the satellite drifts.
+    const g = ecefToGeodetic(rayEllipsoid(sat, dir) ?? limbPoint(sat, dir));
     ring.push([g.lat, g.lon]);
   }
   return ring;
+}
+
+/** Point on the Earth's surface below the closest approach of a ray that misses the Earth. */
+function limbPoint(o: Vec3, d: Vec3): Vec3 {
+  const t = Math.max(0, -dot(o, d));
+  const c = add(o, scale(d, t));
+  return scale(unit(c), 6371.0);
 }
 
 /** Ground footprints of a satellite's beams (−3 dB contours, or KML polygons). */

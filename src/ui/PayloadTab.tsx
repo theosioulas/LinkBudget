@@ -1,8 +1,9 @@
 import { useStore } from '../store/store';
 import type { Payload, BeamLayout, PatternKind, Polarization, ContourMeaning } from '../core/model';
-import { NumberField, SelectField, TextField, Toggle, Sect, download, pickFile, fmtNum } from './controls';
+import { NumberField, SelectField, TextField, Toggle, Sect, download, fmtNum } from './controls';
 import { PatternPlot } from './PatternPlot';
-import { parseKml, parseKmz, footprintsToKml } from '../core/kml/kml';
+import { footprintsToKml } from '../core/kml/kml';
+import { importBeamKml, importGtKml } from './kmlImport';
 import { beamContours, beamFootprints, hexBeamIds } from '../core/rf/beams';
 import { satEcef } from '../core/orbit/propagator';
 import { sub } from '../core/vec';
@@ -50,35 +51,8 @@ export function PayloadTab() {
     notify(`${system.name} now has its own payload`);
   };
 
-  const importKml = async () => {
-    const f = await pickFile('.kml,.kmz');
-    if (!f) return;
-    try {
-      const r = f.name.toLowerCase().endsWith('.kmz') ? parseKmz(await f.arrayBuffer()) : parseKml(await f.text());
-      if (!r.beams.length) { notify(r.warnings.join(' ') || 'No beams found'); return; }
-      const lv = r.beams.flatMap((b) => b.contours.map((c) => c.level));
-      const maxLv = Math.max(...lv);
-      const meaning: ContourMeaning = !r.hasLevels ? 'edge-only' : maxLv > 15 ? 'absolute-eirp' : 'relative';
-      up({ layout: { kind: 'kml', beams: r.beams, meaning, edgeRelDb: -3, sourceName: f.name } });
-      notify(`Imported ${r.beams.length} beam(s) from ${f.name} (${meaning})${r.warnings.length ? ' – ' + r.warnings.join(' ') : ''}`);
-    } catch (e) {
-      notify(`KML import failed: ${String(e)}`);
-    }
-  };
-
-  const importGt = async () => {
-    if (L.kind !== 'kml') return;
-    const f = await pickFile('.kml,.kmz');
-    if (!f) return;
-    try {
-      const r = f.name.toLowerCase().endsWith('.kmz') ? parseKmz(await f.arrayBuffer()) : parseKml(await f.text());
-      if (!r.beams.length || !r.hasLevels) { notify('G/T file needs contour levels (dB/K)'); return; }
-      upL({ gtBeams: r.beams, gtSourceName: f.name });
-      notify(`Imported G/T contours for ${r.beams.length} beam(s) from ${f.name}`);
-    } catch (e) {
-      notify(`G/T import failed: ${String(e)}`);
-    }
-  };
+  const importKml = () => importBeamKml(p);
+  const importGt = () => importGtKml(p);
 
   const exportKml = () => {
     const st = useStore.getState();

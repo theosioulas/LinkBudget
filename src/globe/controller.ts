@@ -56,7 +56,6 @@ export class GlobeController {
   private linkLines = new Cesium.PolylineCollection();
   private footOutlines = new Cesium.PolylineCollection();
   private footFill: Cesium.Primitive | null = null;
-  private activeFill: Cesium.Primitive | null = null;
   private sats: SatelliteDef[] = [];
   private satIndex = new Map<string, number>();
   private pointList: Cesium.PointPrimitive[] = [];
@@ -292,13 +291,13 @@ export class GlobeController {
     this.applyDotVisibility();
     this.rebuildOrbits(this.currentMs());
     this.rebuildCoverage();
-    this.lastFoot = 0;
+    this.lastFoot = 0; this.footKey = '';
   }
 
   updatePayloads(payloads: Payload[], constellations: Constellation[]) {
     this.payloads = new Map(payloads.map((p) => [p.id, p]));
     this.consts = new Map(constellations.map((c) => [c.id, c]));
-    this.lastFoot = 0;
+    this.lastFoot = 0; this.footKey = '';
     this.rebuildOrbits(this.currentMs());
     this.rebuildCoverage();
   }
@@ -367,7 +366,7 @@ export class GlobeController {
       },
       show: this.layers?.scanCone ?? true,
     });
-    this.lastFoot = 0;
+    this.lastFoot = 0; this.footKey = '';
   }
 
   setLinks(l: LiveLinks) {
@@ -376,7 +375,7 @@ export class GlobeController {
     this.links = l;
     if (changed) {
       for (const id of [...old, l.A?.satId, l.B?.satId]) this.restyle(id);
-      this.lastFoot = 0;
+      this.lastFoot = 0; this.footKey = '';
       // Satellite view: glide to the new serving satellite after a handover.
       const serving = this.servingSatId();
       if (this.viewMode === 'satellite' && this.followServing && serving && serving !== this.followSatId) {
@@ -390,7 +389,7 @@ export class GlobeController {
     this.selectedId = id;
     this.restyle(old);
     this.restyle(id);
-    if (focus !== this.focusId) { this.focusId = focus; this.lastFoot = 0; }
+    if (focus !== this.focusId) { this.focusId = focus; this.lastFoot = 0; this.footKey = ''; }
   }
 
   private restyle(id: string | null | undefined) {
@@ -653,12 +652,20 @@ export class GlobeController {
     flush();
   }
 
+  private footKey = '';
+  private footRetire: Cesium.Primitive[] = [];
+
+  /**
+   * Ground beam layouts: the focused satellite's full layout (Focus / Beam Lab), the LEO cell grid when
+   * that layer is on, and imported KML contours of every system in the scenario. Rebuilt only when what
+   * is drawn changes (ground-fixed layouts never move), and the previous fill stays until the new one is
+   * drawable, so nothing blinks.
+   */
   private drawFootprints(ms: number) {
-    this.footOutlines.removeAll();
-    if (this.footFill) { this.viewer.scene.primitives.remove(this.footFill); this.footFill = null; }
-    if (this.activeFill) { this.viewer.scene.primitives.remove(this.activeFill); this.activeFill = null; }
-    // Full beam layouts only for an explicitly focused satellite (Focus / Beam Lab); the LEO cell grid
-    // around the terminal only when the "cell grid" layer is on.
+    if (this.footRetire.length && (!this.footFill || this.footFill.ready)) {
+      for (const p of this.footRetire) this.viewer.scene.primitives.remove(p);
+      this.footRetire = [];
+    }
     const focusIds = new Set<string>();
     if (this.focusId) focusIds.add(this.focusId);
     const active = this.links.A?.active ? this.links.A : this.links.B?.active ? this.links.B : null;
@@ -667,20 +674,37 @@ export class GlobeController {
       const pl = s && this.payloads.get(this.consts.get(s.constellationId)?.payloadId ?? '');
       if (pl?.layout.kind === 'steerable-cells') focusIds.add(active.satId);
     }
-    const instances: Cesium.GeometryInstance[] = [];
+    for (const s of this.sats) {
+      const pl = this.payloads.get(this.consts.get(s.constellationId)?.payloadId ?? '');
+      if (pl?.layout.kind === 'kml') focusIds.add(s.id);
+    }
     const user = this.terminal ? { lat: this.terminal.lat, lon: this.terminal.lon, alt: 0 } : undefined;
+    const jobs: { s: SatelliteDef; pl: Payload; sp: Vec3 }[] = [];
     const drawnLayouts = new Set<string>();
+    const keyParts: string[] = [];
     for (const id of focusIds) {
       const s = this.sats[this.satIndex.get(id) ?? -1];
       if (!s) continue;
       const c = this.consts.get(s.constellationId);
       const pl = c && this.payloads.get(c.payloadId);
       if (!pl) continue;
-      // steerable cell grids are ground-fixed: draw once per payload
-      const layoutKey = pl.layout.kind === 'steerable-cells' ? `cells:${pl.id}` : id;
+      // ground-fixed layouts (cell grids, KML contours) are drawn once per payload
+      const fixed = pl.layout.kind === 'steerable-cells' || pl.layout.kind === 'kml';
+      const layoutKey = fixed ? `${pl.layout.kind}:${pl.id}` : id;
       if (drawnLayouts.has(layoutKey)) continue;
       drawnLayouts.add(layoutKey);
       const sp = satEcef(s, ms);
+      jobs.push({ s, pl, sp });
+      const cell = pl.layout.kind === 'steerable-cells' && user ? `${user.lat.toFixed(2)},${user.lon.toFixed(2)}` : '';
+      keyParts.push(fixed ? `${layoutKey}@${cell}` : `${layoutKey}@${sp.map((v) => Math.round(v / 5)).join(',')}`);
+    }
+    const key = keyParts.join('|') + `#${[...this.payloads.values()].filter((p) => p.layout.kind === 'kml').map((p) => p.id + (p.layout.kind === 'kml' ? p.layout.beams.length + p.layout.meaning : '')).join()}`;
+    if (key === this.footKey) return;
+    this.footKey = key;
+
+    this.footOutlines.removeAll();
+    const instances: Cesium.GeometryInstance[] = [];
+    for (const { s, pl, sp } of jobs) {
       const vel = sub(satEcef(s, ms + 500), satEcef(s, ms - 500));
       const fps: Footprint[] = beamFootprints(pl, { ecef: sp, velEcef: vel }, user, pl.layout.kind === 'steerable-cells' ? 4 : 3);
       const isKml = pl.layout.kind === 'kml';
@@ -691,19 +715,21 @@ export class GlobeController {
         const col = Cesium.Color.fromCssColorString(REUSE_COLORS[f.color % REUSE_COLORS.length]);
         const positions = f.ring.map(([a, b]) => ll(a, b, 1500));
         const t = isKml && lmax > lmin ? ((f.level ?? lmin) - lmin) / (lmax - lmin) : 0.5;
-        this.footOutlines.add({ positions, width: f.active ? 3 : isKml ? 1 : 1.2, material: Cesium.Material.fromType('Color', { color: col.withAlpha(f.active ? 1 : isKml ? 0.35 + 0.5 * t : 0.85) }) });
+        this.footOutlines.add({ positions, width: f.active ? 3 : isKml ? 1.4 : 1.2, material: Cesium.Material.fromType('Color', { color: col.withAlpha(f.active ? 1 : isKml ? 0.45 + 0.5 * t : 0.85) }) });
         instances.push(new Cesium.GeometryInstance({
           geometry: new Cesium.PolygonGeometry({ polygonHierarchy: new Cesium.PolygonHierarchy(f.ring.map(([a, b]) => ll(a, b))), height: 1000, granularity: Cesium.Math.toRadians(0.5) }),
-          attributes: { color: Cesium.ColorGeometryInstanceAttribute.fromColor(col.withAlpha(f.active ? 0.45 : isKml ? 0.025 + 0.05 * t : 0.16)) },
+          attributes: { color: Cesium.ColorGeometryInstanceAttribute.fromColor(col.withAlpha(f.active ? 0.45 : isKml ? 0.03 + 0.06 * t : 0.16)) },
         }));
       }
     }
-    if (instances.length) {
-      this.footFill = this.viewer.scene.primitives.add(new Cesium.Primitive({
+    if (this.footFill) this.footRetire.push(this.footFill);
+    this.footFill = instances.length
+      ? this.viewer.scene.primitives.add(new Cesium.Primitive({
         geometryInstances: instances, asynchronous: false,
         appearance: new Cesium.PerInstanceColorAppearance({ translucent: true, flat: true }),
-      }));
-    }
+      }))
+      : null;
+    if (this.footFill) this.footFill.show = this.layers?.beams ?? true;
   }
 
   // ------------------------------------------------------------ camera
