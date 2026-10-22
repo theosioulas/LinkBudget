@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lessons learned — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .case { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); padding: 1rem 1.25rem; margin: 1rem 0 1.6rem; }
+  .case h3 { margin-top: 0; }
+  .case .verdict { font-family: var(--font-ui); font-size: 0.84rem; color: var(--ink-2); border-top: 1px dashed var(--line); padding-top: 0.5rem; margin-top: 0.6rem; }
+  .case .verdict b { color: var(--ink); }
+  .timeline.compact li { padding-bottom: 0.6rem; }
+  .timeline.compact li p { font-size: 0.9rem; }
+  .causes { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 0.6rem; margin: 0.6rem 0; }
+  .causes div { background: var(--surface-2); border-radius: var(--radius); padding: 0.6rem 0.8rem; font-size: 0.9rem; }
+  .causes div b { font-family: var(--font-ui); display: block; font-size: 0.8rem; color: var(--ink-3); margin-bottom: 0.2rem; }
+  .rule { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px,1fr)); gap: 0.6rem; }
+  #lessonTable td:first-child { font-weight: 600; min-width: 150px; }
+  #lessonTable .score { font-variant-numeric: tabular-nums; font-weight: 600; }
+  #lessonTable .score.red { color: var(--critical); } #lessonTable .score.amber { color: #9a6700; }
+  @media (max-width: 700px) { .causes { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>01 Research &amp; landscape</b> · Lessons learned</div>
+    <h1>Lessons learned from the operators that went before</h1>
+    <p class="lead">Six case studies — one bankruptcy, one leader that iterated from a 13 kg pathfinder to a profitable public company, one data business that had to sell its best-known line, one spectrum-mapping niche that was absorbed, one bus supplier that closed, and one 6U programme that never launched — reduce to a short set of rules: fund to the cluster before launching the demonstrator, treat lifetime as a requirement, get a government anchor that pays on milestones, and prove the chain small before building it large. Each rule is turned into a TALOS design or programme decision and linked to the risk register.</p>
+    <div class="meta"><span>Data: RISKS (risks.js), COMPARATORS, PATHFINDER_OPTIONS</span><span>Sources: research notes 01 §4, 04 §2, 05 §5</span></div>
+  </header>
+
+  <h2>Case studies</h2>
+
+  <div class="case" id="kleos">
+    <h3>Kleos Space, 2017–2023: insolvency</h3>
+    <ul class="timeline compact">
+      <li><div class="when">2017 – Aug 2018</div><div class="what">Founded in Luxembourg; ASX listing raises €6.96 M</div><p>Business model: RF "reconnaissance data-as-a-service" (LOCATE) from 4-sat CubeSat clusters using multilateration across up to six antenna pairs<sup class="ref" data-r="R1-28"></sup><sup class="ref" data-r="R1-29"></sup>.</p></li>
+      <li><div class="when">7 Nov 2020</div><div class="what">Scouting Mission KSM1 launched on PSLV after a months-long slip</div><p>Liquidity already "tenuous"; A$19 M raised the same month to fund the next clusters<sup class="ref" data-r="R5-5"></sup><sup class="ref" data-r="R5-4"></sup>.</p></li>
+      <li><div class="when">Jun 2021 – Jan 2023</div><div class="what">Vigilance (KSF1), Patrol (KSF2), Observer (KSF3) launched; A$12.6 M raise Sept 2021</div><p>Four clusters, 16 satellites in orbit. Vigilance not fully commissioned until Feb 2023 — twenty months after launch<sup class="ref" data-r="R1-30"></sup><sup class="ref" data-r="R1-32"></sup>.</p></li>
+      <li><div class="when">2022 results (Mar 2023)</div><div class="what">Revenue €272 K vs net loss €11.3 M; ~60 % of revenue from US defence</div><p>KSM1 anomalies, deorbiting; warning that 5-year-design satellites would likely last ~18 months; "170 qualified deals" never converted<sup class="ref" data-r="R1-32"></sup>.</p></li>
+      <li><div class="when">3 May – 26 Jul 2023</div><div class="what">Trading suspended; convertible note fails; lender calls loans; bankruptcy petition</div><p>7 Jul ASX update: financier allowed only A$650 K more drawdown; one satellite each in KSF2 and KSF3 impaired. Petition announced 26 Jul, paused 28 Aug pending asset interest; no acquirer confirmed<sup class="ref" data-r="R5-3"></sup><sup class="ref" data-r="R1-31"></sup><sup class="ref" data-r="R5-32"></sup>.</p></li>
+    </ul>
+    <div class="causes">
+      <div><b>1 · Under-capitalisation and financing structure</b>Serial small ASX placements (A$12–19 M), one secured lender, no deep-pocketed strategic; a converting-note process stalled on market timing and the lender pulled out within weeks. Lifetime capital of the order of A$60–80 M (unverified) for 16 CubeSats.</div>
+      <div><b>2 · Technical reliability</b>Commissioning took 20 months; cluster-level satellite losses and an expected ~18-month life undercut the data product exactly when it was supposed to scale.</div>
+      <div><b>3 · Revenue lag</b>Four clusters in orbit, under €0.3 M revenue in 2022: defence procurement cycles are longer than a start-up runway, and there was no anchor customer paying during development. An NRO study award (Sept 2022) did not change that<sup class="ref" data-r="R1-13"></sup>.</div>
+      <div><b>4 · Launch-cadence dependence</b>Each launch slip was existential because the plan needed cluster revenue to fund the next cluster.</div>
+    </div>
+    <div class="verdict"><b>Verdict:</b> insufficient capital to survive technical slippage. Kleos is the trap TALOS is designed around: it proves that a launched constellation is not a business, and that the 4-sat CubeSat multilateration architecture was never validated to a customer's satisfaction before the money ran out.</div>
+  </div>
+
+  <div class="case" id="hawkeye">
+    <h3>HawkEye 360: Pathfinder → Cluster 2 → Block 3</h3>
+    <p>Pathfinder (Cluster 1, Dec 2018) was deliberately small and cheap: three 13.4 kg SFL NEMO-15 buses with water electrothermal propulsion (~96 m/s), three AD9361-based receivers on a Zynq 7045 (70 MHz–6 GHz, 56 MHz IBW), 125 km spacing with 5 km (1σ) control, and only two of three satellites actively controlled because of power limits; it was single-string with 2–4° pointing<sup class="ref" data-r="R1-6"></sup><sup class="ref" data-r="R5-9"></sup>. It proved the TDOA/FDOA chain end-to-end and produced first commercial data in Feb 2019, but it was not a product-grade system.</p>
+    <p>Cluster 2 (Jan 2021, IOC Mar 2021) fixed the gaps: ~30 kg DEFIANT buses, "up to 10× collection capacity", wider frequency range, redundancy for longer life, more on-board compute and a dedicated GNSS antenna for interference monitoring — the real initial operating capability, 5.5 years after founding<sup class="ref" data-r="R1-11"></sup><sup class="ref" data-r="R5-10"></sup>. Cluster 3 onward added redundant systems and coverage; Cluster 11 (2024) multi-band simultaneous capture; Cluster 14 (Mar 2026) onboard processing; Cluster 15 (Oct 2026) multi-signal simultaneous collection and faster downlink; the Pathfinders were decommissioned by end-2024<sup class="ref" data-r="R1-5"></sup>. Block 3 Kestrel (8U, 2025) then went the other way — ~75 % lower cost for ~80 % of the signals — once revisit, not sensitivity, was the binding constraint; Block 4 is planned with "superior precision"<sup class="ref" data-r="R1-9"></sup>. The company moved from outsourced buses (SFL) to in-house build, bought Maxar's RF Solutions (Dec 2023) and ISA (Dec 2025), raised $378 M before the IPO, listed in May 2026 and reported Q2-2026 revenue of $49.8 M with a $292 M backlog<sup class="ref" data-r="R5-6"></sup><sup class="ref" data-r="R1-2"></sup>.</p>
+    <div class="verdict"><b>Lesson:</b> prove the geolocation chain on the smallest spacecraft that can fly it, then fix power, redundancy and collection bandwidth in generation two; scale and a US-government customer base did the rest. Ten years and >$500 M to a ~$200 M revenue run-rate<sup class="ref" data-r="R5-7"></sup>.</div>
+  </div>
+
+  <div class="case" id="spire">
+    <h3>Spire Global: the data-only business is hard</h3>
+    <p>With ~100 LEMUR satellites collecting AIS, ADS-B and radio-occultation weather data, Spire was the most mature RF-sensing constellation outside the defence world — and still sold its maritime business to Kpler for $241 M (announced Nov 2024) to deleverage and refocus on space services and weather<sup class="ref" data-r="R5-25"></sup>. Its growth line is now defence RF geolocation: satellite pairs, an AFRL $14 M cluster, a single-satellite S/X-band demo (Mar 2026) co-funded by Luxembourg, NRO provider status, and "sovereign-ready" deployments; it guides $75–85 M for 2026 and remains loss-making<sup class="ref" data-r="R1-33"></sup><sup class="ref" data-r="R1-34"></sup><sup class="ref" data-r="R1-35"></sup>.</p>
+    <div class="verdict"><b>Lesson:</b> even a mature constellation struggled to monetise pure data; "space services" (hosted payloads, build-to-order) and government contracts carry the economics. TALOS plans a sovereign/dedicated-capacity tier and a hosted-payload offer from the start rather than a pure data subscription.</div>
+  </div>
+
+  <div class="case" id="aurora">
+    <h3>Aurora Insight → Maxar → HawkEye 360: consolidation of a niche</h3>
+    <p>Aurora Insight mapped terrestrial spectrum occupancy from two 6U satellites (Charlie Jan 2021, Delta Jun 2023). Maxar invested in Feb 2022, bought the company in Jan 2023, then sold the unit to HawkEye 360 in Dec 2023, where the satellites now run as a feature of the geolocation business<sup class="ref" data-r="R1-36"></sup><sup class="ref" data-r="R1-37"></sup><sup class="ref" data-r="R5-29"></sup>.</p>
+    <div class="verdict"><b>Lesson:</b> spectrum monitoring as a standalone commercial niche consolidates into the SIGINT leader. A European entrant needs a differentiated rationale — sovereign, regional, government-anchored — rather than competing head-on in the US market; spectrum-occupancy products are a by-product and calibration source for TALOS, not its business.</div>
+  </div>
+
+  <div class="case" id="sfl">
+    <h3>UTIAS Space Flight Laboratory: supplier fragility</h3>
+    <p>The University of Toronto's Space Flight Laboratory built HawkEye 360's Pathfinder and early Block 2 clusters and dozens of other missions; it has ceased satellite manufacturing within the university, with activity continuing in a separate company, SFL Missions Inc.<sup class="ref" data-r="R5-27"></sup> Several European smallsat component suppliers were acquired or restructured in 2024–26 (Mynaric to Rocket Lab, Sinclair to Rocket Lab, Hyperion to AAC Clyde, Terran Orbital to Lockheed), each one changing the export regime or the roadmap of a product on this study's shortlist.</p>
+    <div class="verdict"><b>Lesson:</b> risk T-13 is not theoretical. Contractually secure design data (escrow), qualify second sources for critical items, run financial due diligence on suppliers, and prefer EU-based suppliers whose ownership change does not move a part under US jurisdiction.</div>
+  </div>
+
+  <div class="case" id="horizon">
+    <h3>Horizon Technologies Amber: the programme that never launched</h3>
+    <p>A credible airborne-SIGINT company (FlyingFish/BlackFish sat-phone intercept) put a 6U Amber CubeSat on AAC Clyde Space's bus. Amber-1 was lost on Virgin Orbit's failed first UK launch in Jan 2023; the UK Space Agency gave £1.2 M for Amber-2 (CDR Oct 2024, "mid-2025" launch) and Amber-3 was due late 2025; as of Oct 2026 no launch is confirmed on the company's news feed<sup class="ref" data-r="R1-38"></sup><sup class="ref" data-r="R1-39"></sup><sup class="ref" data-r="R1-40"></sup>.</p>
+    <div class="verdict"><b>Lesson:</b> a single launch option on an unproven launcher, grant-scale funding (£1.2 M) and a maritime-only customer story did not get a payload to orbit in four years. TALOS books two rideshare options, avoids first-flight launchers for the first unit, and sizes funding to the cluster.</div>
+  </div>
+
+  <h2>Time to initial operating capability</h2>
+  <div class="card"><div id="iocChart"></div></div>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Programme</th><th>Founding / concept</th><th>First launch</th><th>IOC or first paying service</th><th class="num">Months to launch</th><th class="num">Months to IOC</th></tr></thead>
+    <tbody id="iocTable"></tbody></table></div>
+  <p>Four to six years from founding to a paying service is the norm, and the dangerous interval is the second one: launch to IOC. HawkEye needed a second, redesigned cluster (27 months after Pathfinder); Kleos needed 27 months just to commission Vigilance and never reached a service; BAE could go concept-to-orbit in about three years only because a prime self-funded it. The TALOS plan — 39 months from kick-off (2027-Q1) to launch (2030-Q2) and six months of commissioning to IOC (2030-Q4), with a 16U pathfinder flying in 2029 in parallel with Phase C/D — is at the fast end of the comparators, which is why the research note recommends a 6-month float and why the pathfinder is not optional<sup class="ref" data-r="R5-6"></sup><sup class="ref" data-r="R5-11"></sup>.</p>
+
+  <h2>Funding-to-cluster rule of thumb</h2>
+  <div class="rule">
+    <div class="kpi"><div class="v">$100 M+</div><div class="l">HawkEye raised before Cluster 2 was operational</div><div class="d">Seed + Series A + $70 M Series B; ~$378 M before cash-flow breakeven in 2025<sup class="ref" data-r="R1-4"></sup></div></div>
+    <div class="kpi"><div class="v">~€27.5 M</div><div class="l">Unseenlabs to ~10 nanosats</div><div class="d">€7.5 M (2018) + €20 M (2021); ~€120 M total to 25 satellites<sup class="ref" data-r="R1-26"></sup><sup class="ref" data-r="R5-11"></sup></div></div>
+    <div class="kpi"><div class="v">A$60–80 M</div><div class="l">Kleos lifetime, 16 CubeSats, no meaningful revenue <span class="tag warn">unverified</span></div><div class="d">~A$4–5 M per satellite of total capital<sup class="ref" data-r="R5-2"></sup></div></div>
+    <div class="kpi"><div class="v">€60–120 M</div><div class="l">Rule of thumb: 150 kg-class 3-sat operational cluster</div><div class="d">Incl. launch, ground and 2 years of ops — analyst inference bracketed by Unseenlabs Gen-2 bus contracts (~€5 M) and CERES (€450 M / 3)</div></div>
+  </div>
+  <p>The study's own scenarios sit inside the rule: €18–35 M for the TALOS-1 demonstrator, €40–65 M cumulative for the 3-satellite cluster and €110–170 M for twelve satellites (est.), consistent with the ESA Scout cap of €35 M for one small mission in three years, SDA Tranche 0 at ~$9.4 M per ESPA-class satellite including payload integration, and the Greek national programme's ~€5.5 M per mostly-CubeSat satellite<sup class="ref" data-r="R5-26"></sup><sup class="ref" data-r="R5-28"></sup><sup class="ref" data-r="R5-15"></sup>. The hard line from the comparators: companies that raised less than ~€100 M before reaching a revenue-generating constellation failed; those that survived raised €120 M to $500 M+. Hence gate G0 requires a funding plan covering the demonstrator <em>and</em> 50 % of the cluster, and the kill criterion "do not launch into a funding cliff"<sup class="ref" data-r="R5-2"></sup>.</p>
+
+  <h2>What every survivor has in common</h2>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Operator</th><th>Government anchor</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>HawkEye 360</td><td>NRO (39 % of 2025 revenue), top-3 customers 66 %, US 61 %; operational CRFCA contract</td><td>Prospectus and Q2-2026 results<sup class="ref" data-r="R1-20"></sup><sup class="ref" data-r="R1-14"></sup></td></tr>
+      <tr><td>Unseenlabs</td><td>DGA: co-contractor on CASSIOPÉE, the sovereign CERES successor; Copernicus Contributing Mission</td><td>Sept 2026 announcement<sup class="ref" data-r="R1-27"></sup></td></tr>
+      <tr><td>Spire</td><td>NRO provider, AFRL $14 M, Luxembourg/ESA LuxIMPULSE co-funding; sold maritime to focus on defence</td><td>Q1-2026 results; LuxIMPULSE demo<sup class="ref" data-r="R1-34"></sup><sup class="ref" data-r="R1-35"></sup></td></tr>
+      <tr><td>BAE Azalea</td><td>Prime self-funded with the UK MoD as the intended customer; trials 2026</td><td>Launch coverage<sup class="ref" data-r="R1-43"></sup></td></tr>
+      <tr><td>CERES / EMISAT / Yaogan / Liana</td><td>National programmes by definition</td><td>—</td></tr>
+      <tr><td><span style="color:var(--critical)">Kleos, Horizon</span></td><td>Commercial maritime demand plus study-scale grants (NRO SCE ~$0.3 M; UKSA £1.2 M)</td><td>Did not sustain a company<sup class="ref" data-r="R1-32"></sup><sup class="ref" data-r="R1-40"></sup></td></tr>
+    </tbody></table></div>
+  <p>Pure commercial maritime demand did not sustain a company; the market exists, but it buys through governments, and the governments buy after a study-to-operations cycle of about four years (NRO) during which someone must pay the bills. Greece's RRF-funded national smallsat programme (€130 M, ESA-managed, CDR of seven missions Dec 2024) shows the domestic route works for Phase B–D execution, and the HCDI investor-access programmes and EDF participation rates show the dual-use funding path is open<sup class="ref" data-r="R5-14"></sup><sup class="ref" data-r="R5-24"></sup>.</p>
+
+  <h2>What this means for TALOS</h2>
+  <p>Each lesson below is paired with the programme or design decision it produces and the risk-register entry it mitigates. The risk rows are rendered from <code>RISKS</code> so that scores and mitigations stay consistent with the <a href="../02_Technical_Understanding/risks.html">risk register</a>.</p>
+  <div class="table-wrap"><table id="lessonTable" class="compact">
+    <thead><tr><th>Risk (register entry)</th><th>Lesson (source case)</th><th>TALOS decision</th><th class="num">L×I</th></tr></thead>
+    <tbody></tbody></table></div>
+  <div class="callout decision"><div class="t">The five programme rules</div>
+    <ol>
+      <li><b>Fund to the cluster before launching the demonstrator</b> (Kleos). G0 requires demonstrator + 50 % cluster funding; G2 requires cumulative funding ≥ demonstrator total; kill criterion on a funding cliff. → P-01.</li>
+      <li><b>Sign a milestone-paid government anchor during development</b> (HawkEye, Unseenlabs, Spire). Hellenic MoD/HNDGS anchor, EUSPA GNSS-RFI service, EDF consortia, NATO APSS contribution; ≥1 government LOI at G0, ≥2 paying customers at G4. → P-01, P-02.</li>
+      <li><b>Prove the chain small, in parallel, before the 150 kg FM</b> (HawkEye Pathfinder). 16U pathfinder with one UHF/L/S chain (€5–9 M) flown in 2029 alongside Phase C/D, feeding CDR; hosted payload (€1.5–4 M) as the cheaper fallback. → T-02, T-03, T-04, T-05, T-18, P-09.</li>
+      <li><b>Treat lifetime and commissioning as requirements, not outcomes</b> (Kleos). Lot-tested COTS with ECSS-Q-ST-60-13 screening, latch-up protection, scrubbing; 3-year warranted life with 5-year goal; replenishment reserve in the financial plan; commissioning plan with reference emitters so IOC is months, not twenty of them. → T-18, T-04.</li>
+      <li><b>Differentiate on sovereignty and region, not scale</b> (Aurora, Spire). ITAR-free EU chain, X-band radar catalogue, Eastern Mediterranean persistence at 53°, sovereign dedicated-capacity tier, in-country classified enclave; two launch options and EU second sources for suppliers. → P-03, P-06, T-12, T-13.</li>
+    </ol></div>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/risks.js"></script>
+<script src="../assets/data/programmatics.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  function cleanTitle(t){ return t.replace(/\s*[:—-]?\s*https?:\/\/.*$/,'').replace(/[:;\s]+$/,''); }
+  function wireRefs(){
+    const seen=[]; document.querySelectorAll('sup.ref[data-r]').forEach(s=>{ const id=s.dataset.r; const ok=REFERENCES.some(r=>r.id===id); if(!ok) console.warn('missing reference id', id); s.innerHTML=`<a href="#ref-${id}">[${id}]</a>`; if(ok&&!seen.includes(id)) seen.push(id); });
+    const ol=document.getElementById('refs'); seen.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${cleanTitle(r.title)} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); });
+  }
+
+  // ---- time to IOC (months)
+  const IOC=[
+    {n:'HawkEye 360',f:'Sept 2015',l:'Dec 2018 (Pathfinder)',i:'Mar 2021 (Cluster 2 IOC)',a:39,b:27},
+    {n:'Unseenlabs',f:'2015',l:'Aug 2019 (BRO-1)',i:'~2020 paying maritime service (est.)',a:48,b:12,est:1},
+    {n:'Kleos Space',f:'2017',l:'Nov 2020 (KSM1)',i:'Feb 2023 Vigilance commissioned; no service',a:42,b:27},
+    {n:'BAE Azalea',f:'2022 (concept)',l:'Nov 2025',i:'2026 customer trials (est.)',a:42,b:9,est:1},
+    {n:'TALOS (plan)',f:'2027-Q1 kick-off',l:'2030-Q2',i:'2030-Q4 IOC (G3)',a:39,b:6,plan:1},
+  ];
+  Charts.stack(document.getElementById('iocChart'),{title:'Founding → first launch → IOC (months)',categories:IOC.map(d=>d.n),series:[{name:'Founding → first launch',values:IOC.map(d=>d.a)},{name:'First launch → IOC / first service',values:IOC.map(d=>d.b)}],unit:'months',horizontal:true,height:230});
+  document.getElementById('iocTable').innerHTML=IOC.map(d=>`<tr><td><b>${d.n}</b></td><td>${d.f}</td><td>${d.l}</td><td>${d.i}</td><td class="num">${d.a}</td><td class="num">${d.a+d.b}${d.est?' <span class="tag">est.</span>':''}${d.plan?' <span class="tag accent">plan</span>':''}</td></tr>`).join('');
+
+  // ---- lessons → risks
+  const MAP=[
+    {id:'P-01',lesson:'Kleos launched four clusters into a funding cliff; the lender decided the outcome within weeks',decision:'Raise/commit for demonstrator and cluster before FM launch; milestone-paid anchor; ESA/EDF co-funding; kill criterion on funding cliff'},
+    {id:'P-02',lesson:'HawkEye: NRO 39 %, top-3 66 % — survivable only at scale; Kleos: 60 % US defence from Luxembourg',decision:'NATO/EU agencies, allied MoDs, spectrum regulators and maritime insurers alongside the Hellenic anchor'},
+    {id:'P-03',lesson:'Aurora absorbed; HawkEye at >30 sats with $292 M backlog and an uncapped NRO contract',decision:'Sovereign-EU positioning, regional persistence (Eastern Med / Black Sea / Aegean), band coverage to X, fusion with national assets'},
+    {id:'P-05',lesson:'No Greek precedent for an RF-intelligence licence; Kleos/Horizon framed as defence products without a national sponsor',decision:'Early HSC/Ministry/EETT engagement; EESS / RF-environment-monitoring framing; legal opinion at G0'},
+    {id:'P-06',lesson:'HawkEye carries >200 export licences; ITAR content would constrain EU-approved non-US sales',decision:'ITAR-free baseline, EAR-only semiconductors, product tiering'},
+    {id:'P-07',lesson:'Horizon lost Amber-1 on a first-flight launcher; Kleos slipped on PSLV; rideshare prices +8–10 %/yr',decision:'Two booked options, orbit-agnostic design, European launchers only from the constellation phase'},
+    {id:'P-08',lesson:'Spire sells voice transcription; under Greek law that is content collection',decision:'Externals-only policy with technical enforcement and audit'},
+    {id:'P-09',lesson:'HawkEye needed a second cluster to reach product grade; first-of-kind payload NRE dominates the demonstrator',decision:'25–30 % contingency, pathfinder to de-risk, fixed-price bus'},
+    {id:'T-12',lesson:'Kleos: each launch slip was existential; Horizon: launch failure ended the programme',decision:'Two launch options, launch insurance for the FM, schedule float, spare long-lead parts'},
+    {id:'T-13',lesson:'UTIAS SFL ceased manufacturing; Mynaric, Sinclair, Hyperion, Terran changed hands 2024–26',decision:'Dual sourcing, escrow of design data, financial due diligence, EU-based suppliers'},
+    {id:'T-18',lesson:'Kleos: 5-year design, ~18-month expected life',decision:'Lot testing, shielding, derating; 3-year warranted life, 5-year goal; replenishment reserve'},
+    {id:'T-04',lesson:'HawkEye Pathfinder single-string; commercial RFSoC in LEO is the TALOS COTS exposure',decision:'Latch-up protection, scrubbing, rad-tolerant supervisor, lot testing, pathfinder flight'},
+  ];
+  document.querySelector('#lessonTable tbody').innerHTML=MAP.map(m=>{ const r=RISKS.find(x=>x.id===m.id)||{}; const sc=(r.L||0)*(r.I||0); return `<tr><td><a href="../02_Technical_Understanding/risks.html#${m.id}">${m.id}</a><br><span class="muted" style="font-weight:400;font-size:0.72rem">${r.title||''}</span></td><td>${m.lesson}</td><td>${m.decision}</td><td class="num score ${sc>=15?'red':sc>=10?'amber':''}" title="${(r.mit||'').replace(/"/g,'&quot;')}">${r.L||'?'}×${r.I||'?'}=${sc}</td></tr>`; }).join('');
+  wireRefs();
+})();
+</script>
+</body>
+</html>

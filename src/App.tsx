@@ -8,9 +8,12 @@ import { TimelinePanel } from './ui/TimelinePanel';
 import { liveTick } from './app/live';
 import { loadItuGrids } from './core/itu/grids';
 import { applyDemo } from './app/demos';
-import { AccountDialog } from './ui/AccountDialog';
 import { TemplatesDialog } from './ui/TemplatesDialog';
 import { NewScenarioWizard } from './ui/NewScenarioWizard';
+
+// Set once the first visit has loaded the ITU maps and chosen the opening scenario; reopening the
+// tab later keeps the scenario in the store and only rebuilds the view.
+let booted = false;
 
 export default function App() {
   const bottomOpen = useStore((s) => s.bottomOpen);
@@ -20,13 +23,16 @@ export default function App() {
 
   useEffect(() => {
     useStore.getState().rebuildSats();
-    loadItuGrids(new URL('itu/', document.baseURI).href)
-      .then(() => useStore.setState({ gridsReady: true }))
-      .catch(() => useStore.getState().notify('ITU-R climate maps unavailable, using latitude-based estimates'));
+    if (!booted) {
+      loadItuGrids(new URL('itu/', document.baseURI).href)
+        .then(() => useStore.setState({ gridsReady: true }))
+        .catch(() => useStore.getState().notify('ITU-R climate maps unavailable, using latitude-based estimates'));
+    }
     const id = setInterval(liveTick, 250);
     // Restore the user's last scenario, or open on the default multi-orbit template.
     const t = setTimeout(() => {
-      if (hadSavedScenario) { useStore.getState().runSim(); setView('terminal'); } else applyDemo('multi-orbit');
+      if (hadSavedScenario || booted) { useStore.getState().runSim(); setView('terminal'); } else applyDemo('multi-orbit');
+      booted = true;
     }, 1200);
     return () => { clearInterval(id); clearTimeout(t); };
   }, []);
@@ -44,7 +50,6 @@ export default function App() {
       {pick && (
         <div className="pick-banner glass">Click the globe to place the terminal <button className="btn sm" onClick={() => set({ pickTerminal: false })}>Cancel</button></div>
       )}
-      <AccountDialog />
       <TemplatesDialog />
       <NewScenarioWizard />
       {toast && <div className="toast" role="status">{toast}</div>}

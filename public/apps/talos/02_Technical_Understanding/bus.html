@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bus subsystems — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .sub-head { display:flex; flex-wrap:wrap; gap:.5rem 1rem; align-items:baseline; margin:.4rem 0 .6rem; font-family:var(--font-ui); font-size:.85rem; color:var(--ink-3); }
+  .sub-head b { color: var(--ink); }
+  .need { border-left: 3px solid var(--accent-2); padding-left: .9rem; margin: .8rem 0; }
+  .need .t { font-family: var(--font-ui); font-weight: 600; font-size: .85rem; color: var(--ink-2); margin-bottom: .2rem; }
+  td.wrapcell { max-width: 30ch; white-space: normal; }
+  td.spec { max-width: 42ch; white-space: normal; font-size: .82rem; }
+  .fit-ok { color: var(--ok); font-weight: 600; } .fit-warn { color: #9a6700; font-weight: 600; } .fit-bad { color: var(--critical); font-weight: 600; }
+  .katex-display { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+  .mini { font-family: var(--font-ui); font-size: .8rem; color: var(--ink-2); }
+  .dvbar { display:flex; height: 26px; border-radius: 6px; overflow: hidden; font-family: var(--font-ui); font-size: .72rem; margin: .6rem 0; border: 1px solid var(--line); }
+  .dvbar div { display:flex; align-items:center; justify-content:center; color: var(--ink); white-space: nowrap; overflow:hidden; }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>02 Technical understanding</b> · Bus</div>
+    <h1>Bus subsystems</h1>
+    <p class="lead">The TALOS bus is deliberately a bought, ESPA-class European platform — but a SIGINT payload makes demands that an imaging or comms bus does not meet off the shelf: a UHF-quiet power system, star-tracker attitude knowledge for direction finding, a nanosecond-class timing interface, two switchable 150 W payload lines, transmitters on the face opposite the receive antennas, and enough propulsion to hold a 150 km formation and dispose of the spacecraft within five years. This page states each requirement, the baseline choice from the component model, the European (ITAR-free) supplier field for it, and the sizing behind the numbers.</p>
+    <div class="meta"><span id="meta-baseline">Baseline</span><span>Sources: research notes 02 (A, F, G, H, I, J), 03 §4.5, §7, 05 §3.4</span><span>Data: components.js, suppliers.js, baseline.js</span></div>
+  </header>
+
+  <div class="grid c4" id="kpis"></div>
+
+  <h2>What a SIGINT payload asks of its bus</h2>
+  <p>Research note 02 sets the envelope: the bus must carry ≥ 40 kg of payload, deliver ≥ 150 W orbit-average to it, downlink ≥ 500 Mbit/s and point to ~0.05° for the directional antennas. The TALOS component model lands inside that envelope (payload <span id="pl-mass"></span> kg core, <span id="pl-pow"></span> W collecting), so mass and power are not the hard part. The hard part is the list below — requirements that are <em>specific</em> to a −120 dBm receiver sharing a 0.6 m box with its own transmitters and switching converters<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>.</p>
+  <div class="table-wrap"><table class="compact"><thead><tr><th>Requirement</th><th>Value</th><th>Why (payload driver)</th><th>Where it lands</th></tr></thead><tbody>
+    <tr><td><b>UHF-quiet EMC</b></td><td class="wrapcell">Conducted emissions on payload lines ≥ 40 dB below MIL-STD-461 CE102 in 225–512 MHz; converter switching frequencies planned so harmonics avoid the UHF pre-select; wheel drivers and magnetorquer PWM scheduled outside collection windows</td><td class="wrapcell">Bus DC/DC converters (100 kHz–2 MHz and harmonics) are the dominant threat to the UHF band; they sit 100+ dB above signals of interest</td><td>EPS, ADCS, harness, structure grounding — risk <a href="risks.html#T-02">T-02</a></td></tr>
+    <tr><td><b>Attitude knowledge</b></td><td class="wrapcell">0.02° knowledge, 0.05° pointing (1σ)</td><td class="wrapcell">1 mrad of attitude error is 1 km of AOA ground error at 1,000 km; the 1.2 m DF boom is useless without it. HawkEye Pathfinder flew 2.1°<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup></td><td>ADCS — two star trackers</td></tr>
+    <tr><td><b>Timing interfaces</b></td><td class="wrapcell">Bus PVT and attitude delivered to the payload with a timestamp; payload owns its own GNSS + OCXO; no bus clock in the payload timing chain</td><td class="wrapcell">TDOA needs 20 ns between satellites; a bus OBC cannot provide it, so the payload timing unit is a never-off rail and the bus merely supplies PVT for orbit knowledge</td><td>OBC data interface; EPS never-off rail</td></tr>
+    <tr><td><b>Two switchable 150 W payload lines</b></td><td class="wrapcell">28 V unregulated, individually switched, LCL-protected, 50 µs trip</td><td class="wrapcell">A latch-up in the commercial RFSoC must not drag the bus down, and the bus must be able to hard-cycle the payload remotely</td><td>Bus PCDU</td></tr>
+    <tr><td><b>Transmitter placement</b></td><td class="wrapcell">X-band TX antenna on +X, X-band receive array on nadir −X edge; TT&C patches zenith/nadir with 2.2–2.3 GHz notch in payload; receive blanking during passes</td><td class="wrapcell">Own 8.0–8.4 GHz downlink is 200 MHz below the 8–12 GHz receive window; needs > 80 dB isolation</td><td>Structure layout, comms, payload filters</td></tr>
+    <tr><td><b>Propulsion</b></td><td class="wrapcell" id="req-prop">—</td><td class="wrapcell">Formation keeping at ±5 km for the cluster; controlled lowering to ≤ 350 km for the 5-year disposal rule<sup class="ref"><a href="#ref-R3-21">[R3-21]</a></sup><sup class="ref"><a href="#ref-R3-22">[R3-22]</a></sup></td><td>FEEP on −X, thrust through CoM</td></tr>
+    <tr><td><b>Thermal isolation of the DF front-ends</b></td><td class="wrapcell">Payload plate held at 20 ± 2 °C, decoupled from bus heater cycles; separate −X radiator</td><td class="wrapcell">LNA phase drift ~0.5–1°/°C per stage would eat the 5° interferometer budget</td><td>Bus thermal + payload thermal plate</td></tr>
+    <tr><td><b>Data path</b></td><td class="wrapcell">1 Gbit/s X-band; payload storage plays back directly to the transmitter (LVDS/SpaceFibre), not through the OBC</td><td class="wrapcell">~30 GB/day of reports and snapshots; bus OBC buses are 1–10 Mbit/s class</td><td>Comms, OBC</td></tr>
+    <tr><td><b>Orbit-agnostic design</b></td><td class="wrapcell">Thermal and power close at 53° (beta-angle seasons) and at SSO 97.5°</td><td class="wrapcell">Launch risk <a href="risks.html#T-12">T-12</a>: the first flight may have to ride a Transporter to SSO</td><td>EPS wings (canted 20°), thermal</td></tr>
+  </tbody></table></div>
+
+  <h2>Spacecraft configuration</h2>
+  <figure class="diagram">
+    <svg viewBox="0 0 980 480" id="cfg-svg" role="img" aria-label="TALOS-1 spacecraft configuration, stowed and deployed"></svg>
+    <figcaption><b>TALOS-1 configuration.</b> Left: stowed in the ESPA 15-inch port envelope (0.61 × 0.71 × 0.97 m) — the 0.6 × 0.6 × 0.8 m body with folded wings, stowed helices and DF boom on the nadir face. Centre: deployed, front view with nadir (−Z) down: two 3-panel wings on ±Y canted 20° (2.4 m tip-to-tip), two UHF helices (1.1 m) hinged from the ±X edges of the nadir panel, the 1.2 m DF cross-boom on a short mast from the nadir face centre, body-mounted survey antennas and S/X patch arrays on the nadir panel, X-band downlink antenna on +X (toward the viewer), radiator and FEEP thruster on −X, GNSS zenith patch and TT&C patches on +Z. Right: the nadir antenna field seen from the ground — four DF elements at ±0.6 m, the two helices at the ±X edges, S-band 4×4 and X-band 8×8 arrays and the two wideband survey antennas on the panel. The layout follows one rule: every transmitter on a face the receive antennas cannot see. Dimensions from components.js; drawing not to scale in depth.</figcaption>
+  </figure>
+
+  <h2>Subsystem by subsystem</h2>
+  <p>Each block below gives what TALOS needs and why, the baseline items from the component model (mass and power in collection mode, TRL), the candidate suppliers the catalogue lists for that category, and the export position. Prices quoted in the catalogue are indicative and unverified unless stated; the catalogue page carries the full rows.</p>
+  <div id="subsystems"></div>
+
+  <h2>Bus platform shortlist</h2>
+  <p>For a Greek/EU integrator the shortlist with real ESPA-class heritage and no ITAR exposure is NanoAvionics MP42H, Aerospacelab VSP, OHB-LuxSpace Triton-X, BST LEOS-100 and the EnduroSat microsat platform; US buses carry more payload and power out of the box but introduce ITAR/EAR licensing for a SIGINT application<sup class="ref"><a href="#ref-R5-16">[R5-16]</a></sup><sup class="ref"><a href="#ref-R5-17">[R5-17]</a></sup><sup class="ref"><a href="#ref-R5-28">[R5-28]</a></sup>. The table compares each platform's published payload envelope with the TALOS need computed from the component model (payload core / with options; collecting power plus the 45 W downlink).</p>
+  <div class="table-wrap"><table class="compact" id="bus-table"><thead><tr><th data-sort="str">Platform</th><th data-sort="num">Payload mass capacity</th><th>TALOS fit (24 / 31 kg)</th><th>Payload power</th><th>TALOS fit (124–170 W)</th><th>Pointing · downlink</th><th>Heritage / TRL</th><th>Price / lead (unverified) · export</th></tr></thead><tbody></tbody></table></div>
+  <div class="callout decision"><div class="t">Baseline bus decision and what to negotiate</div><p>Baseline: an EU ESPA-class bus bought fixed-price with the RF-quietness, timing-interface and transmitter-placement requirements written into the specification, under a frame agreement covering pathfinder, demonstrator and cluster options. The MP42H is the most mature EU candidate but is payload-limited at 35 kg and ~100 W in its catalogue form — the Gen-2 MP42 (40–50 kg payload, 150 kg launch mass) or a stretched variant must be negotiated<sup class="ref"><a href="#ref-R5-16">[R5-16]</a></sup>. Aerospacelab VSP and BST LEOS-100 offer more power margin; Triton-X and the EnduroSat microsat need flight-status verification at contract time. Supplier fragility (<a href="risks.html#T-13">T-13</a>) argues for escrow of design data whichever vendor wins.</p></div>
+
+  <h2>Payload-to-bus interfaces</h2>
+  <p>The interface control document between payload and bus is short but every line is load-bearing. The diagram shows the seven interface types; the table beneath it is generated from the component model's cross-boundary links.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 980 440" id="icd-svg" role="img" aria-label="Payload to bus interface diagram"></svg>
+    <figcaption><b>Payload-to-bus interfaces.</b> Power (dashed yellow): two individually switched 150 W lines of 28 V unregulated bus into the payload's own filtered PCDU, plus a never-off rail for the timing unit. Data (blue): CAN for commands and housekeeping, SpaceWire for PVT, attitude quaternions and tasking files; a separate high-rate path (LVDS/SpaceFibre) from payload mass memory straight to the X-band transmitter, with a pass-enable discrete from the OBC. Timing (dotted teal): the payload generates its own PPS and 100 MHz from the payload GNSS/OCXO; the bus GNSS PPS is available as a cross-check only. Thermal: variable-conductance heat pipe from the payload plate to the −X radiator; thermistor telemetry. Mechanical: payload deck isolated on the central deck; nadir and −Z antenna fields; boom HDRM drivers from the bus PCDU.</figcaption>
+  </figure>
+  <div class="table-wrap"><table class="compact" id="icd-table"><thead><tr><th>From</th><th>To</th><th>Type</th><th>Interface</th></tr></thead><tbody></tbody></table></div>
+
+  <h2>Propulsion and the ΔV budget</h2>
+  <p>Propulsion is optional for the demonstrator's core mission and mandatory for everything after it: holding the 3-satellite formation to ±5 km for three years, making up drag at 530 km, avoiding conjunctions in a congested shell, and lowering the orbit to ≤ 350 km at end of life so that re-entry happens inside the five-year rule<sup class="ref"><a href="#ref-R3-21">[R3-21]</a></sup><sup class="ref"><a href="#ref-R3-22">[R3-22]</a></sup>. HawkEye's published formation budget — ≈ 35/29/5 m/s per spacecraft of 100 m/s available over three years — is the open benchmark for the formation line<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>.</p>
+  <div class="table-wrap"><table class="compact" id="dv-table"><thead><tr><th>Allocation</th><th class="num">ΔV (m/s)</th><th>Basis</th></tr></thead><tbody></tbody></table></div>
+  <div class="panel">
+    <h3>ΔV calculator — electric propulsion sizing</h3>
+    <div class="controls">
+      <div class="ctl"><label>Specific impulse <output for="dv-isp">3000</output> s</label><input type="range" id="dv-isp" min="200" max="4000" step="50" value="3000"></div>
+      <div class="ctl"><label>Total impulse <output for="dv-imp">26</output> kN·s</label><input type="range" id="dv-imp" min="2" max="60" step="1" value="26"></div>
+      <div class="ctl"><label>Spacecraft wet mass <output for="dv-m">112</output> kg</label><input type="range" id="dv-m" min="80" max="150" step="1" value="112"></div>
+      <div class="ctl"><label>Thrust <output for="dv-f">1.0</output> mN</label><input type="range" id="dv-f" min="0.3" max="20" step="0.1" value="1"></div>
+      <div class="ctl"><label>Sunlit-only thrust duty <output for="dv-duty">40</output> %</label><input type="range" id="dv-duty" min="10" max="100" step="5" value="40"></div>
+    </div>
+    <div class="dvbar" id="dv-bar"></div>
+    <div class="readout">
+      <div><div class="k">Propellant consumed</div><div class="v" id="dv-mp">—</div></div>
+      <div><div class="k">Total ΔV available</div><div class="v" id="dv-tot">—</div></div>
+      <div><div class="k">Margin over allocations</div><div class="v" id="dv-marg">—</div></div>
+      <div><div class="k">Total burn time</div><div class="v" id="dv-burn">—</div></div>
+      <div><div class="k">Disposal manoeuvre (50 m/s) duration</div><div class="v" id="dv-disp">—</div></div>
+      <div><div class="k">Acceleration</div><div class="v" id="dv-acc">—</div></div>
+    </div>
+    <p class="mini">Rocket equation \(\Delta V = I_{sp}\,g_0\,\ln\!\big(m_0/(m_0 - m_p)\big)\) with \(m_p = I_{tot}/(I_{sp} g_0)\). Defaults are the ENPULSION MICRO R³ class in the baseline (1 mN, Isp ≈ 3,000 s, 26 kN·s, 110 W). At 1 mN a 50 m/s disposal burn takes months of sunlit-side thrusting — acceptable for disposal, but it is why a Hall thruster (Exotrail spaceware-micro, 2–7 mN) is the alternative if faster phasing of constellation planes is needed. Allocations from baseline.js.</p>
+  </div>
+
+  <h2>ADCS sizing note</h2>
+  <p>The attitude control problem for TALOS is modest in torque and demanding in knowledge. The deployed spacecraft (wings, helices, boom) has an inertia of order 15–25 kg·m² about the pitch and roll axes (est.), the disturbance torques below are micro-newton-metre class, and the wheels only have to hold nadir pointing within 0.05° and execute an occasional slew for a downlink pass or a cued reflector dwell. The calculator applies the standard first-order disturbance models (gravity gradient, aerodynamic, solar pressure, residual magnetic dipole) to the TALOS geometry and compares the resulting momentum build-up with the 0.5 N·m·s wheels in the baseline.</p>
+  <div class="panel">
+    <h3>Disturbance torques and wheel momentum</h3>
+    <div class="controls">
+      <div class="ctl"><label>Altitude <output for="ad-alt">530</output> km</label><input type="range" id="ad-alt" min="400" max="700" step="10" value="530"></div>
+      <div class="ctl"><label><span>Inertia difference |I<sub>z</sub> − I<sub>y</sub>|</span> <output for="ad-di">10</output> kg·m²</label><input type="range" id="ad-di" min="1" max="40" step="1" value="10"></div>
+      <div class="ctl"><label>Max pointing offset from local vertical <output for="ad-th">5</output>°</label><input type="range" id="ad-th" min="0" max="45" step="1" value="5"></div>
+      <div class="ctl"><label>Projected area <output for="ad-a">2.5</output> m²</label><input type="range" id="ad-a" min="0.5" max="5" step="0.1" value="2.5"></div>
+      <div class="ctl"><label>CoP − CoM offset <output for="ad-off">0.15</output> m</label><input type="range" id="ad-off" min="0" max="0.5" step="0.01" value="0.15"></div>
+      <div class="ctl"><label>Residual magnetic dipole <output for="ad-d">0.5</output> A·m²</label><input type="range" id="ad-d" min="0" max="3" step="0.1" value="0.5"></div>
+      <div class="ctl"><label>Wheel capacity <output for="ad-h">0.5</output> N·m·s</label><input type="range" id="ad-h" min="0.1" max="2" step="0.1" value="0.5"></div>
+      <div class="ctl"><label>Wheel torque <output for="ad-tq">20</output> mN·m</label><input type="range" id="ad-tq" min="2" max="100" step="1" value="20"></div>
+      <div class="ctl"><label>Slew angle <output for="ad-slew">30</output>°</label><input type="range" id="ad-slew" min="5" max="90" step="5" value="30"></div>
+    </div>
+    <div id="ad-chart-wrap"><div id="ad-chart"></div></div>
+    <div class="readout">
+      <div><div class="k">Worst-case total torque</div><div class="v" id="ad-tot">—</div></div>
+      <div><div class="k">Momentum per orbit (secular, worst case)</div><div class="v" id="ad-mom">—</div></div>
+      <div><div class="k">Orbits to wheel saturation</div><div class="v" id="ad-sat">—</div></div>
+      <div><div class="k">Slew time (I = 20 kg·m², wheel-limited)</div><div class="v" id="ad-st">—</div></div>
+      <div><div class="k">Peak wheel momentum in the slew</div><div class="v" id="ad-sh">—</div></div>
+    </div>
+    <p class="mini">Models: gravity gradient \(T_g = \tfrac{3\mu}{2R^3}\,|I_z - I_y|\sin 2\theta\); aerodynamic \(T_a = \tfrac12\rho C_d A v^2\,\Delta\), with \(\rho\) from an exponential fit (≈ 2 × 10⁻¹³ kg/m³ at 530 km, mean solar activity, est.); solar \(T_s = \tfrac{F_s}{c} A (1+q)\,\Delta\) with q = 0.6; magnetic \(T_m = D\,B\) with \(B \approx 2 B_0 (R_E/R)^3\) at high latitude. Treating all torques as secular over an orbit is conservative; in practice gravity-gradient and solar torques are largely cyclic. Magnetorquers dump the accumulated momentum outside collection windows — the EMC rule that ties ADCS to the payload.</p>
+  </div>
+  <p>Two conclusions. First, the residual magnetic dipole is the term that matters at this size — keep the battery harness twisted and the wheel-driver loops small, and specify ≤ 0.5 A·m² at acceptance. Second, with 0.5 N·m·s wheels in a pyramid the spacecraft dumps momentum every few orbits with magnetorquers, which is routine, but the dumps must be scheduled in the gaps between collection dwells because magnetorquer PWM is a UHF interferer. The star trackers (Arcsec Sagitta class, 2 arcsec) are the knowledge source; the STIM300 IMU propagates between star-tracker updates and through sun/Earth exclusion. Everything in this chain is available ITAR-free in Europe at a complete-ADCS budget of about €250–450 k (est.).</p>
+
+  <h2>Thermal and harness</h2>
+  <p><b>Thermal.</b> The bus thermal design is conventional — MLI, ±X radiators, survival heaters on battery and propulsion — with one twist: the payload has its own thermally controlled plate and radiator, and the bus heater cycling must not be allowed to modulate the DF front-end temperature. The 53° orbit has beta-angle seasons that swing from full-sun to 36-minute eclipses; the SSO alternative is thermally benign but changes the sun angle on the wings. Both cases are closed in the <a href="budgets.html#power">power budget</a>. The RFSoC's ~48 W in a 0.2 × 0.16 m housing is the hot spot (risk <a href="risks.html#T-08">T-08</a>), carried out by a variable-conductance heat pipe to the −X radiator (0.25 m²).</p>
+  <p><b>Harness.</b> Grounding and routing are half of the EMC solution. The baseline harness uses twisted-shielded pairs, a single-point ground, separate payload and bus returns, and keeps every power line away from the UHF front-end; the payload's own phase-matched RF harness (2.2 kg, phase-stable coax matched to ±2 mm) is accounted separately in the payload budget because it is routinely under-estimated on first payloads.</p>
+
+  <h2>Decisions carried into the baseline</h2>
+  <ul>
+    <li>Buy the bus (EU, ESPA-class, fixed price) with the SIGINT-specific requirements above in the specification; build the payload. Frame agreement across pathfinder, demonstrator and cluster.</li>
+    <li>Star-tracker ADCS (2 × Sagitta class), 4 × 0.5 N·m·s wheels in a pyramid, STIM300 IMU, magnetorquers scheduled outside collection windows.</li>
+    <li>28 V unregulated bus with MPPT and two switchable 150 W payload lines; 620 W BOL / 540 W EOL deployable wings; 420 Wh battery at ≤ 30 % DoD.</li>
+    <li>FEEP electric propulsion, 170 m/s at 150 kg: 60 formation, 40 drag, 50 disposal, 20 margin.</li>
+    <li>X-band 1 Gbit/s on +X, S-band TT&C with AES-256 authentication, X-band receive blanking and TT&C time-gating as flight rules.</li>
+    <li>Payload timing chain independent of the bus; bus provides PVT and attitude with timestamps.</li>
+  </ul>
+
+  <h2>Sources</h2>
+  <p class="mini">Supplier rows and their URLs come from the catalogue (<code>suppliers.js</code>, extracted from research note 02); the numbered references below are the research-note sources that carry the design drivers.</p>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/components.js"></script>
+<script src="../assets/data/suppliers.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  const B = BASELINE, $ = id => document.getElementById(id);
+  function renderRefs(ids){ const ol=$('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  $('meta-baseline').textContent = 'Baseline: ' + B.version;
+  const grpOf = c => SUBSYSTEMS.find(s => s.id === c.sub).group;
+  const core = COMPONENTS.filter(c => !c.optional);
+  const sum = (arr, k) => arr.reduce((a, c) => a + (c[k] || 0), 0);
+  const bus = core.filter(c => grpOf(c) === 'bus'), pl = core.filter(c => grpOf(c) === 'payload');
+  const busW = sum(bus.filter(c => !['xtx','prop'].includes(c.id)), 'w');
+  $('pl-mass').textContent = sum(pl,'kg').toFixed(1); $('pl-pow').textContent = sum(pl,'w');
+  $('req-prop').textContent = `${B.prop.dvTotalMs} m/s total: ${B.prop.dvFormationMs} formation keeping (3 yr), ${B.prop.dvDragMs} drag make-up, ${B.prop.dvDisposalMs} controlled lowering; thrust through the centre of mass; sunlit-side arcs only (${B.prop.powerW} W PPU)`;
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="v">${sum(bus,'kg').toFixed(1)}<small>kg</small></div><div class="l">Bus dry mass (core items)</div><div class="d">Payload ${sum(pl,'kg').toFixed(1)} kg → ${(sum(core,'kg')).toFixed(1)} kg dry, ${(sum(core,'kg')*(1+B.mass.marginPct/100)).toFixed(0)} kg with ${B.mass.marginPct}% margin</div></div>
+    <div class="kpi"><div class="v">${busW}<small>W</small></div><div class="l">Bus housekeeping power, collection mode</div><div class="d">+ ${B.comms.xband.txW} W X-band TX in passes, + ${B.prop.powerW} W thruster PPU in arcs</div></div>
+    <div class="kpi"><div class="v">${B.adcs.pointingDeg}°<small>/ ${B.adcs.knowledgeDeg}°</small></div><div class="l">Pointing / attitude knowledge</div><div class="d">${B.adcs.starTrackers} star trackers, ${B.adcs.wheels} × ${B.adcs.wheelNms} N·m·s wheels</div></div>
+    <div class="kpi"><div class="v">${B.prop.dvTotalMs}<small>m/s</small></div><div class="l">ΔV, ${B.prop.type}</div><div class="d">${B.prop.dvFormationMs} formation + ${B.prop.dvDragMs} drag + ${B.prop.dvDisposalMs} disposal + margin</div></div>`;
+
+  // ---------- configuration SVG (three panels)
+  (function(){
+    const svg = d3.select('#cfg-svg');
+    svg.append('defs').html('<marker id="arrn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--ink-3)"/></marker>');
+    const massTxt = `≈ ${(sum(core,'kg')*(1+B.mass.marginPct/100)).toFixed(0)} kg incl. ${B.mass.marginPct}% margin`;
+    // ===== Panel 1: stowed, front view (looking along +X), k px/m
+    (function(){
+      const g = svg.append('g'), k = 270, ox = 70, oy = 70;
+      const ew = 0.61*k, eh = 0.97*k, bw = 0.6*k, bh = 0.8*k;
+      g.append('text').attr('class','lbl').attr('x', ox + ew/2).attr('y', 30).attr('text-anchor','middle').text('Stowed');
+      g.append('text').attr('class','lbl xs').attr('x', ox + ew/2).attr('y', 46).attr('text-anchor','middle').text('ESPA 15" port envelope, front view');
+      g.append('rect').attr('x', ox).attr('y', oy).attr('width', ew).attr('height', eh).attr('fill','none').attr('stroke','var(--ink-faint)').attr('stroke-dasharray','6 4');
+      g.append('text').attr('class','lbl xs').attr('x', ox + ew/2).attr('y', oy - 10).attr('text-anchor','middle').text('envelope 0.61 m');
+      g.append('text').attr('class','lbl xs').attr('transform', `translate(${ox - 10},${oy + eh/2}) rotate(-90)`).attr('text-anchor','middle').text('envelope 0.97 m');
+      const bx = ox + (ew - bw)/2, by = oy + 0.04*k;
+      g.append('rect').attr('x', bx + bw/2 - 0.19*k).attr('y', by - 0.03*k).attr('width', 0.38*k).attr('height', 0.03*k).attr('fill','var(--surface-3)').attr('stroke','var(--ink-3)');
+      g.append('rect').attr('class','box').attr('x', bx).attr('y', by).attr('width', bw).attr('height', bh).attr('rx', 3);
+      [[bx - 12, '−Y wing'], [bx + bw + 2, '+Y wing']].forEach(([x, t]) => { g.append('rect').attr('x', x).attr('y', by + 8).attr('width', 10).attr('height', bh - 16).attr('fill','var(--band-c)').attr('opacity', .55).attr('stroke','var(--ink-3)'); g.append('text').attr('class','lbl xs').attr('transform', `translate(${x + 5},${by + bh/2}) rotate(-90)`).attr('text-anchor','middle').text(t); });
+      g.append('rect').attr('x', bx + 0.1*k).attr('y', by + bh).attr('width', 0.4*k).attr('height', 0.12*k).attr('fill','var(--band-uhf)').attr('opacity', .5).attr('stroke','var(--ink-3)');
+      g.append('rect').attr('x', bx + 0.05*k).attr('y', by + bh - 7).attr('width', bw - 0.1*k).attr('height', 7).attr('fill','var(--band-l)').attr('opacity', .8);
+      g.append('text').attr('class','lbl s').attr('x', bx + bw/2).attr('y', by + bh/2 - 4).attr('text-anchor','middle').text('body 0.6 × 0.6 × 0.8 m');
+      g.append('text').attr('class','lbl xs').attr('x', bx + bw/2).attr('y', by + bh/2 + 12).attr('text-anchor','middle').text(massTxt);
+      g.append('text').attr('class','lbl xs').attr('x', bx + bw/2).attr('y', by + bh - 12).attr('text-anchor','middle').text('DF boom folded');
+      g.append('text').attr('class','lbl xs').attr('x', bx + bw/2).attr('y', by + bh + 0.12*k - 8).attr('text-anchor','middle').text('stowed helices 0.12 m');
+      g.append('text').attr('class','lbl xs').attr('x', bx + bw/2 + 0.19*k + 6).attr('y', by - 0.015*k + 3).text('15" ring');
+      g.append('text').attr('class','lbl xs').attr('x', ox).attr('y', oy + eh + 18).text('+Z zenith up · −Z nadir down · ±Y left/right');
+    })();
+    // ===== Panel 2: deployed, front view (Y–Z plane, looking along +X)
+    (function(){
+      const t = svg.append('g'), s = 120, cx = 540, bz = 150; // body top z (px)
+      t.append('text').attr('class','lbl').attr('x', cx).attr('y', 30).attr('text-anchor','middle').text('Deployed — front view (Y–Z)');
+      t.append('text').attr('class','lbl xs').attr('x', cx).attr('y', 46).attr('text-anchor','middle').text('+X (downlink face) toward viewer; −X (radiator, thruster) away');
+      const bw = 0.6*s, bh = 0.8*s, bx = cx - bw/2;
+      // wings: 0.9 m each side, 1.0 m tall, 3 panels
+      [[-1,'−Y'],[1,'+Y']].forEach(([sg, nm]) => { for (let i=0;i<3;i++){ const x0 = sg>0 ? bx + bw + i*0.3*s : bx - (i+1)*0.3*s; t.append('rect').attr('x', x0).attr('y', bz - 0.1*s).attr('width', 0.3*s - 1).attr('height', 1.0*s).attr('fill','var(--band-c)').attr('opacity', .45).attr('stroke','var(--ink-3)'); } });
+      t.append('text').attr('class','lbl xs').attr('x', cx).attr('y', bz - 0.1*s - 22).attr('text-anchor','middle').text('wings 2 × 0.95 m² (3 panels each), canted 20° about Y, 2.4 m tip-to-tip');
+      // body
+      t.append('rect').attr('class','box hi').attr('x', bx).attr('y', bz).attr('width', bw).attr('height', bh).attr('rx', 3);
+      t.append('text').attr('class','lbl s').attr('x', cx).attr('y', bz + bh/2 - 2).attr('text-anchor','middle').text('TALOS-1');
+      t.append('text').attr('class','lbl xs').attr('x', cx).attr('y', bz + bh/2 + 12).attr('text-anchor','middle').text('+X face: X-band TX');
+      // +Z patches
+      t.append('rect').attr('x', cx - 12).attr('y', bz - 6).attr('width', 24).attr('height', 6).attr('fill','var(--band-s)');
+      t.append('text').attr('class','lbl xs').attr('x', cx).attr('y', bz + 14).attr('text-anchor','middle').text('+Z: GNSS + TT&C patches');
+      // nadir panel antennas
+      const nz = bz + bh;
+      [[-0.2,'var(--band-l)'],[0,'var(--band-s)'],[0.2,'var(--band-x)']].forEach(([dx,c]) => t.append('rect').attr('x', cx + dx*s - 7).attr('y', nz).attr('width', 14).attr('height', 5).attr('fill', c));
+      // DF mast + cross-arm along ±Y with 2 visible elements (the ±X pair is edge-on behind the mast)
+      const bz2 = nz + 0.55*s;
+      t.append('line').attr('x1', cx).attr('y1', nz + 5).attr('x2', cx).attr('y2', bz2).attr('stroke','var(--ink-3)').attr('stroke-width', 3);
+      t.append('line').attr('x1', cx - 0.6*s).attr('y1', bz2).attr('x2', cx + 0.6*s).attr('y2', bz2).attr('stroke','var(--band-l)').attr('stroke-width', 4);
+      [-0.6, 0.6].forEach(dx => t.append('circle').attr('cx', cx + dx*s).attr('cy', bz2 + 10).attr('r', 0.15*s).attr('fill','var(--band-l)').attr('opacity', .45).attr('stroke','var(--ink-3)'));
+      t.append('circle').attr('cx', cx).attr('cy', bz2 + 10).attr('r', 0.15*s).attr('fill','none').attr('stroke','var(--band-l)').attr('stroke-dasharray','3 3');
+      t.append('text').attr('class','lbl xs').attr('x', cx + 0.6*s + 0.17*s).attr('y', bz2 + 14).text('DF elements Ø0.3 m');
+      t.append('text').attr('class','lbl xs').attr('x', cx + 0.6*s + 0.17*s).attr('y', bz2 + 26).text('on 1.2 m cross-boom');
+      t.append('text').attr('class','lbl xs').attr('x', cx - 0.6*s - 0.17*s).attr('y', bz2 + 14).attr('text-anchor','end').text('±X pair edge-on');
+      // helices: hinged from ±X edges of nadir panel → seen end-on here, drawn as the one in front (+X edge)
+      const hx = cx - 0.33*s; // slight offset to show
+      t.append('rect').attr('x', cx - 0.3*s - 2).attr('y', nz + 8).attr('width', 0.2*s).attr('height', 1.1*s).attr('rx', 5).attr('fill','var(--band-uhf)').attr('opacity', .35).attr('stroke','var(--ink-3)');
+      for (let z = nz + 16; z < nz + 8 + 1.1*s; z += 11) t.append('path').attr('d', `M${cx - 0.3*s - 2} ${z} q${0.1*s} 7 ${0.2*s} 0`).attr('fill','none').attr('stroke','var(--band-uhf)').attr('stroke-width', 1);
+      t.append('text').attr('class','lbl xs').attr('x', cx - 0.2*s).attr('y', nz + 1.1*s + 24).attr('text-anchor','middle').text('UHF helix 1.1 m (+X edge; −X twin behind)');
+      // nadir arrow
+      t.append('line').attr('class','wire').attr('x1', cx + 1.62*s).attr('y1', nz + 40).attr('x2', cx + 1.62*s).attr('y2', nz + 100).attr('marker-end','url(#arrn)');
+      t.append('text').attr('class','lbl xs').attr('x', cx + 1.62*s).attr('y', nz + 114).attr('text-anchor','middle').text('nadir');
+    })();
+    // ===== Panel 3: nadir face view (X–Y), antenna field
+    (function(){
+      const n = svg.append('g'), s = 150, cx = 860, cy = 300;
+      n.append('text').attr('class','lbl').attr('x', cx).attr('y', 30).attr('text-anchor','middle').text('Nadir face (−Z) field');
+      n.append('text').attr('class','lbl xs').attr('x', cx).attr('y', 46).attr('text-anchor','middle').text('looking up from the ground');
+      n.append('rect').attr('class','box').attr('x', cx - 0.3*s).attr('y', cy - 0.3*s).attr('width', 0.6*s).attr('height', 0.6*s).attr('rx', 3);
+      // DF cross with 4 elements at ±0.6 m (extends beyond body)
+      n.append('line').attr('x1', cx - 0.6*s).attr('y1', cy).attr('x2', cx + 0.6*s).attr('y2', cy).attr('stroke','var(--band-l)').attr('stroke-width', 3);
+      n.append('line').attr('x1', cx).attr('y1', cy - 0.6*s).attr('x2', cx).attr('y2', cy + 0.6*s).attr('stroke','var(--band-l)').attr('stroke-width', 3);
+      [[0.6,0],[-0.6,0],[0,0.6],[0,-0.6]].forEach(([dx,dy]) => n.append('circle').attr('cx', cx + dx*s).attr('cy', cy + dy*s).attr('r', 0.15*s).attr('fill','var(--band-l)').attr('opacity', .45).attr('stroke','var(--ink-3)'));
+      // helices hinged on ±X edges (seen as circles Ø0.2 just outside the body on ±X)
+      [[0.42,'RHCP'],[-0.42,'LHCP']].forEach(([dx,pol]) => { n.append('circle').attr('cx', cx + dx*s).attr('cy', cy - 0.42*s).attr('r', 0.1*s).attr('fill','var(--band-uhf)').attr('opacity', .5).attr('stroke','var(--ink-3)'); n.append('text').attr('class','lbl xs').attr('x', cx + dx*s).attr('y', cy - 0.42*s + 3).attr('text-anchor','middle').text(pol); });
+      // body-mounted: 2 wideband CP, S 4x4 (0.26 m), X 8x8 (0.13 m) at −X edge
+      n.append('rect').attr('x', cx - 0.27*s).attr('y', cy + 0.02*s).attr('width', 0.26*s).attr('height', 0.26*s).attr('fill','var(--band-s)').attr('opacity', .5).attr('stroke','var(--ink-3)');
+      n.append('text').attr('class','lbl xs').attr('x', cx - 0.14*s).attr('y', cy + 0.17*s).attr('text-anchor','middle').text('S 4×4');
+      n.append('rect').attr('x', cx - 0.29*s).attr('y', cy - 0.29*s).attr('width', 0.13*s).attr('height', 0.13*s).attr('fill','var(--band-x)').attr('opacity', .6).attr('stroke','var(--ink-3)');
+      n.append('text').attr('class','lbl xs').attr('x', cx - 0.225*s).attr('y', cy - 0.21*s).attr('text-anchor','middle').text('X');
+      [[0.2, -0.2],[0.2, 0.2]].forEach(([dx,dy]) => n.append('rect').attr('x', cx + dx*s - 0.075*s).attr('y', cy + dy*s - 0.075*s).attr('width', 0.15*s).attr('height', 0.15*s).attr('fill','var(--band-uhf)').attr('opacity', .35).attr('stroke','var(--ink-3)'));
+      n.append('text').attr('class','lbl xs').attr('x', cx + 0.2*s).attr('y', cy - 0.2*s + 3).attr('text-anchor','middle').text('WB');
+      n.append('text').attr('class','lbl xs').attr('x', cx + 0.2*s).attr('y', cy + 0.2*s + 3).attr('text-anchor','middle').text('WB');
+      n.append('text').attr('class','lbl xs').attr('x', cx + 0.33*s).attr('y', cy + 0.5*s + 24).attr('text-anchor','end').text('+X →');
+      n.append('text').attr('class','lbl xs').attr('x', cx).attr('y', cy + 0.9*s).attr('text-anchor','middle').text('WB = wideband CP survey · X 8×8 on −X edge,');
+      n.append('text').attr('class','lbl xs').attr('x', cx).attr('y', cy + 0.9*s + 13).attr('text-anchor','middle').text('away from the +X downlink · DF cross 1.2 m tip-to-tip');
+      n.append('line').attr('class','wire').attr('x1', cx - 0.3*s).attr('y1', cy + 0.5*s + 20).attr('x2', cx + 0.1*s).attr('y2', cy + 0.5*s + 20).attr('marker-end','url(#arrn)');
+    })();
+  })();
+
+  // ---------- subsystem blocks
+  const BLOCKS = [
+    { id: 'bus-structure', title: 'Structure, separation system and harness', cat: 'A',
+      need: 'A 0.6 × 0.6 × 0.8 m honeycomb box inside the ESPA 15-inch envelope with first mode above 60 Hz, an isolated payload deck, RF-transparent cut-outs for the nadir antenna field, a conductive single-point grounding scheme, and the face allocation that keeps transmitters (+X, +Z) opposite the receive antennas (nadir, −Z). The structure is also where five deployables (two wings, two helices, one boom) get their hold-down and release mechanisms — the first risk in the register (T-01).',
+      why: 'EMC starts with geometry: the X-band transmitter 200 MHz below the receive window and the 33 dBm TT&C inside the payload S-band only stay 80 dB away from the LNAs if they cannot see each other.',
+      exportNote: 'EU bus structures carry no export issue; separation systems (Exolaunch CarboNIX, RUAG/Beyond Gravity) are EU/CH.' },
+    { id: 'bus-power', title: 'Electrical power system', cat: 'H',
+      need: `Deployable wings sized for an orbit-average demand of about 195 W in collection mode at the 53° orbit's 62 % sunlit fraction (${B.power.arrayBolW} W BOL / ${B.power.arrayEolW} W EOL), a ${B.power.batteryWh} Wh battery kept at ≤ ${B.power.dodMax*100} % depth of discharge for a five-year cycle life, and a 28 V unregulated bus with MPPT, 16 protected outputs and two individually switchable 150 W payload lines with 50 µs latch-up trips. Conducted emissions on every payload line are filtered 40 dB below MIL-STD-461 CE102 in 225–512 MHz and the converter switching frequency is chosen so harmonics avoid the UHF pre-select passband.`,
+      why: 'Switching converters are the dominant threat to the UHF band (100 kHz–2 MHz fundamentals and harmonics, 100+ dB above the signals of interest). The two switched lines let the bus hard-cycle the commercial RFSoC after a latch-up without touching the never-off timing rail.',
+      exportNote: 'Azur Space cells on DHV wings, Saft or ABSL batteries and a bus-integrated PCDU form a fully EU chain; MMA Design wings (US) are the performance benchmark but add EAR 9A515 licensing.' },
+    { id: 'bus-adcs', title: 'Attitude determination and control', cat: 'G',
+      need: `${B.adcs.pointingDeg}° pointing and ${B.adcs.knowledgeDeg}° knowledge (1σ) from ${B.adcs.starTrackers} star-tracker heads with sun/Earth exclusion, ${B.adcs.wheels} × ${B.adcs.wheelNms} N·m·s wheels in a pyramid for single-failure tolerance, a tactical-grade MEMS IMU, coarse sun sensors on all faces and three magnetorquers for momentum dumping. Magnetorquer PWM and wheel-driver switching are scheduled outside collection dwells.`,
+      why: '1 mrad of attitude error is 1 km of ground error at 1,000 km range for the AOA product, and the optional 0.7 m reflector (3° beam at X-band) needs 0.05° pointing to stay on target. A comms CubeSat would not carry star trackers; a SIGINT microsat must.',
+      exportNote: 'Arcsec Sagitta / Sodern Auriga star trackers and Vectronic / Hyperion wheels are EU and ITAR-free; Blue Canyon and Rocket Lab (Sinclair) units need US licences and run 12+ months lead.' },
+    { id: 'bus-avionics', title: 'On-board computer and navigation', cat: 'J',
+      need: 'A redundant rad-hard OBC (LEON/ARM class) running ECSS PUS services on an F´ or cFS-based flight software stack, with CAN and SpaceWire to the payload supervisor, RS-422 to the star trackers and IMU, and a dissimilar bus GNSS receiver. The OBC hands the payload its position, velocity, attitude quaternions and a timestamp; it does not sit in the payload timing chain.',
+      why: 'The payload supervisor is the part that must never crash and the timing unit is the part that must never lose lock; neither can depend on a bus computer that may safe-mode. Dissimilar GNSS hardware means a firmware fault cannot take both receivers — and GNSS jamming is the very thing the mission monitors (T-10).',
+      exportNote: 'Frontgrade Gaisler (SE) and KP Labs (PL) OBCs are EU; the Xiphos Q8 (CA) is EAR/ECL-controlled; cFS and F´ are open source with no export issue. AES-256 TT&C crypto implies Greek national-authority involvement.' },
+    { id: 'bus-comms', title: 'TT&C and X-band downlink', cat: 'F',
+      need: `S-band TT&C (${B.comms.ttc.band}) at ${B.comms.ttc.rateKbps/1000} Mbit/s with CCSDS and AES-256 telecommand authentication to the owned Greek station, and an X-band ${B.comms.xband.bandMHz} MHz EESS downlink at ${B.comms.xband.rateMbps/1000} Gbit/s (DVB-S2 / CCSDS 131.2, ${B.comms.xband.txW} W DC, ${B.comms.xband.antGainDbi} dBi antenna on +X) fed directly from payload mass memory. Both transmitters are flight-ruled: X-band receive is blanked during downlink passes and payload S-band receive is time-gated during TT&C contacts; the payload S/C/X bank notches 2.2–2.3 GHz.`,
+      why: 'Five mid-latitude passes of ~7 min at 1 Gbit/s move ~200 GB/day against ~30 GB/day of products — headroom for raw-IQ tasking. The transmit frequencies sit inside or next to the receive bands, so isolation, placement and blanking are part of the receiver design.',
+      exportNote: 'Syrlinks (FR), EnduroSat (BG) and Satlab (DK) cover the full EU chain; Innoflight/Tethers (US) are ITAR. The 8025–8400 MHz EESS filing via EETT is a schedule item (T-15).' },
+    { id: 'bus-prop', title: 'Propulsion', cat: 'I',
+      need: `${B.prop.type}: ${B.prop.dvTotalMs} m/s at the ~110 kg TALOS-1 mass from a 26 kN·s, 1 mN, Isp ≈ 3,000 s unit drawing ${B.prop.powerW} W during sunlit thrust arcs with the payload at reduced duty. Allocation ${B.prop.dvFormationMs} m/s formation keeping over three years, ${B.prop.dvDragMs} m/s drag make-up, ${B.prop.dvDisposalMs} m/s controlled lowering to ≤ 350 km, remainder margin and collision avoidance.`,
+      why: 'Mandatory for the cluster (±5 km formation control) and for the 5-year disposal rule; optional for the demonstrator\'s core mission but fitted anyway so the demonstrator can become the first cluster member. Thrust must pass through the centre of mass with the deployables out.',
+      exportNote: 'ENPULSION (AT), Exotrail and ThrustMe (FR), Dawn Aerospace (NL/NZ) are ITAR-free; Busek, Orbion and Aerojet are US ITAR. Indium FEEP needs no pressurised tank, which simplifies rideshare acceptance.' },
+    { id: 'bus-thermal', title: 'Thermal control', cat: null,
+      need: 'Passive bus design with MLI and ±X radiators, survival heaters on battery and propulsion, and explicit decoupling from the payload thermal plate that holds the DF front-ends at 20 ± 2 °C. Variable-conductance heat pipe from the digital deck (48 W RFSoC) to a 0.25 m² radiator on −X.',
+      why: 'Phase stability of the interferometer is a thermal requirement (0.5–1°/°C per LNA stage); the RFSoC hot spot is a derating risk (T-08). Beta-angle seasons at 53° and the SSO alternative both have to close.',
+      exportNote: 'Bus-integrated or EU thermal houses (Mecano ID, Sener); no export constraint.' },
+  ];
+  const catIndex = Object.fromEntries(SUPPLIERS.map(c => [c.id, c]));
+  const root = $('subsystems');
+  BLOCKS.forEach(bk => {
+    const comps = COMPONENTS.filter(c => c.sub === bk.id);
+    const sec = document.createElement('section'); sec.id = bk.id;
+    const kg = sum(comps.filter(c=>!c.optional),'kg'), w = sum(comps.filter(c=>!c.optional),'w');
+    let html = `<h3>${bk.title}</h3>
+      <div class="sub-head"><span><b>${kg.toFixed(1)} kg</b> baseline mass</span><span><b>${w} W</b> ${bk.id==='bus-prop'?'during thrust arcs':bk.id==='bus-comms'?'incl. 45 W X-band TX when transmitting':'collection mode'}</span><span>TRL ${Math.min(...comps.map(c=>c.trl))}–${Math.max(...comps.map(c=>c.trl))}</span>${bk.cat ? `<span>Catalogue category <b>${bk.cat}</b> · ${catIndex[bk.cat].items.length} rows</span>` : ''}</div>
+      <div class="need"><div class="t">What TALOS needs</div><p>${bk.need}</p><div class="t">Why</div><p>${bk.why}</p></div>
+      <div class="table-wrap"><table class="compact"><thead><tr><th>Baseline item</th><th class="num">kg</th><th class="num">W</th><th class="num">TRL</th><th>Specification</th><th>Candidate suppliers (component model)</th></tr></thead><tbody>`;
+    comps.forEach(c => { html += `<tr><td><a href="payload_explorer.html#${c.id}">${esc(c.name)}</a>${c.optional?' <span class="tag">option</span>':''}</td><td class="num">${c.kg}</td><td class="num">${c.w}</td><td class="num"><span class="tag trl ${c.trl>=8?'ok':c.trl>=6?'warn':'critical'}">${c.trl}</span></td><td class="spec">${esc(c.spec)}</td><td class="spec">${esc(c.suppliers)}</td></tr>`; });
+    html += `</tbody></table></div>`;
+    html += `<p class="mini"><b>Export position.</b> ${bk.exportNote}</p>`;
+    if (bk.cat) {
+      const cat = catIndex[bk.cat];
+      html += `<details><summary>Supplier catalogue — ${esc(cat.name)} (${cat.items.length} rows, from research note 02 §${bk.cat})</summary><div class="table-wrap"><table class="compact"><thead><tr><th data-sort="str">Supplier</th><th>Country</th><th>Product</th><th>Key specs</th><th>Heritage</th><th>Price / lead</th><th>Export</th></tr></thead><tbody>`;
+      cat.items.forEach(it => { const link = it.urls && it.urls[0] ? `<a href="${it.urls[0]}" target="_blank" rel="noopener">${esc(it.supplier)}</a>` : esc(it.supplier); html += `<tr><td>${link}</td><td>${esc(it.country)}</td><td class="spec">${esc(it.product)}</td><td class="spec">${esc(it.specs)}</td><td class="spec">${esc(it.trl)}</td><td class="spec">${esc(it.price)}</td><td class="spec">${it.itarRisk?'<span class="tag critical">ITAR/EAR</span> ':''}${esc(it.export)}</td></tr>`; });
+      html += `</tbody></table></div></details>`;
+    }
+    sec.innerHTML = html; root.append(sec);
+  });
+
+  // ---------- bus shortlist
+  const plCore = sum(pl,'kg'), plOpt = sum(COMPONENTS.filter(c=>grpOf(c)==='payload'),'kg'), pwNeed = sum(pl,'w') + B.comms.xband.txW;
+  const BUSES = [
+    { name: 'NanoAvionics MP42H (Max)', origin: 'LT/NO', plKg: 35, plKgNote: '35 kg catalogue; Gen-2 MP42 40–50 kg', pw: '~94–100 W sun-tracking (catalogue); Gen-2 higher', pwW: 100, point: '0.01° knowledge (Max)', dl: '650 Mbit/s', trl: 'TRL 9; MP42 flew 2022; 3 × MP42H N3X launched 2025', price: '€2–4 M; 12–18 months', exp: 'EU/NO, ITAR-free', us: false },
+    { name: 'Aerospacelab VSP (150 kg)', origin: 'BE', plKg: null, plKgNote: 'not published (150 kg class, ESPA)', pw: 'not published', pwW: null, point: 'n/p', dl: 'XSDR 206 Mbit/s in-house (higher by third-party TX)', trl: 'TRL 9; Arthur-1 2021, Gravity/Element series', price: 'on request', exp: 'EU, ITAR-free', us: false },
+    { name: 'OHB LuxSpace Triton-X', origin: 'LU', plKg: 90, plKgNote: '15–90 kg (40–250 kg launch mass)', pw: 'modular, n/p', pwW: null, point: 'n/p', dl: 'n/p', trl: 'TRL 7–8; first flight under ESA ARTES — verify', price: 'on request', exp: 'EU, ITAR-free', us: false },
+    { name: 'BST LEOS-100 HP', origin: 'DE', plKg: null, plKgNote: 'MoI-limited (120 kg·m²); ~100 kg class', pw: 'up to 2 kW (HP)', pwW: 2000, point: 'agile', dl: 'n/p', trl: 'Heritage via Kent Ridge-1, Azista-BST, Kleos scouting sats', price: 'on request (historically competitive)', exp: 'EU, ITAR-free', us: false },
+    { name: 'EnduroSat microsat (ESPA)', origin: 'BG', plKg: null, plKgNote: '100+ kg platform, n/p', pw: 'n/p', pwW: null, point: 'n/p', dl: 'X-band SDR TX ≤ 6 Gbit/s in-house', trl: '16U TRL 9; microsat first flights 2025–26 — verify', price: 'on request (price-aggressive)', exp: 'EU, ITAR-free', us: false },
+    { name: 'SSTL-150', origin: 'UK', plKg: 50, plKgNote: '≤ 50 kg', pw: '50 W orbit-average (100 W peak)', pwW: 50, point: 'n/p', dl: 'n/p', trl: 'TRL 9, decades (RapidEye, DMC)', price: '£5–10 M; 24 months', exp: 'UK export control; non-ITAR', us: false },
+    { name: 'Blue Canyon X-SAT Saturn', origin: 'US', plKg: 70, plKgNote: '≥ 70 kg (~200 kg class)', pw: 'high', pwW: null, point: 'high agility', dl: 'n/p', trl: 'TRL 9 (DoD/NASA)', price: '$5–10 M; 12–18 months', exp: 'US — ITAR likely for SIGINT integration', us: true },
+    { name: 'York S-CLASS', origin: 'US', plKg: 85, plKgNote: '85 kg+', pw: '500 W peak (ext. 1 kW)', pwW: 500, point: 'n/p', dl: 'n/p', trl: 'TRL 9 (SDA Tranche 0/1)', price: '~$10 M+ at SDA volumes', exp: 'US — ITAR likely', us: true },
+    { name: 'Apex Aries', origin: 'US', plKg: 100, plKgNote: '~100 kg', pw: '~1 kW', pwW: 1000, point: 'n/p', dl: 'n/p', trl: 'TRL 9 (SN1 2024)', price: '~$8 M; < 12 months', exp: 'US — EAR/ITAR by config', us: true },
+  ];
+  const fit = (v, need, needHi) => v == null ? '<span class="tag">n/p</span>' : v >= needHi ? `<span class="fit-ok">fits (${(v/needHi).toFixed(1)}×)</span>` : v >= need ? '<span class="fit-warn">core only</span>' : '<span class="fit-bad">short</span>';
+  $('bus-table').tBodies[0].innerHTML = BUSES.map(b => `<tr><td><b>${b.name}</b><br><span class="mini">${b.origin}</span></td><td class="spec" data-v="${b.plKg||0}">${b.plKgNote}</td><td>${fit(b.plKg, plCore, plOpt)}</td><td class="spec">${b.pw}</td><td>${fit(b.pwW, sum(pl,'w'), pwNeed)}</td><td class="spec">${b.point} · ${b.dl}</td><td class="spec">${b.trl}</td><td class="spec">${b.price}<br>${b.us?'<span class="tag critical">ITAR</span> ':''}${b.exp}</td></tr>`).join('');
+  document.querySelector('#bus-table thead th:nth-child(3)').textContent = `TALOS fit (${plCore.toFixed(0)} / ${plOpt.toFixed(0)} kg)`;
+  document.querySelector('#bus-table thead th:nth-child(5)').textContent = `TALOS fit (${sum(pl,'w')}–${pwNeed} W)`;
+
+  // ---------- ICD SVG + table
+  (function(){
+    const svg = d3.select('#icd-svg');
+    svg.append('defs').html('<marker id="ai" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="context-stroke"/></marker>');
+    const L = { x: 40, y: 40, w: 360, h: 370 }, R = { x: 580, y: 40, w: 360, h: 370 };
+    [[L, 'PAYLOAD (built)', 'hi'], [R, 'BUS (bought)', '']].forEach(([b, t, cls]) => { svg.append('rect').attr('class', 'box ' + cls).attr('x', b.x).attr('y', b.y).attr('width', b.w).attr('height', b.h).attr('rx', 8).attr('fill-opacity', .5); svg.append('text').attr('class','lbl').attr('x', b.x + 12).attr('y', b.y + 22).text(t); });
+    const lb = [['pld-pcdu','Payload PCDU (filtered rails, LCL)'], ['proc-sup','Payload controller / supervisor'], ['time','Timing unit (GNSS-OCXO + CSAC)'], ['gnss-p','Payload GNSS (raw observables)'], ['stor','Mass memory 2 TB'], ['pld-therm','Thermal plate + heat pipe'], ['ant','Antenna field (nadir / −Z)']];
+    const rb = [['eps-pcdu','Bus PCDU 28 V, MPPT'], ['obc','Bus OBC (CAN / SpaceWire)'], ['gnss-b','Bus GNSS'], ['adcs','ADCS: star trackers, wheels, IMU'], ['xtx','X-band TX 1 Gbit/s (+X)'], ['ttc','S-band TT&C'], ['str','Structure, radiator (−X), HDRMs']];
+    const yOf = i => 82 + i*45;
+    const draw = (arr, b) => arr.forEach(([id, t], i) => { svg.append('rect').attr('class','box').attr('x', b.x + 16).attr('y', yOf(i)).attr('width', b.w - 32).attr('height', 34).attr('rx', 4); svg.append('text').attr('class','lbl s').attr('x', b.x + 26).attr('y', yOf(i) + 21).text(t); });
+    draw(lb, L); draw(rb, R);
+    const wire = (i, j, cls, label, dir, dy = -5) => { const y1 = yOf(i) + 17, y2 = yOf(j) + 17, x1 = L.x + L.w - 16, x2 = R.x + 16; const p = svg.append('path').attr('class', 'wire ' + cls).attr('d', `M${x1} ${y1} C ${x1+90} ${y1}, ${x2-90} ${y2}, ${x2} ${y2}`); if (dir) p.attr('marker-end','url(#ai)'); svg.append('text').attr('class','lbl xs').attr('x', (x1+x2)/2).attr('y', (y1+y2)/2 + dy).attr('text-anchor','middle').text(label); };
+    wire(0, 0, 'pwr', '2 × 150 W switched, 28 V + never-off rail', false);
+    wire(1, 1, 'data', 'CAN cmd/HK · SpaceWire PVT, attitude, tasking', false);
+    wire(3, 2, 'time', 'bus PPS cross-check only (payload owns time)', false, 16);
+    wire(4, 4, 'data', 'LVDS / SpaceFibre playback 1 Gbit/s + pass enable', true);
+    wire(5, 6, '', 'heat pipe → −X radiator; thermistors', false);
+    wire(6, 6, '', 'HDRM drivers, deck isolation, cut-outs', false);
+    wire(2, 3, 'time', 'timestamped attitude quaternions (via OBC)', false, -12);
+    svg.append('text').attr('class','lbl xs').attr('x', 490).attr('y', 432).attr('text-anchor','middle').text('dashed yellow = power · blue = data · dotted teal = timing · grey = thermal / mechanical');
+  })();
+  (function(){
+    const rows = []; COMPONENTS.forEach(c => c.interfaces.forEach(i => { const t = COMPONENTS.find(x => x.id === i.to); if (t && grpOf(c) !== grpOf(t)) rows.push({ from: c, to: t, i }); }));
+    const tn = IFACE_TYPES;
+    $('icd-table').tBodies[0].innerHTML = rows.map(r => `<tr><td><a href="payload_explorer.html#${r.from.id}">${esc(r.from.name)}</a></td><td><a href="payload_explorer.html#${r.to.id}">${esc(r.to.name)}</a></td><td><span class="tag" style="background:color-mix(in srgb, ${tn[r.i.type].color} 25%, transparent)">${tn[r.i.type].name}</span></td><td class="spec">${esc(r.i.label)}</td></tr>`).join('');
+  })();
+
+  // ---------- ΔV table + calculator
+  const ALLOC = [
+    { k: 'Formation keeping (3 yr)', v: B.prop.dvFormationMs, basis: '150 km along-track, ±20 km cross-track, 5 km (1σ) control; HawkEye published ≈ 35/29/5 m/s of 100 m/s over 3 yr' },
+    { k: 'Drag make-up', v: B.prop.dvDragMs, basis: '5–20 m/s per year at 450–550 km depending on solar activity and area-to-mass; 530 km, ~2.5 m² deployed, 5 yr' },
+    { k: 'Controlled lowering for disposal', v: B.prop.dvDisposalMs, basis: 'Lower perigee to ≤ 350 km so natural decay completes within 5 years of end of mission (FCC rule, ESA Zero Debris)' },
+    { k: 'Margin, collision avoidance, phasing', v: B.prop.dvTotalMs - B.prop.dvFormationMs - B.prop.dvDragMs - B.prop.dvDisposalMs, basis: 'Conjunction avoidance in the 500–600 km shell (T-19); initial plane phasing after rideshare' },
+  ];
+  $('dv-table').tBodies[0].innerHTML = ALLOC.map(a => `<tr><td>${a.k}</td><td class="num">${a.v}</td><td class="spec">${a.basis}</td></tr>`).join('') + `<tr><td><b>Total</b></td><td class="num"><b>${B.prop.dvTotalMs}</b></td><td class="spec">${B.prop.type}; 26 kN·s at ~150 kg</td></tr>`;
+  function dv() {
+    const isp = +$('dv-isp').value, I = +$('dv-imp').value*1e3, m0 = +$('dv-m').value, F = +$('dv-f').value*1e-3, duty = +$('dv-duty').value/100, g0 = 9.80665;
+    const mp = I/(isp*g0), dvTot = isp*g0*Math.log(m0/(m0-mp));
+    const alloc = ALLOC.slice(0,3).reduce((a,x)=>a+x.v,0), marg = dvTot - alloc;
+    $('dv-mp').textContent = mp.toFixed(2) + ' kg'; $('dv-tot').textContent = dvTot.toFixed(0) + ' m/s';
+    const me = $('dv-marg'); me.textContent = (marg >= 0 ? '+' : '') + marg.toFixed(0) + ' m/s'; me.className = 'v ' + (marg >= 15 ? 'good' : marg >= 0 ? 'warn' : 'bad');
+    const burn = I/F; $('dv-burn').textContent = (burn/86400).toFixed(0) + ' days thrusting';
+    const tDisp = m0*50/F; $('dv-disp').textContent = (tDisp/86400/duty).toFixed(0) + ' days at ' + Math.round(duty*100) + '% duty';
+    $('dv-acc').textContent = (F/m0*1e6).toFixed(1) + ' µm/s²';
+    const cols = ['var(--band-s)','var(--band-l)','var(--band-x)','var(--surface-3)'];
+    const bar = $('dv-bar'); bar.innerHTML = ''; const scale = Math.max(dvTot, alloc);
+    ALLOC.slice(0,3).forEach((a,i) => { const d = document.createElement('div'); d.style.width = (a.v/scale*100)+'%'; d.style.background = cols[i]; d.textContent = `${a.k.split(' (')[0]} ${a.v}`; d.title = a.k; bar.append(d); });
+    const d = document.createElement('div'); d.style.width = (Math.max(0,marg)/scale*100)+'%'; d.style.background = cols[3]; d.textContent = marg > 0 ? `margin ${marg.toFixed(0)}` : ''; bar.append(d);
+  }
+  bindRange('dv-isp', dv, v=>v); bindRange('dv-imp', dv, v=>v); bindRange('dv-m', dv, v=>v); bindRange('dv-f', dv, v=>v.toFixed(1)); bindRange('dv-duty', dv, v=>v);
+
+  // ---------- ADCS calculator
+  function adcs() {
+    const alt = +$('ad-alt').value, dI = +$('ad-di').value, th = +$('ad-th').value*Math.PI/180, A = +$('ad-a').value, off = +$('ad-off').value, D = +$('ad-d').value, H = +$('ad-h').value, tq = +$('ad-tq').value*1e-3, slew = +$('ad-slew').value*Math.PI/180;
+    const R = (ORB.RE + alt)*1e3, mu = ORB.MU*1e9, v = Math.sqrt(mu/R), P = 2*Math.PI*Math.sqrt(R**3/mu);
+    const rho = 2e-13*Math.exp(-(alt-530)/65); // kg/m3, exponential fit around 530 km (est.)
+    const Tg = 1.5*mu/R**3*dI*Math.abs(Math.sin(2*th));
+    const Ta = 0.5*rho*2.2*A*v*v*off;
+    const Ts = 1367/3e8*A*1.6*off;
+    const Bf = 2*3.0e-5*(ORB.RE*1e3/R)**3; const Tm = D*Bf;
+    const tot = Tg+Ta+Ts+Tm, Hper = tot*P;
+    $('ad-tot').textContent = (tot*1e6).toFixed(1) + ' µN·m';
+    $('ad-mom').textContent = (Hper*1e3).toFixed(0) + ' mN·m·s';
+    const sat = H/Hper; const se = $('ad-sat'); se.textContent = sat.toFixed(1) + ' orbits'; se.className = 'v ' + (sat >= 3 ? 'good' : sat >= 1 ? 'warn' : 'bad');
+    const I = 20; const hBang = Math.sqrt(slew*I*tq); const hUse = Math.min(hBang, 0.7*H); // keep 30% of wheel capacity in reserve
+    const wmax = hUse/I, tRamp = hUse/tq, t = hUse >= hBang ? 2*tRamp : 2*tRamp + (slew - wmax*tRamp)/wmax;
+    $('ad-st').innerHTML = t.toFixed(0) + ' s <small>at ' + (wmax*180/Math.PI).toFixed(2) + '°/s</small>';
+    const he = $('ad-sh'); he.textContent = (hUse*1e3).toFixed(0) + ' mN·m·s' + (hUse < hBang ? ' (rate-limited)' : ' (time-optimal)'); he.className = 'v ' + (hUse <= 0.7*H ? 'good' : 'warn');
+    const wrap = $('ad-chart-wrap'); wrap.innerHTML = '<div id="ad-chart"></div>';
+    Charts.bar($('ad-chart'), { title: 'Disturbance torques (µN·m, worst-case orientation)', unit: 'µN·m', horizontal: true, height: 170, format: v => v.toFixed(2), data: [ { label: 'Gravity gradient', value: Tg*1e6 }, { label: 'Aerodynamic', value: Ta*1e6, note: `ρ ≈ ${rho.toExponential(1)} kg/m³ (est.)` }, { label: 'Solar pressure', value: Ts*1e6 }, { label: 'Residual magnetic dipole', value: Tm*1e6, note: `B ≈ ${(Bf*1e6).toFixed(0)} µT` } ] });
+  }
+  ['ad-alt','ad-di','ad-th','ad-d','ad-h','ad-tq','ad-slew'].forEach(id => bindRange(id, adcs, v => v));
+  bindRange('ad-a', adcs, v => v.toFixed(1)); bindRange('ad-off', adcs, v => v.toFixed(2));
+
+  renderRefs(['R3-1','R3-2','R3-20','R3-21','R3-22','R5-16','R5-17','R5-27','R5-28']);
+})();
+</script>
+</body>
+</html>

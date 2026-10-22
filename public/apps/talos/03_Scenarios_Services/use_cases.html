@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Use cases — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .uc { margin: 1.2rem 0; }
+  .uc .head { display: flex; flex-wrap: wrap; gap: 0.5rem 0.8rem; align-items: center; margin-bottom: 0.5rem; }
+  .uc .head h3 { margin: 0; font-size: 1.1rem; }
+  .uc .emit { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.4rem 0 0.6rem; font-family: var(--font-ui); font-size: 0.8rem; }
+  .uc .emit a { display: inline-flex; flex-wrap: wrap; max-width: 100%; align-items: center; gap: 0.3rem; border: 1px solid var(--line-strong); border-radius: 999px; padding: 0.1rem 0.6rem 0.1rem 0.3rem; color: var(--ink); background: var(--surface-2); }
+  .uc .emit a:hover { border-color: var(--accent); }
+  .uc .emit .v { font-size: 0.68rem; padding: 0 0.35rem; border-radius: 3px; font-weight: 600; text-transform: lowercase; }
+  .uc .emit .v.yes { background: color-mix(in srgb, var(--ok) 18%, transparent); color: var(--ok); }
+  .uc .emit .v.marginal { background: color-mix(in srgb, var(--warn) 30%, transparent); color: #9a6700; }
+  .uc .emit .v.no { background: color-mix(in srgb, var(--critical) 18%, transparent); color: var(--critical); }
+  .uc .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem 1.2rem; font-size: 0.92rem; }
+  .uc .cols div b { font-family: var(--font-ui); font-size: 0.78rem; color: var(--ink-3); display: block; margin-bottom: 0.15rem; text-transform: none; }
+  .uc .limit { border-left: 3px solid var(--warn); padding-left: 0.7rem; font-size: 0.9rem; color: var(--ink-2); margin-top: 0.6rem; }
+  .uc .cust { font-family: var(--font-ui); font-size: 0.8rem; color: var(--ink-2); }
+  @media (max-width: 640px) { .uc .cols { grid-template-columns: 1fr; } }
+  .mx { font-family: var(--font-ui); font-size: 0.78rem; }
+  .mx td { text-align: center; }
+  .mx td.n { text-align: left; }
+  .mx .cap { display: inline-flex; gap: 2px; }
+  .mx .cap i { font-style: normal; width: 17px; height: 17px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; background: var(--surface-3); color: var(--ink-faint); }
+  .mx .cap i.on { color: #fff; }
+  .mx .cap i.P.on { background: var(--band-uhf); } .mx .cap i.G.on { background: var(--band-l); } .mx .cap i.T.on { background: var(--band-s); } .mx .cap i.A.on { background: var(--band-x); }
+  .mx .cap i.half { opacity: 0.55; }
+  .scn h3 { margin-top: 2rem; }
+  .scn .grid-s { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem; margin: 0.8rem 0; }
+  .scn .grid-s .card h4 { margin: 0 0 0.3rem; font-size: 0.92rem; font-family: var(--font-ui); color: var(--ink-3); font-weight: 600; }
+  .scn .grid-s .card p, .scn .grid-s .card ul { margin: 0; font-size: 0.92rem; }
+  .scn .grid-s .card ul { padding-left: 1.1rem; }
+  @media (max-width: 760px) { .scn .grid-s { grid-template-columns: 1fr; } }
+  .filters { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0.8rem 0; font-family: var(--font-ui); font-size: 0.82rem; }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>03 Scenarios &amp; services</b> · Use cases</div>
+    <h1>Use cases</h1>
+    <p class="lead">Fourteen use cases, each tied to the emitter classes it depends on, the detectability verdict of those emitters from 530 km, the constellation stage at which it becomes sellable, the customers who have paid for it elsewhere, and one documented real-world example. The matrix shows what each stage can promise; the regional scenarios show how the same satellite serves the Aegean, the Black Sea, the Red Sea, the Central Mediterranean and a Greek satellite operator — and which other ISR asset it cues.</p>
+    <div class="meta"><span>Data: USECASES, EMITTERS (assets/data)</span><span>Sources: research notes 01, 03, 04</span></div>
+  </header>
+
+  <h2>How to read the verdicts</h2>
+  <p>Every use case is only as good as the weakest emitter it relies on. The chips under each card come from <code>EMITTERS</code> and carry the detectability verdict derived in the payload note for the TALOS baseline antennas and receiver (5–10 dBi at UHF/L, 15–25 dBi at S/C/X, 2.5 dB noise figure, 1,000–1,500 km slant range): <span class="tag ok">yes</span> means a comfortable link budget, <span class="tag warn">marginal</span> means detection depends on dwell, integration or a cue, and <span class="tag critical">no</span> means below the thermal floor for any aperture that fits a 150 kg bus. Click a chip to open the emitter's entry in the <a href="../02_Technical_Understanding/emitters.html">target emitters page</a>. Three verdicts shape the whole portfolio: consumer drone links and 10 mW personal GNSS jammers are <em>not</em> detectable from LEO, and C/X-band VSAT sidelobes are marginal without the reflector option — so TALOS sells "UAS activity" (ground control stations, military links), "GNSS interference" (≥10–100 W jammers) and "uplink interference hunting" (with cueing and long dwell), and never claims more (research 03 §1 takeaways).</p>
+  <p>The <em>stage</em> on each card is the first stage at which the product is credible enough to charge for: Stage 1 (one satellite, 2030) sells monitoring and presence; Stage 2 (3-satellite cluster, 2032) sells geolocation with confidence ellipses; Stage 3 (three clusters, 2034) sells tracks, pattern-of-life and alerts; Stage 4 (12–24 satellites, 2036) sells persistence and latency SLAs. The mapping follows the service-tier logic of the use-case research (04 §6.3) and is consistent with how HawkEye 360 and Kleos staged their own offers <sup class="ref"><a href="#ref-R4-13">[R4-13]</a></sup><sup class="ref"><a href="#ref-R4-8">[R4-8]</a></sup>.</p>
+
+  <h2>Use case × constellation stage</h2>
+  <p>P = presence/intensity map per pass, G = geolocation with ellipse, T = tracks over passes, A = alerts (rule-based or pattern-of-life). Faded letters mean a degraded or conditional form (e.g. coarse single-satellite fixes on persistent emitters at Stage 1, or alerts with hours of latency). Latency per stage: hours (1–2), within hours and NRT with complements (3), minutes with inter-satellite links (4).</p>
+  <div class="table-wrap"><table class="compact mx" id="matrix">
+    <thead><tr><th>Use case</th><th>Stage 1 · 1 sat</th><th>Stage 2 · 3-sat cluster</th><th>Stage 3 · 9 sats</th><th>Stage 4 · 12–24 sats</th><th>First sellable</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+
+  <h2>The use cases</h2>
+  <div class="filters">
+    <span>Filter by stage:</span>
+    <div class="seg" id="stage-filter"><button aria-pressed="true" data-s="0">All</button><button data-s="1">Stage 1</button><button data-s="2">Stage 2</button><button data-s="3">Stage 3</button></div>
+    <span id="uc-count"></span>
+  </div>
+  <div id="uc-list"></div>
+
+  <h2>Regional scenarios</h2>
+  <p>The five scenarios below are the operational core of the business case. Each is written for the same spacecraft and the same reference orbit, and each says explicitly what one satellite sees on a single pass, what the three-satellite cluster adds, which RF indicators precede kinetic action, and which other ISR asset the RF product cues. They are scenarios, not reports: the emitter placements are representative, the documented events they rest on are cited.</p>
+
+  <figure class="diagram">
+    <svg id="scn-map" viewBox="0 0 1000 640" role="img" aria-label="Schematic map of the Aegean and Eastern Mediterranean with representative emitters by band and the TALOS footprint"></svg>
+    <figcaption>Schematic (not a real map) of the Aegean / Eastern Mediterranean scenario: land in grey, representative emitters coloured by band (UHF violet, L blue, S aqua, C yellow, X orange) and shaped by type (triangle = radar, circle = communications, diamond = jammer, ring = AEW&amp;C orbit, square = SATCOM/VSAT uplink). The satellite is shown at the sub-satellite point of the highest pass of the reference day (see the CONOPS pass table) with the Stage-2 cluster strung 150 km apart along the ground track; the solid circle is the prime-geometry zone (elevation ≥ 30°, slant range under ~900 km) and the dashed circle the 15° elevation limit where only radars, jammers and other strong emitters remain worth collecting. Hover the symbols.</figcaption>
+  </figure>
+
+  <div class="scn" id="scenarios"></div>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/emitters.js"></script>
+<script src="../assets/data/programmatics.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  const E = id => EMITTERS.find(e => e.id === id);
+  const ref = ids => ids.map(id => `<sup class="ref"><a href="#ref-${id}">[${id}]</a></sup>`).join('');
+  // per-use-case editorial content (stage deliverables, limitation, citations, matrix)
+  const X = {
+    'gnss-interference': { refs: ['R4-6','R4-5','R4-19','R4-16','R4-17'], mx: { s1: 'P a', s2: 'P G a', s3: 'P G T A', s4: 'P G T A' },
+      s1: 'Per-pass presence and intensity map of L1/E1 and L5/E5 interference over standing AOIs (Black Sea west, Aegean, Levant, Gulf); jammer-on/off events per pass; coarse Doppler/AOA fixes (5–20 km) on strong continuous jammers; spectral-shape classification (chirp vs noise vs CW); demonstration data for the EUSPA RFI (Part A) and EDF SIGMA-class projects.',
+      s2: 'Jammer and spoofer positions with 95% ellipses on every cluster pass (km-class, matching HawkEye\'s GNSS-I claim); jamming-vs-spoofing discrimination; terrain-adjusted fixes; daily alert feed; AOI subscriptions for aviation regulators and maritime platforms; Stage 3 adds hourly-cadence alerts and a 7-day hotspot ranking comparable to EASA\'s FIR table.',
+      limit: 'Only jammers above roughly 10 W are visible; the 10 mW personal devices that dominate road-side jamming are below the floor from any LEO aperture, so TALOS maps military-grade and criminal-grade interference, not every event an ADS-B map shows.' },
+    'dark-vessel': { refs: ['R4-7','R4-10','R4-14'], mx: { s1: 'P', s2: 'P G a', s3: 'P G T A', s4: 'P G T A' },
+      s1: 'X/S-band navigation-radar presence maps per pass over EEZ and chokepoint AOIs; counts of radar emitters vs AIS targets in the same footprint as an "unexplained radar" index; multi-pass fixes on anchored or loitering vessels (ships are quasi-static over minutes, which is why Unseenlabs sells single-satellite maritime geolocation).',
+      s2: 'Radar geolocations with ellipses of hundreds of metres on every pass, matched to AIS by MMSI within ±60 min; dark-vessel candidates exported as GeoJSON and cued to SAR (ICEYE Hellas) following the HawkEye–Airbus Galápagos template; Stage 3 adds tracks and loitering/rendezvous alerts.',
+      limit: 'A vessel with its radar off and its satphone silent is invisible to RF; the product is a correlation layer that raises the probability of catching dark vessels, not a guarantee of detection.' },
+    'naval': { refs: ['R1-49','R1-53','R3-16'], mx: { s1: 'P', s2: 'P G a', s3: 'P G T A', s4: 'P G T A' },
+      s1: 'Detection and parametric characterisation (frequency, PRI, pulse width, scan period, agility pattern) of naval surveillance and fire-control radars through their sidelobes from any elevation; radar presence per class and per AOI per pass; catalogue seeding of S/X-band fingerprints for the national EW database; multi-pass fixes on ships at anchor.',
+      s2: 'Order-of-battle picture with ship-class attribution from radar fingerprints and TDOA/FDOA fixes (100–500 m planning figure for wideband radars); illuminator-activation and radar-mode-change alerts; Stage 3 adds task-group tracks over days and STANAG 4676 export to NATO MARCOM.',
+      limit: 'Emission control defeats the product: a task group running silent is a non-detection, and TALOS reports it as such; the counter-measure is correlation with SAR, AIS gaps and known transit timing, not a sensitivity claim.' },
+    'aewc': { refs: ['R3-17'], mx: { s1: 'P a', s2: 'P G T a', s3: 'P G T A', s4: 'P G T A' },
+      s1: 'AEW&C radar activity by type and band (L-band MESA, S-band APY/Erieye class) per pass, with coarse orbit area from Doppler/AOA on the strong sidelobe signal; IFF interrogator activity; Link-16 net activity (slotted pulses need pulse integration); orbit-time and orbit-area statistics seeded into the catalogue.',
+      s2: 'Orbit-track geolocation of the AEW platform (a moving emitter: short snapshots, cluster TDOA/FDOA) with an aircraft-class ellipse; AEW orbit-change alerts; Stage 3 adds daily AEW activity patterns per sector and correlation with Hellenic Air Force passive sensors and ADS-B.',
+      limit: 'The mainlobe of an AEW radar saturates the receiver (dynamic range, not sensitivity, is the driver), so parametric measurements come from sidelobes and short gated snapshots; aircraft speed limits integration time and therefore accuracy.' },
+    'air-defence': { refs: ['R4-22','R4-28'], mx: { s1: 'P a', s2: 'P G a', s3: 'P G T A', s4: 'P G T A' },
+      s1: 'Detection, classification and multi-pass geolocation (1–5 km after several passes) of relocatable SAM radars and associated jammers via sidelobes; radar-on/off calendar per site; parametric drift history — the classic ELINT catalogue entry; a day-one product because radars are never SNR-limited.',
+      s2: 'Site fixes with ellipses of hundreds of metres from a single cluster pass; relocation detection; mode-change alerts (acquisition → tracking modes); Stage 3 adds activity baselines per site and alerting that supports SEAD planning and NATO CAOC situational awareness.',
+      limit: 'Low-probability-of-intercept modes and EMCON limit collection; detection proves presence and activity, not readiness, and attribution to a specific battery needs the classified annex.' },
+    'force-posture': { refs: ['R4-14','R4-6','R4-17'], mx: { s1: 'P', s2: 'P G a', s3: 'P G T A', s4: 'P G T A' },
+      s1: 'Catalogue seeding and baseline building: per-cell, per-class, per-hour-of-week activity histograms for UHF PTT, UHF SATCOM, jammers, GNSS interference and military UAS ground stations over training areas and staging regions; single-pass snapshots cannot yet separate anomaly from sampling noise.',
+      s2: 'Geolocated activity cells; Stage 3 is where the product exists: z-score anomalies against a rolling baseline with streak confirmation, "new emitter in a quiet area" and "surge in PTT density" alerts, cross-class co-occurrence (jammer + PTT surge + GNSS interference), and cueing of EO/SAR exactly as RF tipped imagery in the Galwan Valley case.',
+      limit: 'A pattern-of-life product needs weeks of consistent revisit to build its baseline; at Stage 1 the honest offer is baseline collection, and the first anomaly alerts arrive after the cluster has flown for a season.' },
+    'uas': { refs: ['R4-30'], mx: { s1: 'P', s2: 'P G a', s3: 'P G T A', s4: 'P G T A' },
+      s1: 'Activity maps of military and mil-COTS UAS control links (433/868/915 MHz, 1.2–1.3 GHz, 2.4 GHz OFDM) with ground-control-station emphasis: GCS antennas point at low elevation towards the aircraft and the satellite sees upper lobes; detection per pass, class of link, duty pattern.',
+      s2: 'GCS geolocation with ellipses (narrowband links benefit from FDOA); airborne-unit fixes when the link is strong enough; Stage 3 adds GCS site tracks and launch-activity alerts for border agencies and MoDs.',
+      limit: 'Consumer links (DJI OcuSync class at 26–33 dBm EIRP) are 9–16 dB below the floor even at nadir; any TALOS claim about "drones" means ground control stations, military-class links or aggregate activity, never individual consumer aircraft.' },
+    'tactical-comms': { refs: ['R4-30','R4-9','R3-3'], mx: { s1: 'P', s2: 'P G a', s3: 'P G T A', s4: 'P G T A' },
+      s1: 'Externals-only activity maps of tactical VHF/UHF, UHF SATCOM and L-band satphone traffic: channel occupancy, burst statistics, net activity by cell and hour; coarse Doppler/AOA fixes on long transmissions; frequency-hopping net recognition from hop statistics. No content: voice transcription of the Spire type is a state-mandate product that TALOS does not offer commercially.',
+      s2: 'Burst geolocation with ellipses (25 kHz channel, 100 ms snapshot: ≈1–5 km planning figure, better with FDOA); net-to-site association; Stage 3 adds activity baselines and surge alerts over training areas and staging zones.',
+      limit: 'Push-to-talk is bursty: the satellite must be overhead during the burst, so a single satellite samples each cell for 5–10 minutes a few times a day and the maps are statistical, not exhaustive; 5 W handhelds at long range sit near the floor.' },
+    'border': { refs: ['R4-30','R4-38'], mx: { s1: 'P', s2: 'P G a', s3: 'P G T a', s4: 'P G T A' },
+      s1: 'Satphone (L-MSS) and small-vessel navigation-radar presence per pass over the Central Mediterranean, the Aegean approaches and the Evros corridor; TETRA/PMR activity statistics along land borders; feed to EUROSUR as a maritime situational-awareness layer like the HawkEye–Frontex pilot.',
+      s2: 'Satphone and radar fixes with ellipses, matched to Coast Guard and Frontex aircraft tracks; cueing of patrol assets; Stage 3 adds route and departure-pattern analytics along the Libyan and Tunisian coasts.',
+      limit: 'Low-power handhelds at sea are at the edge of detectability from 500 km; the realistic signals are satphones, small-vessel radars and smuggler PMR base stations, not every VHF handheld.' },
+    'satops-interference': { refs: ['R4-31','R4-34','R4-35'], mx: { s1: 'P a', s2: 'P G a', s3: 'P G T A', s4: 'P G T A' },
+      s1: 'Tasked dwell on the operator\'s uplink band (C-band 5.85–6.725 GHz, Ku via the LNB chain, X-band mil-SATCOM) over the suspected area; detection of the interfering carrier\'s externals (frequency, bandwidth, burst timing such as the 1.9 s / 1.5 kHz NOAA DCS case); multi-pass Doppler fixes on a fixed terminal.',
+      s2: 'Cluster TDOA/FDOA fixes on the uplink sidelobes, with the reflector option or a cue from the operator\'s own geolocation (satID/Monics class) to close the link budget; Stage 3 adds standing interference watches over teleport regions.',
+      limit: 'VSAT sidelobes give ≈0 dB SNR with the 15 dBi baseline aperture, so this product needs the 0.7 m reflector growth option, long dwell or a prior cue — it is sold as a tasked investigation, not a continuous survey.' },
+    'spectrum': { refs: ['R4-14','R1-36'], mx: { s1: 'P', s2: 'P G', s3: 'P G T', s4: 'P G T A' },
+      s1: 'Occupancy maps by band and cell per pass (cellular, TETRA, broadcast, radar bands) for EETT and ITU-R style enforcement and for MNO planning; also the calibration bed for the payload (known base stations as references for gain, timing and AOA calibration).',
+      s2: 'Transmitter fixes for unlicensed or out-of-area emitters; Stage 3 adds occupancy trends and change detection; low margin alone (the Aurora Insight lesson) but a cheap by-product of every pass.',
+      limit: 'Dense urban clutter raises the noise floor and masks weaker emitters in the same band; occupancy is measured from 500 km with a footprint-sized beam, not with the spatial resolution of a terrestrial monitoring van.' },
+    'aviation': { refs: ['R4-18','R4-5'], mx: { s1: 'P a', s2: 'P G a', s3: 'P G T A', s4: 'P G T A' },
+      s1: 'Interference intensity along air routes and around FIR boundaries per pass, complementing ADS-B-derived degradation maps (EASA, gpsjam) which show the effect on receivers but not the source; presence alerts to ANSPs with hours of latency.',
+      s2: 'Source geolocation (km-class) for FIR-level reporting to EASA and EUROCONTROL; spoofing vs jamming discrimination; Stage 3 adds hourly updates and a ranked hotspot list; Stage 4 approaches the near-real-time alerting airlines ask for.',
+      limit: 'Terrain-masked and low-power sources that disrupt aircraft at altitude may be invisible from LEO when their EIRP toward the zenith is small; the service locates the strong, persistent sources that account for most reported events.' },
+    'maritime': { refs: ['R4-10','R4-8'], mx: { s1: 'P', s2: 'P G a', s3: 'P G T A', s4: 'P G T A' },
+      s1: 'Radar presence maps of shipping lanes and anchorages per pass; satphone activity; multi-pass fixes on anchored vessels; counts against AIS density as a data-quality indicator for EMSA and coast guards.',
+      s2: 'Per-pass vessel radar fixes (sub-kilometre class for strong X-band radars) and MMSI matching; Stage 3 adds tracks, rendezvous and loitering detection; the Kleos Guardian LOCATE and Unseenlabs product lines are the templates.',
+      limit: 'Modern solid-state low-peak-power navigation radars (FMCW) are the hardest class and may need de-chirp processing and long integration; detection rates by radar type must be measured in commissioning, not assumed.' },
+    'air-activity': { refs: [], mx: { s1: 'P', s2: 'P G a', s3: 'P G T A', s4: 'P G T A' },
+      s1: 'IFF/SSR interrogator activity (1030 MHz) and transponder density (1090 MHz, as space-based ADS-B has proven from LEO), Link-16 net activity per cell and hour; a day-one by-product of the L-band channel.',
+      s2: 'Interrogator site fixes and Link-16 terminal fixes when geometry and dwell allow; Stage 3 adds exercise and surge detection from net-activity baselines.',
+      limit: 'Mode 4/5 and Link-16 are encrypted: the product is activity and location, never message content; airborne terminals move fast, so single-pass fixes on aircraft are coarse.' },
+  };
+
+  // ---------- matrix ----------
+  const mtb = document.querySelector('#matrix tbody');
+  function capCell(code) {
+    const parts = code.split(' ');
+    return '<span class="cap">' + ['P','G','T','A'].map(L => {
+      const on = parts.includes(L), half = parts.includes(L.toLowerCase());
+      return `<i class="${L} ${on || half ? 'on' : ''} ${half ? 'half' : ''}" title="${{P:'presence/intensity map',G:'geolocation with ellipse',T:'tracks over passes',A:'alerts'}[L]}${half ? ' (degraded / conditional)' : ''}">${L}</i>`;
+    }).join('') + '</span>';
+  }
+  USECASES.forEach(u => {
+    const x = X[u.id]; const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="n"><a href="#uc-${u.id}">${u.name}</a></td><td>${capCell(x.mx.s1)}</td><td>${capCell(x.mx.s2)}</td><td>${capCell(x.mx.s3)}</td><td>${capCell(x.mx.s4)}</td><td><span class="tag ${u.stage === 1 ? 'ok' : u.stage === 2 ? 'accent' : 'warn'}">Stage ${u.stage}</span></td>`;
+    mtb.append(tr);
+  });
+
+  // ---------- cards ----------
+  const list = document.getElementById('uc-list');
+  function render(stage) {
+    list.innerHTML = ''; let n = 0;
+    USECASES.forEach(u => {
+      if (stage && u.stage !== stage) return; n++;
+      const x = X[u.id];
+      const chips = u.emitters.map(id => { const e = E(id); if (!e) return ''; return `<a href="../02_Technical_Understanding/emitters.html#${id}" data-tip="${e.note.replace(/"/g, '&quot;')}">${e.bands.map(b => `<span class="band-chip ${b}">${b.toUpperCase()}</span>`).join('')}${e.name.split(' (')[0]} <span class="v ${e.verdict}">${e.verdict}</span></a>`; }).join('');
+      const worst = u.emitters.map(id => E(id)).filter(Boolean).map(e => e.verdict);
+      const worstTag = worst.includes('no') ? '<span class="tag critical">contains undetectable class</span>' : worst.includes('marginal') ? '<span class="tag warn">marginal emitter in scope</span>' : '<span class="tag ok">all emitters detectable</span>';
+      const d = document.createElement('div'); d.className = 'card uc'; d.id = 'uc-' + u.id;
+      d.innerHTML = `<div class="head"><h3>${u.name}</h3><span class="tag ${u.stage === 1 ? 'ok' : u.stage === 2 ? 'accent' : 'warn'}">sellable from Stage ${u.stage}</span>${worstTag}</div>
+        <div class="emit">${chips}</div>
+        <p style="margin:.3rem 0 .6rem"><b style="font-family:var(--font-ui);font-size:.78rem;color:var(--ink-3)">Documented example.</b> ${u.example} ${ref(x.refs)}</p>
+        <div class="cols"><div><b>Stage 1 — one satellite delivers</b>${x.s1}</div><div><b>Stage 2+ — the cluster adds</b>${x.s2}</div></div>
+        <div class="limit"><b style="font-family:var(--font-ui);font-size:.78rem">Limitation.</b> ${x.limit}</div>
+        <p class="cust" style="margin:.6rem 0 0"><b>Why it matters:</b> ${u.why} &nbsp;·&nbsp; <b>Customers:</b> ${u.customers.join(', ')}</p>`;
+      list.append(d);
+    });
+    document.getElementById('uc-count').textContent = n + ' of ' + USECASES.length + ' use cases';
+  }
+  render(0);
+  document.querySelectorAll('#stage-filter button').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('#stage-filter button').forEach(o => o.setAttribute('aria-pressed', 'false')); b.setAttribute('aria-pressed', 'true'); render(+b.dataset.s); }));
+
+  // ---------- regional scenarios ----------
+  const SCN = [
+    { title: 'Eastern Mediterranean & Aegean — naval and air activity', refs: ['R4-25','R1-49','R1-53','R3-16'],
+      emit: 'Naval surveillance radars (S/X, e.g. SPY-1 and Fregat classes), fire-control illuminators (X/Ku), coastal surveillance radars (X), AEW&C radars (L/S), IFF interrogators and Link-16 (L), UHF tactical and UHF SATCOM, L-band satphones on auxiliaries, EW jammers.',
+      single: 'On a high pass such as pass 3 or 7 of the reference day (max elevation 42° and 69°, closest range under 800 km) one satellite collects the full S/X radar picture of the Aegean, the Ionian and the Levant in one footprint: every rotating surveillance radar is characterised (frequency, PRI, PW, scan period) from its sidelobes, coastal radars are fixed to a few km by Doppler/AOA because they do not move, and ships at anchor are fixed over 2–3 passes. Comms activity (UHF PTT, Link-16 nets, IFF interrogation) is mapped per cell. On the grazing passes only the radars and jammers are collected.',
+      cluster: 'The 3-satellite cluster turns each radar burst into a position with a 100–500 m ellipse and each PTT burst into a 1–5 km ellipse, so a task group is placed on the chart on every pass and its composition inferred from the mix of radar fingerprints; illuminator activation is time-stamped and located; AEW orbits are geolocated as moving tracks. Stage 3 adds the morning/evening gap fill and multi-day task-group tracks exported as STANAG 4676.',
+      indicators: ['Activation of fire-control illuminators or a switch of surveillance radars from navigation to tracking modes', 'Appearance of a jammer (EW class) or GNSS interference along a transit corridor', 'Surge in UHF PTT and UHF SATCOM activity at a naval base or staging port, outside the hour-of-week baseline', 'AEW&C orbit moved forward or a second orbit opened; IFF interrogation density rising in a sector', 'Coastal surveillance radars switching to continuous operation at night'],
+      cues: 'ICEYE Hellas SAR for ship identification and counting inside the RF ellipse; Open Cosmos optical microsats in daylight; Hellenic Navy maritime patrol aircraft and the Air Force\'s ground passive sensors for closer characterisation; NATO MARCOM via STANAG 4676 tracks.' },
+    { title: 'Black Sea — GNSS interference and electronic warfare', refs: ['R4-6','R4-18','R4-20','R4-5','R4-17'],
+      emit: 'GNSS jammers and spoofers (L1/E1, L5/E5; chirp, CW and noise, 10 W to kW class), communications and radar jammers (R-330Zh, Krasukha-class, 100 MHz–18 GHz), air-defence radars, naval radars, military UAS ground stations (433/868/915 MHz), UHF/VHF tactical radios.',
+      single: 'The western Black Sea is in view on five of the seven reference-day passes (elevations 16–63° from the Black Sea W point), so one satellite produces several interference-intensity snapshots a day of the L1/E1 and L5/E5 bands over the Romanian–Bulgarian–Ukrainian coast and the shipping lanes to Odesa. Strong continuous jammers are coarse-fixed by Doppler and refined over passes; EW jammers are trivially detected and classified by spectral shape; air-defence radars are catalogued. This is the product HawkEye 360 demonstrated as a leading indicator before February 2022, and the EASA FIR rankings (Bucharest, Sofia among the top five) show the civil demand.',
+      cluster: 'Per-pass jammer and spoofer positions with km-class ellipses, jamming-vs-spoofing discrimination, and terrain-adjusted fixes; a daily GNSS-RFI product that answers the EUSPA RFI\'s questions on update rate and time-to-localise-and-notify. Independent CYGNSS results suggest the step from one to three satellites cuts median detection latency from hours to under an hour for hotspot-class interference.',
+      indicators: ['New jammer activation near ports, airfields or bridges that were quiet in the baseline', 'Spoofing (coherent false constellation) replacing noise jamming along a corridor', 'EW jammers switching from intermittent to continuous operation; new air-defence radar sites', 'Rise in UAS ground-station activity along the coast before launch waves', 'GNSS interference extending over international shipping lanes and FIR boundaries (the aviation and insurance trigger)'],
+      cues: 'EASA / EUROCONTROL and ANSPs (NOTAM-grade reporting), maritime platforms (Windward-class AOI alerts), national MoDs and NATO for EW order-of-battle, SAR tasking on new radar or jammer sites.' },
+    { title: 'Red Sea & Gulf — threats to shipping', refs: ['R4-20','R4-19','R4-10'],
+      emit: 'Maritime navigation radars (X/S) on merchant vessels and small craft, coastal surveillance radars, GNSS jammers (Gulf episodes lasting more than a day), military UAS ground stations and C2 links, L-band satphones, VHF/UHF radios on small boats, naval radars of escort forces.',
+      single: 'The Red Sea and the Gulf are at the southern and eastern edge of the 53° plane\'s best coverage, visible on a subset of orbits; each pass yields a radar-presence map of Bab el-Mandeb or the Strait of Hormuz, an interference intensity map (the Royal Institute of Navigation survey reports more than 80% of respondents affected in the Gulf), and satphone activity cells over anchorages. Downlink waits for the KSAT Dubai station, which keeps the standard tier under ~2 h.',
+      cluster: 'Vessel radar fixes correlated with AIS to expose spoofed or jammed AIS positions (Windward counted 171,000 distinct vessels affected in one quarter), located GNSS jammers for insurers and operators, geolocated UAS ground stations and small-craft radio activity near launch areas, and escort-force radar order of battle for navies.',
+      indicators: ['GNSS jammer activation over an anchorage or strait entrance', 'Surge of UAS ground-station links and VHF/UHF activity on a coastline facing a shipping lane', 'Coastal surveillance radars switching to continuous mode; new X-band radar sites', 'Small-craft radar clusters forming and moving towards the lane at night', 'Escort naval radars changing modes or illuminators activating'],
+      cues: 'EMSA-style maritime platforms and P&I clubs (route advice), naval escorts (EU operations), SAR tasking on radar clusters, satellite-operator and ANSP notification for GNSS interference.' },
+    { title: 'Libya & Central Mediterranean — migration and smuggling', refs: ['R4-30','R4-38','R3-6'],
+      emit: 'L-band satphones (Thuraya/Iridium/Inmarsat handsets) on small vessels, small-craft X-band navigation radars, VHF/UHF handhelds and PMR base stations, TETRA on shore, coastal radars, occasional GNSS jammers and military UAS ground stations along the coast.',
+      single: 'Pass 1 and pass 3 of the reference day see the Central Mediterranean at 35° and 21°; one satellite produces satphone activity cells and radar presence across the Sicily–Libya–Tunisia triangle per pass and multi-pass fixes on fixed PMR/TETRA base stations used by smuggling networks on shore. Frontex already bought this kind of layer from HawkEye 360 (≈EUR 1.5 M in 2019) and feeds EUROSUR with Copernicus-based services; TALOS offers the same layer from an EU-sourced system.',
+      cluster: 'Satphone burst geolocation with few-km ellipses, small-vessel radar fixes, and correlation with Coast Guard and Frontex aircraft tracks; departure-pattern analytics per coastal segment at Stage 3; cueing of patrol assets within hours rather than days.',
+      indicators: ['Satphone activity cells appearing at departure beaches at night', 'PMR/TETRA base-station activity surges on shore before departures', 'Small-craft radar clusters in open water without AIS', 'GNSS interference or UAS activity near the coast (militia-related, a separate risk layer)'],
+      cues: 'Frontex EUROSUR Fusion Services, Hellenic and Italian Coast Guards, EMSA RPAS and CleanSeaNet-style services, SAR and optical tasking for rescue coordination.' },
+    { title: 'Satellite-operator uplink interference — a Hellas Sat-class operator', refs: ['R4-31','R4-34','R4-35'],
+      emit: 'C-band (5.85–6.725 GHz) and Ku-band VSAT uplinks (sidelobes), X-band mil-SATCOM terminals, lost or misconfigured transmitters (the NOAA DCS case: 1.9 s bursts in a 1.5 kHz channel), unlicensed carriers, occasionally deliberate uplink jamming.',
+      single: 'The operator reports a persistent carrier on a transponder with an approximate footprint-level location from its own tools (Kratos satID/Monics-class geolocation needs a second affected satellite and often fails for single-satellite cases). TALOS tasks a reserved dwell on the uplink band over the suspected region on every pass; with the reflector option or long integration the satellite detects the carrier\'s externals and refines the position pass by pass by Doppler for a fixed terminal — the NOAA GOES hunt took repeated collections to isolate a 1.5 kHz emitter among co-channel neighbours.',
+      cluster: 'Cluster FDOA (very effective for narrowband carriers) fixes the terminal to the km class on a single pass once SNR is adequate; a standing watch over teleport regions becomes an interference-monitoring subscription for the operator and for EETT.',
+      indicators: ['Not a kinetic scenario: the indicators are service ones — a new carrier appearing in a slot, burst timing matching a lost transmitter, a terminal relocating'],
+      cues: 'The operator\'s own carrier-monitoring system, EETT enforcement, the terminal owner (for a cooperative resolution), and TALOS\'s own re-tasking loop.' },
+  ];
+  const sc = document.getElementById('scenarios');
+  SCN.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.innerHTML = `<h3>${s.title}</h3>
+      <p><b style="font-family:var(--font-ui);font-size:.78rem;color:var(--ink-3)">Emitters involved.</b> ${s.emit} ${ref(s.refs)}</p>
+      <div class="grid-s">
+        <div class="card"><h4>What a single satellite sees per pass</h4><p>${s.single}</p></div>
+        <div class="card"><h4>What the cluster adds</h4><p>${s.cluster}</p></div>
+        <div class="card"><h4>Indicators that precede kinetic action</h4><ul>${s.indicators.map(x => '<li>' + x + '</li>').join('')}</ul></div>
+        <div class="card"><h4>Which other ISR asset is cued</h4><p>${s.cues}</p></div>
+      </div>`;
+    sc.append(d);
+  });
+
+  // ---------- schematic map ----------
+  (function map() {
+    const svg = d3.select('#scn-map'); const W = 1000, H = 640;
+    const px = (lon, lat) => [(lon - 18) / 20 * W, (45 - lat) / 15 * H];
+    const land = [
+      { n: 'Balkans', pts: [[18,45],[28,45],[28.3,43.6],[27.9,42.3],[26,42],[23,42],[19.5,42],[18,43]] },
+      { n: 'Greece', pts: [[19.5,42],[23,42],[24.5,41],[26,41.3],[26.5,40.6],[24,40.4],[23.5,39.5],[23,39],[24,38.2],[23.5,37.5],[22.5,36.5],[21.5,36.8],[21,38],[20.5,39.5],[19.5,40.5]] },
+      { n: 'Anatolia', pts: [[26,42],[27.9,42.3],[29,41.3],[31,41.5],[36,42],[38,42],[38,36.5],[36,36.2],[33,36.2],[30.5,36.3],[28,36.8],[27,37.5],[26.5,38.5],[26.2,39.5],[26.5,40.5]] },
+      { n: 'Levant', pts: [[34.6,31.3],[35.9,33.5],[35.8,35.8],[36,36.2],[38,36.5],[38,32.5],[36.2,32.2]] },
+      { n: 'Crete', pts: [[23.5,35.3],[26.3,35.3],[26.2,35.0],[24.5,34.9],[23.5,35.1]] },
+      { n: 'Cyprus', pts: [[32.3,35.0],[34.6,35.6],[34.0,34.9],[33.0,34.6],[32.3,34.7]] },
+      { n: 'North Africa', pts: [[18,33],[20,32.3],[22,32.8],[25,31.8],[29,31],[32,31.2],[34.6,31.3],[36.2,32.2],[38,32.5],[38,30],[18,30]] },
+    ];
+    svg.append('rect').attr('width', W).attr('height', H).attr('fill', 'var(--surface)');
+    land.forEach(l => svg.append('path').attr('d', 'M' + l.pts.map(p => px(p[0], p[1]).join(',')).join('L') + 'Z').attr('fill', 'var(--surface-3)').attr('stroke', 'var(--line-strong)').attr('stroke-linejoin', 'round'));
+    const lab = (lon, lat, t, cls = 'lbl s') => { const [x, y] = px(lon, lat); svg.append('text').attr('x', x).attr('y', y).attr('text-anchor', 'middle').attr('class', cls).text(t); };
+    lab(21.5, 40.5, 'GREECE'); lab(32, 39.5, 'ANATOLIA'); lab(24.8, 35.15, 'Crete', 'lbl xs'); lab(33.4, 35.1, 'Cyprus', 'lbl xs'); lab(26, 31.2, 'LIBYA · EGYPT'); lab(32, 44, 'BLACK SEA'); lab(20, 36.5, 'Ionian Sea', 'lbl xs'); lab(25.2, 37.2, 'Aegean', 'lbl xs'); lab(31, 33.2, 'Eastern Mediterranean', 'lbl xs'); lab(23, 42.6, 'BULGARIA'); lab(37, 34.6, 'Levant', 'lbl xs');
+    // ground track of pass 3 (reference day) and footprint
+    const B = BASELINE, epoch = new Date('2031-03-18T00:00:00Z');
+    const orb = ORB.makeOrbit({ alt: B.orbit.altKm, inc: B.orbit.incDeg, raan: 40, ta: 0, epoch });
+    const ps = ORB.passes(orb, 38, 25, 0, epoch, 86400, 5, 10); const p3 = ps.reduce((a, b) => b.maxEl > a.maxEl ? b : a, ps[0]); const pIdx = ps.indexOf(p3) + 1;
+    const track = ORB.groundTrack(orb, new Date(p3.tca.getTime() - 300000), 600, 10).filter(p => p[0] > 17 && p[0] < 39 && p[1] > 29.5 && p[1] < 45.5);
+    svg.append('path').attr('d', 'M' + track.map(p => px(p[0], p[1]).join(',')).join('L')).attr('class', 'wire').attr('stroke-dasharray', '6 4');
+    const sub = ORB.stateEcef(orb, p3.tca); const [sx, sy] = px(sub.lon, sub.lat);
+    const kmPerPx = 111 * 15 / H; // along latitude
+    const r30 = ORB.footprintRadiusKm(B.orbit.altKm, 30) / kmPerPx, r15 = ORB.footprintRadiusKm(B.orbit.altKm, 15) / kmPerPx;
+    svg.append('circle').attr('cx', sx).attr('cy', sy).attr('r', r15).attr('fill', 'none').attr('stroke', 'var(--accent)').attr('stroke-dasharray', '4 4').attr('opacity', 0.7);
+    svg.append('circle').attr('cx', sx).attr('cy', sy).attr('r', r30).attr('fill', 'var(--accent)').attr('fill-opacity', 0.06).attr('stroke', 'var(--accent)');
+    // cluster: three dots along the track 150 km apart
+    const dAng = 150 / (6371 + B.orbit.altKm);
+    [-1, 0, 1].forEach(k => { const st = ORB.stateEcef(orb, new Date(p3.tca.getTime() + k * dAng / orb.uDot * 1000)); const [x, y] = px(st.lon, st.lat); svg.append('circle').attr('cx', x).attr('cy', y).attr('r', k ? 4 : 6).attr('fill', 'var(--accent)').attr('stroke', 'var(--surface)').attr('stroke-width', 1.5); });
+    svg.append('text').attr('x', sx + 10).attr('y', sy - 8).attr('class', 'lbl s').text('TALOS cluster (pass ' + pIdx + ', TCA ' + p3.tca.toISOString().slice(11, 16) + ' UTC)');
+    svg.append('text').attr('x', sx + r30 * 0.72).attr('y', sy + r30 * 0.72).attr('class', 'lbl xs').text('el ≥ 30°');
+    svg.append('text').attr('x', sx + r15 * 0.72).attr('y', sy + r15 * 0.72).attr('class', 'lbl xs').text('el ≥ 15°');
+    // emitters
+    const SYM = {
+      radar: (g, c) => g.append('path').attr('d', 'M0,-8 L7,5 L-7,5 Z').attr('fill', c),
+      comms: (g, c) => g.append('circle').attr('r', 5.5).attr('fill', c),
+      jam: (g, c) => g.append('path').attr('d', 'M0,-8 L8,0 L0,8 L-8,0 Z').attr('fill', c),
+      aew: (g, c) => { g.append('circle').attr('r', 6).attr('fill', 'none').attr('stroke', c).attr('stroke-width', 2.5); g.append('circle').attr('r', 2).attr('fill', c); },
+      sat: (g, c) => g.append('rect').attr('x', -6).attr('y', -6).attr('width', 12).attr('height', 12).attr('fill', c),
+    };
+    const EM = [
+      { t: 'radar', b: 's', lon: 25.6, lat: 38.4, n: 'Naval surveillance radar (S), task group' }, { t: 'radar', b: 'x', lon: 25.9, lat: 38.2, n: 'Fire-control illuminator (X) — same group' },
+      { t: 'radar', b: 's', lon: 33.3, lat: 34.0, n: 'Naval surveillance radar (S), Levant' }, { t: 'radar', b: 'x', lon: 24.9, lat: 34.3, n: 'Naval radar (X), south of Crete' },
+      { t: 'radar', b: 'x', lon: 26.9, lat: 38.4, n: 'Coastal surveillance radar (X)' }, { t: 'radar', b: 'x', lon: 28.0, lat: 36.4, n: 'Coastal surveillance radar (X), Rhodes area' }, { t: 'radar', b: 'x', lon: 29.9, lat: 36.6, n: 'Coastal surveillance radar (X), Anatolian coast' },
+      { t: 'radar', b: 'c', lon: 30.2, lat: 40.0, n: 'Ground-based air-defence radar (C/S)' }, { t: 'radar', b: 's', lon: 23.0, lat: 40.6, n: 'Ground-based air-defence radar (S)' },
+      { t: 'aew', b: 's', lon: 28.4, lat: 39.4, n: 'AEW&C orbit (S-band radar)' }, { t: 'aew', b: 'l', lon: 24.9, lat: 40.2, n: 'AEW&C orbit (L-band MESA class)' },
+      { t: 'comms', b: 'l', lon: 24.8, lat: 35.9, n: 'Link-16 net (L), north of Crete' }, { t: 'comms', b: 'l', lon: 27.3, lat: 38.9, n: 'IFF interrogator (L)' },
+      { t: 'comms', b: 'uhf', lon: 26.3, lat: 41.2, n: 'UHF tactical PTT cell, Evros' }, { t: 'comms', b: 'uhf', lon: 26.4, lat: 39.2, n: 'UHF PTT / UHF SATCOM, Lesbos' }, { t: 'comms', b: 'uhf', lon: 20.6, lat: 32.6, n: 'Military UAS ground station (UHF/L), Libyan coast' },
+      { t: 'comms', b: 'l', lon: 19.6, lat: 34.4, n: 'L-band satphone bursts, small vessels' }, { t: 'comms', b: 'l', lon: 21.5, lat: 33.4, n: 'L-band satphone bursts, Central Med' },
+      { t: 'jam', b: 'l', lon: 29.6, lat: 44.2, n: 'GNSS jammer (L1/L5), western Black Sea' }, { t: 'jam', b: 'l', lon: 35.9, lat: 35.4, n: 'GNSS jammer / spoofer (L), Levant coast' }, { t: 'jam', b: 's', lon: 31.0, lat: 44.5, n: 'EW / communications jammer (wideband)' },
+      { t: 'sat', b: 'c', lon: 23.9, lat: 38.05, n: 'C-band VSAT / teleport uplink (sidelobes)' }, { t: 'sat', b: 'x', lon: 33.0, lat: 34.9, n: 'X-band mil-SATCOM uplink, Cyprus' },
+    ];
+    EM.forEach(e => { const [x, y] = px(e.lon, e.lat); const g = svg.append('g').attr('transform', `translate(${x},${y})`).style('cursor', 'default'); SYM[e.t](g, `var(--band-${e.b})`); g.append('title').text(e.n); g.on('mousemove', ev => showTip(e.n, ev.clientX, ev.clientY)).on('mouseleave', () => hideTip()); });
+    // AEW orbit ellipses
+    [[28.4, 39.4], [24.9, 40.2]].forEach(([lo, la]) => { const [x, y] = px(lo, la); svg.append('ellipse').attr('cx', x).attr('cy', y).attr('rx', 34).attr('ry', 12).attr('fill', 'none').attr('stroke', 'var(--ink-3)').attr('stroke-dasharray', '3 3'); });
+    // legend
+    const lg = svg.append('g').attr('transform', 'translate(20, 560)');
+    lg.append('rect').attr('x', -8).attr('y', -16).attr('width', 600).attr('height', 88).attr('rx', 6).attr('fill', 'var(--surface)').attr('stroke', 'var(--line)');
+    const items = [['radar', 'Radar (surveillance / fire-control / air defence)'], ['comms', 'Communications / data link / IFF'], ['jam', 'GNSS or EW jammer'], ['aew', 'AEW&C orbit'], ['sat', 'SATCOM / VSAT uplink']];
+    items.forEach((it, i) => { const g = lg.append('g').attr('transform', `translate(${[4, 300, 470, 4, 130][i]}, ${i < 3 ? 0 : 24})`); SYM[it[0]](g, 'var(--ink-3)'); g.append('text').attr('x', 14).attr('y', 4).attr('class', 'lbl xs').text(it[1]); });
+    const bands = ['uhf', 'l', 's', 'c', 'x'];
+    bands.forEach((b, i) => { const g = lg.append('g').attr('transform', `translate(${i * 70 + 4}, 50)`); g.append('rect').attr('x', -6).attr('y', -6).attr('width', 12).attr('height', 12).attr('rx', 2).attr('fill', `var(--band-${b})`); g.append('text').attr('x', 12).attr('y', 4).attr('class', 'lbl xs').text(b.toUpperCase() + '-band'); });
+    const g2 = lg.append('g').attr('transform', 'translate(380, 50)'); g2.append('circle').attr('r', 5).attr('fill', 'var(--accent)'); g2.append('text').attr('x', 12).attr('y', 4).attr('class', 'lbl xs').text('TALOS satellites / footprint');
+  })();
+
+  function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  const all = new Set(['R4-13','R4-8']); Object.values(X).forEach(x => x.refs.forEach(r => all.add(r))); SCN.forEach(s => s.refs.forEach(r => all.add(r)));
+  renderRefs([...all].sort((a, b) => { const [fa, na] = a.split('-'), [fb, nb] = b.split('-'); return fa === fb ? +na.slice(0) - +nb : fa.localeCompare(fb); }).map(x => x));
+})();
+</script>
+</body>
+</html>

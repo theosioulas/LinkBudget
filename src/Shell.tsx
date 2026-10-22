@@ -1,0 +1,83 @@
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { AccountDialog } from './ui/AccountDialog';
+
+// Only the open tab is mounted: leaving a tab unmounts it, which stops its simulation loop.
+const Simulator = lazy(() => import('./Simulator'));
+
+type TabId = 'home' | 'link-budget' | 'talos' | 'lyra3';
+
+interface AppInfo { id: Exclude<TabId, 'home'>; label: string; title: string; text: string; src?: string }
+
+const APPS: AppInfo[] = [
+  {
+    id: 'link-budget', label: 'Link budget', title: 'Multi-orbit link budget simulator',
+    text: 'LEO, MEO and GEO constellations on a 3D globe: beams, terminals, handovers and ITU-R propagation, with a full link budget for every pass.',
+  },
+  {
+    id: 'lyra3', label: 'LYRA-3 simulator', title: 'LYRA-3 SIGINT mission simulator', src: 'apps/lyra3/index.html',
+    text: 'Three-satellite TDOA/FDOA geolocation cluster: operations picture, formation, payload RF, geolocation, planning and spacecraft budgets, plus the 100–150 kg baseline study (link chain, scaling, flight hardware, suppliers).',
+  },
+  {
+    id: 'talos', label: 'TALOS study', title: 'TALOS SIGINT constellation study', src: 'apps/talos/index.html',
+    text: 'Feasibility and engineering study for a 100–150 kg passive-RF microsatellite: research landscape, technical understanding, scenarios and services, service demo and orbit study.',
+  },
+];
+
+const TABS: { id: TabId; label: string }[] = [{ id: 'home', label: 'Home' }, ...APPS.map(({ id, label }) => ({ id, label }))];
+
+// Tabs live in the hash as #/<tab>; any other hash (e.g. a Supabase sign-in link) means home.
+const tabFromHash = (): TabId => {
+  const m = /^#\/([\w-]+)/.exec(location.hash);
+  return (TABS.find((t) => t.id === m?.[1])?.id) ?? 'home';
+};
+
+function Home() {
+  return (
+    <div className="home">
+      <div className="home-inner">
+        <h1>RF Eye</h1>
+        <p className="dim">Satellite link and SIGINT tools. Pick one to open it; nothing runs until you do.</p>
+        <div className="home-cards">
+          {APPS.map((a) => (
+            <a key={a.id} className="home-card glass" href={`#/${a.id}`}>
+              <div className="home-card-title">{a.title}</div>
+              <div className="dim">{a.text}</div>
+              <span className="home-card-go">Open →</span>
+            </a>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Loading() {
+  return <div className="shell-loading dim">Loading the simulator…</div>;
+}
+
+export default function Shell() {
+  const [tab, setTab] = useState<TabId>(tabFromHash);
+  useEffect(() => {
+    const onHash = () => setTab(tabFromHash());
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  const app = APPS.find((a) => a.id === tab);
+
+  return (
+    <div className="shell">
+      <nav className="shell-tabs" role="tablist" aria-label="Apps">
+        {TABS.map((t) => (
+          <a key={t.id} role="tab" aria-selected={t.id === tab} href={`#/${t.id}`} className={t.id === tab ? 'on' : undefined}>{t.label}</a>
+        ))}
+        {app?.src && <a className="shell-pop" href={app.src} target="_blank" rel="noopener">Open in new tab ↗</a>}
+      </nav>
+      <div className="shell-body">
+        {tab === 'home' && <Home />}
+        {tab === 'link-budget' && <Suspense fallback={<Loading />}><Simulator /></Suspense>}
+        {app?.src && <iframe key={app.id} className="shell-frame" src={app.src} title={app.title} />}
+      </div>
+      <AccountDialog />
+    </div>
+  );
+}

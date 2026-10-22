@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Supplier catalogue — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .filters { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 0.8rem 1rem; align-items: end; }
+  .filters label { display: block; font-family: var(--font-ui); font-size: 0.78rem; color: var(--ink-3); margin-bottom: 0.25rem; }
+  .filters input[type=search], .filters select { width: 100%; font: inherit; font-family: var(--font-ui); font-size: 0.88rem; padding: 0.4rem 0.6rem; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--ink); }
+  .filters .checks { display: flex; gap: 1rem; font-family: var(--font-ui); font-size: 0.84rem; align-items: center; padding-bottom: 0.3rem; }
+  .filters .checks label { display: inline-flex; gap: 0.35rem; align-items: center; margin: 0; color: var(--ink-2); font-size: 0.84rem; }
+  .catchips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.8rem; }
+  .catchips button { font-family: var(--font-ui); font-size: 0.76rem; padding: 0.2rem 0.55rem; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2); cursor: pointer; }
+  .catchips button[aria-pressed=true] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; margin: 1rem 0; }
+  .result-count { font-family: var(--font-ui); font-size: 0.82rem; color: var(--ink-3); margin: 0.6rem 0 0.2rem; }
+  .cat-wrap { max-height: 72vh; overflow-y: auto; }
+  #catTable { min-width: 1500px; table-layout: fixed; }
+  #catTable td { font-size: 0.8rem; overflow-wrap: anywhere; }
+  #catTable td.sup { font-weight: 600; }
+  #catTable td .cat { display: inline-block; font-size: 0.7rem; background: var(--surface-3); border-radius: 3px; padding: 0 0.35em; margin-right: 0.3em; font-weight: 600; color: var(--ink-2); }
+  #catTable tr.itar td.sup::after { content: " ITAR"; font-size: 0.68rem; color: var(--critical); font-weight: 600; }
+  #catTable a { word-break: break-all; }
+  .basel { margin: 1rem 0 1.6rem; }
+  .basel .n { font-family: var(--font-ui); font-size: 0.78rem; color: var(--ink-3); }
+  .bom td.num { white-space: nowrap; }
+  @media (max-width: 900px) { .filters { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>01 Research &amp; landscape</b> · Supplier catalogue</div>
+    <h1>Supplier catalogue</h1>
+    <p class="lead">Every subsystem of a 150 kg passive-RF satellite can be bought from a European supplier with LEO flight heritage, with the single exception of the high-speed digitiser, where the choice is between US EAR-controlled RFSoC silicon and a Teledyne e2v ADC plus a rad-tolerant FPGA. This page is the working catalogue behind that statement: <span id="nItems">—</span> products in fourteen categories (A–N), filterable by category, region, ITAR exposure and TRL, followed by what TALOS baselines in each category and why, and by the procurement realities — lead times, long poles, the ITAR-free architecture and bill-of-materials cost ranges.</p>
+    <div class="meta"><span>Data: SUPPLIERS (suppliers.js), LONG_LEAD, COST_ELEMENTS</span><span>Source: research note 02 (compiled 21 Oct 2026; prices indicative, unverified unless stated)</span></div>
+  </header>
+
+  <h2>Catalogue</h2>
+  <p>Prices are indicative and public-domain only: "price unverified" means a figure from secondary sources or community knowledge, not a vendor quote; "on request" means the vendor does not publish. Export columns name the regime: ITAR (US Munitions List), EAR (US Commerce Control List, typically 9A515 or 3A001), EU DU (Regulation 2021/821 Annex I). Wideband receivers, direction-finding systems and high-rate ADCs are frequently controlled under EU DU 3A001/5A001 and EAR 3A001 regardless of vendor nationality, so every line item needs its own check. The TRL and heritage column reproduces the manufacturer-supplied data tabulated by NASA's <em>State-of-the-Art of Small Spacecraft Technology</em> 2025/2026 where that was the source, which NASA does not independently verify<sup class="ref" data-r="R2-x62"></sup><sup class="ref" data-r="R2-x63"></sup>.</p>
+  <div class="panel">
+    <div class="filters">
+      <div><label for="q">Free-text search (supplier, product, specs, heritage, export)</label><input type="search" id="q" placeholder="e.g. RFSoC, star tracker, Nemea, 5A001, Anywaves"></div>
+      <div><label for="region">Region</label><select id="region"><option value="">All regions</option><option value="EU">EU (incl. Greece)</option><option value="UK">UK</option><option value="US">US (incl. US-controlled)</option><option value="Other">Other (CA, ZA, IL, NO, CH, …)</option></select></div>
+      <div><label for="trl">Minimum TRL</label><select id="trl"><option value="0">Any</option><option value="8">TRL ≥ 8</option><option value="9">TRL 9 only</option></select></div>
+      <div class="checks"><label><input type="checkbox" id="itarfree"> ITAR-free only</label><label><input type="checkbox" id="priced"> with price indication</label></div>
+    </div>
+    <div class="catchips" id="catchips"></div>
+    <div class="result-count" id="count"></div>
+  </div>
+  <div class="summary" id="summary"></div>
+  <div class="table-wrap cat-wrap"><table id="catTable" class="compact">
+    <colgroup><col style="width:3.5%"><col style="width:11%"><col style="width:5%"><col style="width:13%"><col style="width:25%"><col style="width:13%"><col style="width:12%"><col style="width:11%"><col style="width:6.5%"></colgroup>
+    <thead><tr><th data-sort="str">Cat.</th><th data-sort="str">Supplier</th><th data-sort="str">Country</th><th>Product</th><th>Key specs</th><th data-sort="num">Heritage / TRL</th><th>Price / lead time</th><th>Export note</th><th>Source</th></tr></thead>
+    <tbody></tbody></table></div>
+
+  <h2>Supply base at a glance</h2>
+  <div class="grid c2">
+    <div class="card"><div id="catCount"></div></div>
+    <div class="card"><div id="regionShare"></div><p class="muted" id="regionNote" style="font-family:var(--font-ui);font-size:0.78rem;margin:0.4rem 0 0"></p></div>
+  </div>
+
+  <h2>What TALOS baselines in each category, and why</h2>
+  <p>The catalogue is only useful once it is turned into decisions. Each paragraph below states the TALOS baseline for the category, the alternatives kept open, and the reason, cross-referenced to the baseline data (<code>BASELINE</code>) so that a change to the baseline is visible here.</p>
+
+  <h3 id="cat-A">A · Bus: ESPA-class, European, bought configured</h3>
+  <div class="basel"><p>The payload needs ≥40 kg and ≥150 W orbit-average, an X-band downlink ≥500 Mbps and ~0.05° pointing for the directional antennas. The shortlist with real ESPA-class heritage and no ITAR exposure is <b>Kongsberg NanoAvionics MP42H</b> (TRL 9; three MP42H N3X maritime-surveillance satellites for Kongsberg Defence flew in 2025; payload nominally 35 kg so a stretched variant must be negotiated, and the Gen-2 MP42 line now reaches 150 kg launch mass with 40–50 kg payload), <b>Aerospacelab Versatile Satellite Platform</b> (150 kg class, in-house X-band radios, RF-trio heritage), <b>OHB-LuxSpace Triton-X</b> (40–250 kg, ESA ARTES-supported, flight status to verify) and <b>BST LEOS-100</b> (up to 2 kW, Kleos scouting heritage via ISISPACE/BST)<sup class="ref" data-r="R2-x64"></sup><sup class="ref" data-r="R2-x66"></sup><sup class="ref" data-r="R2-x67"></sup><sup class="ref" data-r="R2-x68"></sup><sup class="ref" data-r="R5-16"></sup>. EnduroSat's microsat platform is the price-aggressive wildcard once its first flights are confirmed. US buses (Blue Canyon Saturn, York S-Class, Apex Aries) carry more payload and power out of the box but put ITAR into a SIGINT programme<sup class="ref" data-r="R2-x71"></sup><sup class="ref" data-r="R2-x72"></sup>. <b>Baseline:</b> buy a configured European bus at fixed price with RF-quietness, timing-interface and 0.05° pointing requirements in the specification; frame agreement covering pathfinder, demonstrator and cluster options. Indicative €3–7 M recurring, first unit +30–60 % (est.)<sup class="ref" data-r="R5-17"></sup>. The 6U–30 kg precedents (Kleos on ISISPACE/BST, HawkEye on SFL, Unseenlabs on GomSpace) prove a 100–150 kg bus is generous for a first unit; the TALOS core closes at ≈87 kg dry + 20 % margin, leaving room for the reflector and a second RFSoC.</p></div>
+
+  <h3 id="cat-B">B · Antennas: no single product covers 0.3–12 GHz</h3>
+  <div class="basel"><p>The suite is assembled: 2× <b>UHF deployable helices</b> (Oxford Space Systems class, >4 dBi, <1.2 kg each; or Anywaves QFH), 2× <b>wideband circularly-polarised survey antennas</b> 0.3–4 GHz (Anywaves Compact Wideband, <3 dBi hemispherical, flew on Pandore Mar 2025, ITAR-free), a <b>4-element sinuous DF interferometer</b> on a 1.2 m cross-boom (1–12 GHz, custom: Vivaldi/sinuous elements give >1:10 bandwidth; development contract €0.3–1.5 M with Greek universities and an EU antenna house), <b>S-band 4×4 and X-band 8×8 patch arrays</b> (EnduroSat 4×4 16 dBi 53 g, Anteral 8×8 22 dBi 500 g), and as growth option a <b>0.7 m deployable reflector</b> (OSS Wrapped-Rib or Tendeg mesh, 20–35 dBi L→X; £0.5–1.5 M, 12–18 months)<sup class="ref" data-r="R2-x75"></sup><sup class="ref" data-r="R2-x76"></sup><sup class="ref" data-r="R2-x62"></sup>. <b>Why:</b> survey channels need hemispherical gain and ≥100 % fractional bandwidth; X-band radar detection needs 15–22 dBi of aperture; single-satellite AOA needs a ≥1 m baseline. The deployable items are the long pole and the primary deployment risk (T-01); heritage mechanisms and body-mounted fallbacks are specified.</p></div>
+
+  <h3 id="cat-C">C · RF front-end: EU chain, EAR-only die</h3>
+  <div class="basel"><p>Limiter → switched preselect filter bank → LNA → tunable or block downconverter → ADC, built from <b>Erzia</b> (ES; hermetic LNAs, NewSpace COTS line €1–5 k), <b>TTI Norte</b> (ES; Galileo/Sentinel heritage LNAs and converters), <b>Low Noise Factory</b> (SE; NF 0.3–1 dB at L/S/C), <b>Filtronic</b> (UK) and <b>Exxelia/Temex</b> (FR) filters, with Qorvo CMD-series or ADI die as the only US content (EAR 3A001/9A515, not ITAR)<sup class="ref" data-r="R2-x78"></sup><sup class="ref" data-r="R2-x77"></sup>. Target noise figure 2.5 dB system (BASELINE), 10–20 krad TID behind 2–3 mm Al; GaAs/GaN MMICs are inherently tolerant so COTS plus ECSS-Q-ST-60-13-style screening suffices. The custom items are the switched preselectors and hot-standby LNAs for jamming/lightning survivability.</p></div>
+
+  <h3 id="cat-D">D · Digitiser: the architectural fork</h3>
+  <div class="basel"><p>Two routes. <b>(a) RFSoC</b>: Xiphos Q8RF (Zynq UltraScale+ ZU28DR, 8 RX, 12-bit 4.096 GSPS, RF input to 4 GHz, 20–30 W, 200 g; Q8/Q8J heritage on 24 HawkEye 360 satellites, Q8RF heritage to verify; $50–150 k, 6–9 months) or a <b>custom board on ZU47DR/ZU48DR</b> (Gen-3, 14-bit 5 GSPS, 6 GHz RF input) — 8 channels × ≥2 GHz instantaneous bandwidth direct-RF to 6 GHz, with S/C/X via block downconverters; US EAR 3A001.a.5 for the ADC rates, licensable to Greece with end-use statements<sup class="ref" data-r="R2-x82"></sup><sup class="ref" data-r="R2-x84"></sup>. <b>(b) Teledyne e2v EV12AQ600 + Microchip PolarFire RT</b>: space-qualified 12-bit 6 GSPS quad ADC (150 krad, QML-Y, €5–15 k, 20–40 weeks, EU DU 3A001.a.5) with a 100-krad SEL-immune FPGA — more rad-tolerant and EU-sourced for the ADC, but far more custom design and no on-chip RF ADC<sup class="ref" data-r="R2-x79"></sup>. <b>Baseline:</b> dual-path — a 4-channel comms tuner path (200 MHz IBW, 70 MHz–6 GHz, 16-bit, Alén TOTEM/GomSpace/EnduroSat SDR class heritage) plus the 8 × 2 GHz RFSoC radar path at 14-bit 5 GSPS (BASELINE.payload.channels), with a rad-tolerant supervisor so the RFSoC is the only COTS part and the supervisor the only long-lead one. Specification floor: ≥1 GHz IBW per channel, 12-bit, ≥60 dB SFDR; expect 40–80 W for digitiser plus FPGA, which drives the EPS. The AMD XQR Versal space-grade parts (Class B flying, Class Y flight units 2H 2027, $50–150 k) are the 2030s upgrade path for on-board ML<sup class="ref" data-r="R2-x80"></sup><sup class="ref" data-r="R2-x81"></sup>. Edge-AI co-processors (Unibap iX10, Ubotica CogniSAT, KP Labs Leopard) are EU options for the ML co-processor slot.</p></div>
+
+  <h3 id="cat-E">E · Timing and GNSS: ≤20 ns without an ISL</h3>
+  <div class="basel"><p>TDOA across satellites needs 10–50 ns inter-satellite alignment and ~1e-11 frequency stability over the collection interval. <b>Baseline:</b> a GNSS-disciplined OCXO (Rakon/AXTAL space OCXO, 1e-12 at 1 s class) steered by 1-PPS, with a <b>CSAC</b> (Microchip space CSAC SA.65 announced 15 Sept 2026, ≥30 krad, <120 mW; or Safran mRO-50 Rb, 3e-11 at 1 s) for holdover, and a <b>payload GNSS receiver with raw observables</b> (Septentrio mosaic-class, €0.8–3 k plus screening; Beyond Gravity PODRIX for institutional grade) so that common-view time transfer can be post-processed on the ground to nanosecond level with no extra hardware; hardware timestamping at the ADC. Two-way time transfer over the S-band ISL is added in the cluster phase. Dual-string costs <€40 k<sup class="ref" data-r="R2-x87"></sup><sup class="ref" data-r="R2-x88"></sup><sup class="ref" data-r="R2-x89"></sup>. Export note: rubidium standards fall under EU DU 3A002.g and CSACs may be caught; space GNSS may fall under 7A005 — plan the intra-EU formalities.</p></div>
+
+  <h3 id="cat-F">F · Downlink, TT&amp;C and ISL: fully European</h3>
+  <div class="basel"><p><b>Baseline:</b> X-band 1 Gbit/s (BASELINE.comms) from <b>Syrlinks EWC27</b> (≤1.4 Gbps, 235 g, TRL 9, ~€80–150 k, 9–12 months) with N-XONOS (≤4 Gbps) or EnduroSat X-band SDR TX (≤6 Gbps) as upgrades; <b>Syrlinks EWC31</b> S-band CCSDS TT&amp;C; <b>S-band ISL</b> at 100 kbps–1 Mbps in the cluster phase for time transfer and cueing; optical direct-to-Earth (Tesat SCOT20, AAC CubeCat 1 Gbps flown 2023, Astrolight ATLAS) as a growth path<sup class="ref" data-r="R2-x91"></sup><sup class="ref" data-r="R2-x93"></sup>. The 8025–8400 MHz EESS downlink requires the ITU filing; the passive payload emits nothing, which simplifies licensing relative to SAR or comms missions. A 7-minute pass at 1 Gbps moves ~50 GB; four passes a day ≈ 200 GB/day, well above the 30 GB/day baseline data volume, which is why on-board detection and snippet downlink is the design rather than raw IQ streaming.</p></div>
+
+  <h3 id="cat-G">G · ADCS: 0.05° from EU parts</h3>
+  <div class="basel"><p><b>Baseline:</b> 2× <b>Arcsec Sagitta</b> star trackers (2 arcsec cross-boresight, 270 g, ~€40–70 k; Sodern Auriga as alternative), 4× 0.5 N·m·s wheels from <b>Vectronic</b> or <b>Hyperion</b> (EU, 6–9 months), <b>Sensonor STIM300</b> IMU (NO, 0.3°/h), magnetorquers (NewSpace Systems/ISISPACE)<sup class="ref" data-r="R2-x95"></sup>. 0.05° pointing is set by the 0.7 m X-band reflector option (~3° HPBW) and the X-band downlink antenna; US wheels and star trackers (BCT, Rocket Lab) are 12+ months and ITAR/EAR. Budget €250–450 k for the set; normally procured through the bus vendor's frame contract.</p></div>
+
+  <h3 id="cat-H">H · Power: 620 W BOL array, 420 Wh battery</h3>
+  <div class="basel"><p>Payload 124 W collecting (136 W with options), bus 60 W, X-band TX 45 W, thruster 110 W in thrust mode (BASELINE.power) → deployed wings of ~1.9 m² with <b>Azur Space 3G30/4G32</b> cells (30–32 %) on <b>DHV Technology</b> wings (€100–400 k for a 1 kW class, 6–10 months), <b>Saft VES16</b> or <b>EnerSys ABSL</b> 18650 battery (€30–150 k, 9–12 months), bus-integrated 28 V PCDU with a separately filtered payload PCDU for EMC (T-02)<sup class="ref" data-r="R2-x62"></sup>. MMA Design arrays are the performance benchmark but EAR 9A515. The RFSoC's 20–30 W in a compact volume needs a dedicated conductive path and radiator; thermal design is coupled to the EPS choice.</p></div>
+
+  <h3 id="cat-I">I · Propulsion: FEEP for ≈235 m/s (26 kN·s at ~110 kg)</h3>
+  <div class="basel"><p>Needs: plane phasing 10–50 m/s per manoeuvre, drag make-up 5–20 m/s/yr at 450–550 km, collision avoidance, and 5-year disposal (20–60 m/s from 550 km). <b>Baseline: ENPULSION MICRO R³</b> (indium FEEP, 0.5–1 mN, Isp 2,700–3,600 s, 26 kN·s → ~170 m/s at 150 kg, 110 W nominal, 3.95 kg wet, TRL 9 with >300 ENPULSION thrusters in orbit, ~€150–300 k, 6–9 months)<sup class="ref" data-r="R2-x97"></sup>. Alternatives: <b>Exotrail spaceware-micro</b> Hall (faster phasing, 60–200 W, xenon), <b>ThrustMe NPT30-I2</b> iodine ion, <b>Dawn Aerospace B20</b> green bi-prop for impulsive manoeuvres with no power penalty<sup class="ref" data-r="R2-x98"></sup><sup class="ref" data-r="R2-x99"></sup>. The FEEP's 110 W thrust-arc demand is covered by thrusting sunlit-side only with the payload in standby (BASELINE.power.modes.thrust). Propulsion is not needed for the first satellite's core mission but is mandatory for cluster phasing and the disposal rule, and the thruster must be fixed at SRR because of 12–18 month lead times.</p></div>
+
+  <h3 id="cat-J">J · Computing and flight software</h3>
+  <div class="basel"><p>The payload processor is the RFSoC itself (Q8RF or custom board) with a rad-tolerant supervisor; the bus OBC comes with the bus. Flight software on <b>F´ (F Prime) or NASA cFS</b> (Apache-2.0, no export issue) with GNU Radio-derived DSP blocks compiled to the FPGA; <b>Frontgrade Gaisler GR740/GR765</b> boards if a rad-hard supervisor is wanted; <b>Unibap iX10</b> or <b>KP Labs Leopard</b> for the ML co-processor option<sup class="ref" data-r="R2-x83"></sup>. AES-256 encryption on TT&amp;C and downlink is mandatory for a SIGINT mission; EU crypto modules exist (Thales, Rohde &amp; Schwarz Cybersecurity, Syrlinks options), and national-security-grade crypto implies the Greek National Security Authority's involvement.</p></div>
+
+  <h3 id="cat-K">K · Ground segment: Nemea plus an owned S-band site</h3>
+  <div class="basel"><p><b>Baseline:</b> <b>KSAT Nemea</b> (Greece) as primary X/S GSaaS site on Greek soil, an <b>owned S-band TT&amp;C station near Athens</b> (Thermopylae area, €0.3–0.6 M, Safran Data Systems Cortex-class receivers) for tasking uplink and sovereignty, and KSAT polar (Svalbard/Troll) and Dubai complements for latency — the station list is in BASELINE.ground<sup class="ref" data-r="R2-x100"></sup><sup class="ref" data-r="R2-x102"></sup>. Leaf Space (IT) as second provider; AWS Ground Station for burst capacity (historical $3–10/min, now "contact sales")<sup class="ref" data-r="R2-x101"></sup><sup class="ref" data-r="R2-x103"></sup>. Expect €50–150 k/yr GSaaS for one satellite at 4–8 X-band passes a day (unverified, market ranges); an owned 3.7–5 m X-band station costs €0.5–1.5 M. Azure Orbital is treated as unavailable.</p></div>
+
+  <h3 id="cat-L">L · Launch: rideshare via Exolaunch, two options booked</h3>
+  <div class="basel"><p>150 kg on SpaceX Transporter (SSO) or Bandwagon (~45°) at $7,000/kg (2026) → ~$1.05–1.13 M, plus 10–25 % broker margin and a $50–150 k separation system through <b>Exolaunch</b> (DE), which also handles the US import paperwork; book 15–18 months ahead; prices have risen ~8–10 %/yr since 2022<sup class="ref" data-r="R2-x104"></sup><sup class="ref" data-r="R2-x105"></sup><sup class="ref" data-r="R2-x106"></sup>. Dedicated Electron is ~$7.5 M (precise inclination, Kick Stage)<sup class="ref" data-r="R2-x107"></sup>. European launchers (Isar Spectrum, RFA One, PLD Miura 5) had no orbital success as of Oct 2026 and are options for the 2028+ constellation phase, not the first unit<sup class="ref" data-r="R2-x108"></sup><sup class="ref" data-r="R2-x109"></sup>. Orbit: Bandwagon-class 45–55° is preferred for Eastern-Mediterranean persistence (BASELINE.orbit); SSO on Transporter if schedule forces it. Design orbit-agnostic and book two options (T-12).</p></div>
+
+  <h3 id="cat-M">M · AIT and test: HAITF in Greece, EMC and radiation abroad</h3>
+  <div class="basel"><p>The <b>Hellenic AIT Facility (HAITF)</b> at Schimatari (HAI/EAB; ISO 8 cleanroom ~400 m², TVAC chambers, 3-axis slip-table vibration, satellites up to 500 kg; operational per ESA, Jul 2026) lets system-level TVAC and vibration be done domestically<sup class="ref" data-r="R2-x110"></sup>. EMC and antenna-range work — the DF array's pattern and phase-centre calibration is critical for AOA accuracy — still goes to IABG, Intespace or MVG near-field ranges (€20–80 k per campaign) or the Patras/AUTh antenna labs; EEE radiation screening of the RFSoC and ADCs to Alter Technology, UCLouvain HIF, RADEF or ESA Co-60 (€20–60 k per campaign), with Demokritos for lower-energy protons. Greek AIT subcontractors: Prisma Electronics, Planetek Hellas, Satways, Space Hellas, Libre Space<sup class="ref" data-r="R2-x111"></sup>.</p></div>
+
+  <h3 id="cat-N">N · Software and tools</h3>
+  <div class="basel"><p>Mission analysis in <b>GMAT</b>/Orekit (open source, EU-origin Orekit used by CNES) with STK for customer-facing coverage/geolocation analysis; <b>GNU Radio</b> for DSP prototyping and the cross-ambiguity function; <b>Rohde &amp; Schwarz</b> monitoring receivers for ground truth and signal-database tooling; EW catalogue seeded from ITU BR IFIC, FCC ULS and Jane's (€20–100 k/yr) in a PostgreSQL/TimescaleDB schema (research note 04 §5); mission control bought (Bright Ascension, Major Tom class) and customised; <b>SatNOGS</b> (Libre Space, Greece) for UHF/S-band TT&amp;C testing. DeepSig OmniSIG is the US reference for ML signal classification (EAR); the TALOS classifier is built in-house as core IP.</p></div>
+
+  <h2>Procurement observations</h2>
+  <h3>Lead times (2026 market)</h3>
+  <div class="card"><div id="leadChart"></div></div>
+  <div class="table-wrap"><table class="compact"><thead><tr><th>Item</th><th class="num">Lead time (months)</th><th>Mitigation</th></tr></thead><tbody id="leadTable"></tbody></table></div>
+  <p>Realistic schedule from authority-to-proceed to launch of a first satellite on an ESPA-class bus is 24–30 months; 18 months is achievable only with a configured bus (MP42H class) and a payload built on COTS boards. The TALOS plan (kick-off 2027-Q1, PDR 2028-Q2, CDR 2029-Q1, launch 2030-Q2) carries a 6-month float on top of the research note's 42-month demonstrator schedule<sup class="ref" data-r="R5-1"></sup>.</p>
+
+  <h3>Long poles</h3>
+  <ol>
+    <li><b>The deployable reflector / DF array and its RF calibration</b> — custom, 12–18 months, and it sets the AOA performance that the single-satellite stage sells.</li>
+    <li><b>The RFSoC payload board and its radiation characterisation</b> — board 6–9 months, SEE test campaign 3–4 months, firmware 12+ months in parallel.</li>
+    <li><b>Space-grade timing</b> — the Microchip space CSAC and mRO-50 variants have thin heritage; order early and dual-source.</li>
+    <li><b>Launch slot and US import/export paperwork</b> if launching on SpaceX (Exolaunch mitigates).</li>
+    <li><b>Frequency coordination and ITU filing</b> for X-band EESS downlink and S-band TT&amp;C through EETT, 12–24 months.</li>
+    <li><b>National security approvals</b> for an EU-based SIGINT operator: encryption, data handling, EU DU licences for DF receivers under 5A001.</li>
+  </ol>
+
+  <h3>ITAR-free in Europe</h3>
+  <div class="callout decision"><div class="t">Architecture statement</div>
+    <p>A fully ITAR-free TALOS is feasible: bus (NanoAvionics MP42H / Aerospacelab VSP / LuxSpace Triton-X / BST LEOS-100); antennas (Anywaves, OSS, EnduroSat, Anteral, custom EU arrays); RF front-end (Erzia, TTI Norte, Low Noise Factory, Filtronic, Exxelia; Qorvo/ADI die EAR-only); digitiser (Teledyne e2v EV12AQ600 + Microchip PolarFire RT, or COTS AMD RFSoC which is EAR, not ITAR); timing (Safran mRO-50 / Rakon / AXTAL; Septentrio or Beyond Gravity GNSS); downlink (Syrlinks, EnduroSat, Tesat/Astrolight optical); ADCS (Arcsec, Sodern, Vectronic, Hyperion, Sensonor); EPS (Azur, DHV, Saft); propulsion (ENPULSION, Exotrail, ThrustMe, Dawn, Bradford); OBC (Unibap, KP Labs, GomSpace, Frontgrade Gaisler); FSW (F´/cFS).</p>
+    <p>The residual US content is EAR-controlled semiconductors (AMD RFSoC/FPGA, Qorvo/ADI MMICs), for which licence exceptions commonly apply to EU/NATO end users but which require end-use statements and are sensitive to the "SIGINT" descriptor: commercial documentation frames the mission as spectrum monitoring / RF situational awareness and the defence dimension is managed through the national channel. Conversely, EU dual-use controls (Reg. 2021/821 Annex I: 3A001 high-speed ADCs, 3A002.g atomic clocks, 5A001 DF/wideband receivers, 7A005 space GNSS, 9A004 spacecraft) apply to the EU-built items when exported outside the EU and in some cases need intra-EU notifications; the Greek export-control authority is engaged in Phase A (see <a href="market_regulatory.html#export">export control</a>).</p></div>
+
+  <h3>Bill-of-materials cost ranges (single 150 kg satellite, 2026 €, indicative)</h3>
+  <div class="card"><div id="bomChart"></div></div>
+  <div class="table-wrap"><table class="compact bom"><thead><tr><th>Element</th><th class="num">Range (M€)</th><th>Unit / basis</th></tr></thead><tbody id="bomTable"></tbody></table></div>
+  <p>The payload breakdown behind the research note's €2.7–7 M payload total: antennas and deployables €0.8–2.0 M; RF front-end (4–8 channels) €0.3–0.8 M; digitiser and processing (RFSoC boards, ADC, memory, radiation testing) €0.4–1.0 M; timing/GNSS €0.05–0.2 M; X-band downlink chain €0.15–0.4 M; optical terminal (optional) €0.4–1.5 M; payload integration, software and calibration €1–2.5 M. With bus €3.5–7 M, AIT €0.4–1.0 M (lower with HAITF), launch €1.0–1.4 M, ground segment (owned S-band €0.3–0.6 M, X-band station €0.5–1.5 M or GSaaS €50–150 k/yr, mission software €0.3–1.0 M, licensing €0.1–0.3 M) and programme management, insurance and 20–30 % reserves at €2–4 M, the <b>first satellite is roughly €11–22 M</b> including ground segment and first-year operations; <b>recurring units €5–9 M</b> (bus €2.5–4 M, payload €1.5–3 M, launch €1–1.4 M) as NRE amortises and buses are bought in batches<sup class="ref" data-r="R2-x74"></sup>. The programme-level view in research note 05 adds payload NRE of €6–15 M and arrives at the €18–35 M demonstrator scenario used across this study; the two are consistent once NRE is separated from the hardware BOM<sup class="ref" data-r="R5-26"></sup>. Buying a configured bus avoids ~€1–2 M of component-level procurement overhead. A hosted-payload first flight (Loft Orbital YAM, Open Cosmos or EnduroSat shared mission) retires payload risk for €2–4 M in 12–15 months and is the fallback pathfinder route.</p>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/suppliers.js"></script>
+<script src="../assets/data/programmatics.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  function cleanTitle(t){ return t.replace(/\s*[:—-]?\s*https?:\/\/.*$/,'').replace(/[:;\s]+$/,''); }
+  function wireRefs(){
+    const seen=[]; document.querySelectorAll('sup.ref[data-r]').forEach(s=>{ const id=s.dataset.r; const ok=REFERENCES.some(r=>r.id===id); if(!ok) console.warn('missing reference id', id); s.innerHTML=`<a href="#ref-${id}">[${id}]</a>`; if(ok&&!seen.includes(id)) seen.push(id); });
+    const ol=document.getElementById('refs'); seen.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${cleanTitle(r.title)} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); });
+  }
+
+  // ---- flatten catalogue
+  const EU=new Set(['AT','BE','BG','HR','CY','CZ','DK','EE','FI','FR','DE','GR','HU','IE','IT','LV','LT','LU','MT','NL','PL','PT','RO','SK','SI','ES','SE','EU']);
+  function region(c){ const toks=String(c).split(/[\/,\s]+/).map(t=>t.trim()).filter(Boolean); if(toks.some(t=>t==='US')) return 'US'; if(toks.some(t=>EU.has(t))) return 'EU'; if(toks.some(t=>t==='UK')) return 'UK'; return 'Other'; }
+  function trlOf(s){ const m=String(s).match(/TRL\s*([0-9](?:\s*[–-]\s*[0-9])?)/i); if(!m) return null; const nums=m[1].split(/[–-]/).map(Number); return Math.max(...nums); }
+  const rows=[]; SUPPLIERS.forEach(c=>c.items.forEach(it=>rows.push({cat:c.id,catName:c.name,...it,region:region(it.country),trlNum:trlOf(it.trl),priced:!/on request|^—$|^$|configurator|catalogue$|negotiated|programme-level|free$|bus-integrated|saas$|licence$|per-pass$/i.test(String(it.price).trim())&&/\d/.test(String(it.price))})));
+  document.getElementById('nItems').textContent=rows.length;
+
+  // ---- category chips
+  const chips=document.getElementById('catchips'); let activeCats=new Set();
+  const allBtn=document.createElement('button'); allBtn.textContent='All categories'; allBtn.setAttribute('aria-pressed','true'); chips.append(allBtn);
+  SUPPLIERS.forEach(c=>{ const b=document.createElement('button'); b.textContent=`${c.id} · ${c.name.replace(/\s*\(.*\)$/,'').replace(/^(.{34}).+/,'$1…')}`; b.dataset.cat=c.id; b.title=c.name; b.setAttribute('aria-pressed','false'); chips.append(b); });
+  chips.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; if(b===allBtn){ activeCats.clear(); } else { activeCats.has(b.dataset.cat)?activeCats.delete(b.dataset.cat):activeCats.add(b.dataset.cat); } chips.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===allBtn?String(activeCats.size===0):String(activeCats.has(x.dataset.cat)))); render(); });
+
+  const q=document.getElementById('q'), reg=document.getElementById('region'), trlSel=document.getElementById('trl'), itar=document.getElementById('itarfree'), priced=document.getElementById('priced');
+  [q,reg,trlSel,itar,priced].forEach(el=>el.addEventListener('input',render));
+  const tb=document.querySelector('#catTable tbody');
+  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  function render(){
+    const term=q.value.trim().toLowerCase(), r=reg.value, tmin=+trlSel.value;
+    const out=rows.filter(x=>(activeCats.size===0||activeCats.has(x.cat))&&(!r||x.region===r)&&(!tmin||(x.trlNum!=null&&x.trlNum>=tmin))&&(!itar.checked||!x.itarRisk)&&(!priced.checked||x.priced)&&(!term||[x.supplier,x.product,x.specs,x.trl,x.price,x.export,x.country,x.catName].join(' ').toLowerCase().includes(term)));
+    tb.innerHTML=out.map(x=>`<tr class="${x.itarRisk?'itar':''}"><td data-v="${x.cat}"><span class="cat" title="${esc(x.catName)}">${x.cat}</span></td><td class="sup">${esc(x.supplier)}</td><td>${esc(x.country)}</td><td>${esc(x.product)}</td><td>${esc(x.specs)}</td><td data-v="${x.trlNum??0}">${x.trlNum!=null?`<span class="tag trl">TRL ${x.trlNum}</span> `:''}${esc(x.trl)}</td><td>${esc(x.price)}</td><td>${esc(x.export)}</td><td>${(x.urls||[]).map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\/(www\.)?/,'').split('/')[0]}</a>`).join('<br>')||'—'}</td></tr>`).join('');
+    document.getElementById('count').textContent=`${out.length} of ${rows.length} entries shown` + (itar.checked?' · ITAR-exposed entries hidden':'') + (tmin?` · TRL ≥ ${tmin}`:'');
+    // summary strip
+    const eu=out.filter(x=>x.region==='EU').length, uk=out.filter(x=>x.region==='UK').length, us=out.filter(x=>x.region==='US').length, it=out.filter(x=>x.itarRisk).length, t9=out.filter(x=>x.trlNum===9).length;
+    const pct=n=>out.length?Math.round(100*n/out.length)+' %':'—';
+    document.getElementById('summary').innerHTML=[['Entries',out.length,'in selection'],['EU-sourced',pct(eu),`${eu} entries`],['UK',pct(uk),`${uk} entries`],['US / US-controlled',pct(us),`${us} entries`],['ITAR-exposed',pct(it),`${it} entries flagged`],['TRL 9',pct(t9),`${t9} with full flight heritage`]].map(([l,v,d])=>`<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div><div class="d">${d}</div></div>`).join('');
+  }
+  render();
+
+  // ---- charts: per-category counts with EU share
+  const SHORT={A:'Buses',B:'Antennas',C:'RF front-end',D:'Digitisers & processing',E:'Timing & GNSS',F:'Downlink, TT&C, ISL',G:'ADCS',H:'Power',I:'Propulsion',J:'OBC & software',K:'Ground stations',L:'Launch',M:'Test & AIT',N:'Software & tools'};
+  const cats=SUPPLIERS.map(c=>({label:`${c.id} · ${SHORT[c.id]}`,value:c.items.length,note:`${c.items.filter(i=>region(i.country)==='EU').length} EU, ${c.items.filter(i=>i.itarRisk).length} ITAR-exposed`}));
+  const euMaj=SUPPLIERS.filter(c=>c.items.filter(i=>region(i.country)==='EU').length/c.items.length>=0.5).map(c=>c.id), euMin=SUPPLIERS.filter(c=>c.items.filter(i=>region(i.country)==='EU').length/c.items.length<0.5).map(c=>`${c.id} (${SHORT[c.id]})`);
+  document.getElementById('regionNote').textContent=`Share of catalogue entries by supplier region. EU suppliers are the majority of entries in categories ${euMaj.join(', ')}; they are a minority in ${euMin.join(', ')} — the US-heavy categories are where the catalogue lists US products for comparison and where the ITAR-free design effort concentrates.`;
+  Charts.bar(document.getElementById('catCount'),{title:'Catalogue entries per category',data:cats,unit:'entries',horizontal:true,height:360});
+  const regs=['EU','UK','US','Other'];
+  Charts.stack(document.getElementById('regionShare'),{title:'Supplier region per category (entries)',categories:SUPPLIERS.map(c=>c.id),series:regs.map(r=>({name:r,values:SUPPLIERS.map(c=>c.items.filter(i=>region(i.country)===r).length)})),unit:'entries',horizontal:false,height:300});
+
+  // ---- lead times
+  Charts.range(document.getElementById('leadChart'),{title:'Typical lead times (months, 2026 market)',data:LONG_LEAD.map(l=>({label:l.item.replace(/\s*\(.*?\)/g,'').slice(0,42),lo:l.months[0],hi:l.months[1],note:l.mit})),unit:'months',height:380,xLabel:'months'});
+  document.getElementById('leadTable').innerHTML=LONG_LEAD.map(l=>`<tr><td>${l.item}</td><td class="num">${l.months[0]}–${l.months[1]}</td><td>${l.mit}</td></tr>`).join('');
+
+  // ---- BOM
+  const money=COST_ELEMENTS.filter(c=>!/%/.test(c.unit));
+  Charts.range(document.getElementById('bomChart'),{title:'Cost elements, M€ (ranges, est.)',data:money.map(c=>({label:c.name,lo:c.range[0],hi:c.range[1],note:c.unit})),unit:'M€',height:330,xLabel:'M€'});
+  document.getElementById('bomTable').innerHTML=COST_ELEMENTS.map(c=>`<tr><td>${c.name}</td><td class="num">${c.range[0]}–${c.range[1]}${/%/.test(c.unit)?' %':''}</td><td>${c.unit} — ${c.basis}</td></tr>`).join('');
+  wireRefs();
+})();
+</script>
+</body>
+</html>

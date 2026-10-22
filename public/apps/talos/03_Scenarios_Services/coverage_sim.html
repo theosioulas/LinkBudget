@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orbit &amp; coverage simulator — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .sim { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 1rem; align-items: start; margin: 1rem 0; }
+  @media (max-width: 1000px) { .sim { grid-template-columns: 1fr; } }
+  .sim .panel { margin: 0; position: sticky; top: 3.4rem; max-height: calc(100vh - 4rem); overflow-y: auto; }
+  @media (max-width: 1000px) { .sim .panel { position: static; max-height: none; } }
+  .panel .controls { grid-template-columns: 1fr; gap: 0.55rem; }
+  .panel h4 { margin: 0.9rem 0 0.35rem; font-size: 0.78rem; text-transform: none; letter-spacing: 0; color: var(--ink-3); border-top: 1px solid var(--line); padding-top: 0.6rem; }
+  .panel h4:first-of-type { border-top: 0; padding-top: 0; margin-top: 0.3rem; }
+  .ctl select, .ctl input[type=number], .ctl input[type=datetime-local], .ctl textarea { width: 100%; font: inherit; font-size: 0.85rem; padding: 0.3rem 0.45rem; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--ink); }
+  .ctl input[type=range] { width: 100%; }
+  .ctl textarea { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.78rem; min-height: 5.5em; }
+  .ctl .chk { display: flex; justify-content: flex-start; align-items: center; gap: 0.45rem; font-size: 0.85rem; margin: 0.15rem 0; }
+  .ctl .chk input { margin: 0; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .btn { font: inherit; font-size: 0.82rem; padding: 0.3rem 0.75rem; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); cursor: pointer; }
+  .btn[aria-pressed="true"], .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn:disabled { opacity: 0.5; cursor: default; }
+  .map-wrap { position: relative; }
+  .map { height: 560px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface-2); }
+  @media (max-width: 640px) { .map { height: 520px; } }
+  .map-status { position: absolute; top: 8px; left: 10px; font-family: var(--font-ui); font-size: 0.75rem; background: color-mix(in srgb, var(--surface) 85%, transparent); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; color: var(--ink-2); pointer-events: none; }
+  .map-status.busy { color: var(--accent-2); }
+  .map-tools { display: flex; flex-wrap: wrap; gap: 0.4rem 0.6rem; align-items: center; margin: 0.6rem 0; font-family: var(--font-ui); font-size: 0.82rem; }
+  .map-tools .sp { flex: 1; }
+  .anim { display: grid; grid-template-columns: auto 1fr auto; gap: 0.6rem; align-items: center; font-family: var(--font-ui); font-size: 0.82rem; margin: 0.4rem 0 0.2rem; }
+  .anim input[type=range] { width: 100%; }
+  .anim .t { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 11ch; text-align: right; }
+  .legend-ramp { display: flex; align-items: center; gap: 0.5rem; font-family: var(--font-ui); font-size: 0.75rem; color: var(--ink-2); margin: 0.3rem 0; flex-wrap: wrap; }
+  .legend-ramp .sw { display: inline-flex; }
+  .legend-ramp .sw i { display: inline-block; width: 22px; height: 12px; }
+  .legend-ramp .sw i:first-child { border-radius: 3px 0 0 3px; } .legend-ramp .sw i:last-child { border-radius: 0 3px 3px 0; }
+  .kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0.7rem; margin: 1rem 0; }
+  @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 640px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .kpis .kpi .v { font-size: 1.45rem; }
+  .passes { max-height: 420px; overflow: auto; }
+  .passes table { font-size: 0.82rem; }
+  .hint { font-family: var(--font-ui); font-size: 0.78rem; color: var(--ink-3); }
+  .explain { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 2rem; }
+  @media (max-width: 900px) { .explain { grid-template-columns: 1fr; } }
+  .explain dl { margin: 0; }
+  .explain dt { font-family: var(--font-ui); font-weight: 600; font-size: 0.88rem; margin-top: 0.6rem; }
+  .explain dd { margin: 0.15rem 0 0; font-size: 0.93rem; }
+  .fade { opacity: 0.55; }
+  .page-head .meta { flex-wrap: wrap; }
+  .grid > *, .sim > * { min-width: 0; }
+</style>
+</head>
+<body>
+<div class="content wide">
+  <header class="page-head">
+    <div class="kicker"><b>03 Scenarios &amp; services</b> · Orbit &amp; coverage simulator</div>
+    <h1>Orbit &amp; coverage simulator</h1>
+    <p class="lead">Fly any TALOS configuration — one satellite, a formation cluster or a Walker constellation — over a day or two and see where it looks, how often it comes back and what a chosen point of interest gets in passes, minutes and gaps. Everything is computed in the browser from circular J2 orbits; the defaults are the TALOS-1 baseline (<span id="base-txt">—</span>) over Athens.</p>
+    <div class="meta"><span>Engine: orbit.js + geo.js</span><span>Baseline: <span id="base-ver">—</span></span><span>Related: <a href="single_vs_constellation.html">Single vs constellation</a> · <a href="geolocation_sim.html">TDOA/FDOA simulator</a> · <a href="../04_Service_Demo/ground_segment.html">Ground segment</a></span></div>
+  </header>
+
+  <div class="sim">
+    <div class="panel" id="controls">
+      <h4>Orbit</h4>
+      <div class="controls">
+        <div class="ctl"><label>Altitude <output for="alt">530</output></label><input type="range" id="alt" min="400" max="700" step="10" value="530"></div>
+        <div class="ctl"><label>Inclination <output for="inc">53</output></label><input type="range" id="inc" min="30" max="98" step="0.5" value="53">
+          <div class="row2" style="margin-top:.3rem"><button class="btn" id="btn-sso" title="Set the sun-synchronous inclination for this altitude">SSO for this altitude</button><button class="btn" id="btn-base" title="Return to the TALOS-1 baseline orbit">Baseline 530 / 53°</button></div></div>
+        <div class="ctl"><label>Epoch (UTC)</label><input type="datetime-local" id="epoch" value="2026-10-21T00:00"></div>
+      </div>
+      <h4>Constellation</h4>
+      <div class="controls">
+        <div class="ctl"><label>Type</label><select id="ctype"><option value="single">Single satellite</option><option value="cluster">Formation cluster (N satellites)</option><option value="walker">Walker constellation (planes × per plane)</option><option value="clusters">Walker of clusters (3-sat formation per slot)</option><option value="custom">Custom list</option></select></div>
+        <div class="ctl" data-for="cluster clusters"><label>Satellites per cluster <output for="cn">3</output></label><input type="range" id="cn" min="2" max="4" step="1" value="3"></div>
+        <div class="ctl" data-for="cluster clusters"><label>Along-track spacing <output for="calong">150</output></label><input type="range" id="calong" min="25" max="500" step="25" value="150"></div>
+        <div class="ctl" data-for="cluster clusters"><label>Cross-track offset <output for="ccross">20</output></label><input type="range" id="ccross" min="0" max="100" step="5" value="20"></div>
+        <div class="ctl" data-for="walker clusters"><label>Planes <output for="wp">4</output></label><input type="range" id="wp" min="1" max="8" step="1" value="4"></div>
+        <div class="ctl" data-for="walker clusters"><label>Slots per plane <output for="ws">3</output></label><input type="range" id="ws" min="1" max="8" step="1" value="3"></div>
+        <div class="ctl" data-for="walker clusters"><label>Phasing F <output for="wf">1</output></label><input type="range" id="wf" min="0" max="7" step="1" value="1"></div>
+        <div class="ctl" data-for="custom"><label>One satellite per line: alt, inc, RAAN, arg. of latitude [, name]</label><textarea id="custom">530, 53, 0, 0, T1
+530, 53, 120, 0, T2
+530, 97.5, 240, 0, SSO-1</textarea></div>
+        <div class="hint" id="const-summary"></div>
+      </div>
+      <h4>Coverage</h4>
+      <div class="controls">
+        <div class="ctl"><label>Minimum elevation <output for="minel">5</output></label><input type="range" id="minel" min="5" max="30" step="1" value="5"></div>
+        <div class="ctl"><label>Simulation duration <output for="dur">24</output></label><input type="range" id="dur" min="6" max="48" step="6" value="24"></div>
+        <div class="ctl"><label>Grid resolution</label><select id="res"><option value="coarse">Coarse (6°, 60 s)</option><option value="medium" selected>Medium (4°, 60 s)</option><option value="fine">Fine (2.5°, 45 s)</option></select></div>
+        <div class="ctl"><label>Heat layer metric</label><select id="metric"><option value="mean">Mean revisit gap (min)</option><option value="max">Maximum gap (min)</option><option value="acc">Accesses per day</option></select></div>
+        <div class="ctl">
+          <label class="chk"><input type="checkbox" id="l-heat" checked> Revisit heat layer</label>
+          <label class="chk"><input type="checkbox" id="l-fp" checked> Footprints at current time</label>
+          <label class="chk"><input type="checkbox" id="l-trk" checked> Ground tracks (± half orbit)</label>
+          <label class="chk"><input type="checkbox" id="l-gs"> Ground stations (baseline)</label>
+        </div>
+      </div>
+      <h4>Point of interest</h4>
+      <div class="controls">
+        <div class="ctl"><label>Preset</label><select id="poi"></select></div>
+        <div class="row2"><div class="ctl"><label>Latitude</label><input type="number" id="plat" step="0.01" min="-90" max="90" value="38.0"></div><div class="ctl"><label>Longitude</label><input type="number" id="plon" step="0.01" min="-180" max="180" value="23.7"></div></div>
+        <div class="hint">Or click anywhere on the map to move the point.</div>
+      </div>
+    </div>
+
+    <div>
+      <div class="map-wrap"><div class="map" id="map"></div><div class="map-status" id="status">Ready</div></div>
+      <div class="map-tools">
+        <button class="btn" id="p-eq" aria-pressed="true">Equirectangular</button><button class="btn" id="p-or" aria-pressed="false">Globe</button><button class="btn" id="p-reset">Reset view</button>
+        <span class="sp"></span>
+        <div class="legend-ramp" id="legend"></div>
+      </div>
+      <div class="anim">
+        <div><button class="btn primary" id="play">Play</button></div>
+        <input type="range" id="time" min="0" max="86400" step="30" value="0" aria-label="Simulation time">
+        <div class="t" id="tlabel">—</div>
+      </div>
+      <div class="anim" style="grid-template-columns:auto 1fr auto">
+        <div class="hint">Speed</div><input type="range" id="step" min="5" max="300" step="5" value="30" aria-label="Seconds of simulation per frame"><div class="hint" id="steplabel">30 s / frame</div>
+      </div>
+      <figure style="margin:0.4rem 0 0"><figcaption><b>Reading the map.</b> Thin lines are ground tracks half an orbit before and after the current time; filled circles are the minimum-elevation footprints at the current time; the shaded cells are the revisit statistic over the whole simulation (lighter = shorter gaps). The red marker is the point of interest whose statistics are below.</figcaption></figure>
+    </div>
+  </div>
+
+  <h2 id="poi-title">Point of interest — Athens</h2>
+  <div class="kpis">
+    <div class="kpi"><div class="v" id="k-pass">—<small>/day</small></div><div class="l">Satellite passes</div></div>
+    <div class="kpi"><div class="v" id="k-win">—<small>/day</small></div><div class="l">Access windows (merged)</div></div>
+    <div class="kpi"><div class="v" id="k-mean">—<small>min</small></div><div class="l">Mean gap between windows</div></div>
+    <div class="kpi"><div class="v" id="k-max">—<small>min</small></div><div class="l">Maximum gap</div></div>
+    <div class="kpi"><div class="v" id="k-min">—<small>min/day</small></div><div class="l">Access minutes</div></div>
+    <div class="kpi"><div class="v" id="k-dur">—<small>min</small></div><div class="l">Mean pass duration</div></div>
+  </div>
+  <div class="hint" id="poi-grid"></div>
+
+  <div class="grid c2" style="margin-top:1rem">
+    <div>
+      <h3>Pass list</h3>
+      <div class="table-wrap passes"><table class="compact" id="passes"><thead><tr><th>AOS (UTC)</th><th>Satellite</th><th data-sort="num">Duration (min)</th><th data-sort="num">Max elevation</th><th>Azimuth AOS → LOS</th></tr></thead><tbody></tbody></table></div>
+      <div class="hint" id="pass-note"></div>
+    </div>
+    <div>
+      <h3>Revisit by latitude</h3>
+      <figure style="margin:0"><div id="chart-lat"></div><figcaption><b>Mean revisit gap (solid) and worst gap (dashed), averaged over all longitudes in each latitude band of the grid.</b> An inclined orbit concentrates revisit just below its inclination latitude and sees nothing above it; a sun-synchronous orbit spreads revisit to the poles at the expense of the mid-latitudes. The shaded band marks the point of interest.</figcaption></figure>
+    </div>
+  </div>
+
+  <h2>How to use the controls</h2>
+  <div class="explain">
+    <dl>
+      <dt>Altitude (400–700 km)</dt><dd>Sets the orbital period (about 92 to 99 minutes), the footprint radius (at 5° elevation about 1,800 km at 400 km and 2,300 km at 700 km) and the slant range that drives the link budget on the <a href="../02_Technical_Understanding/emitters.html">emitters page</a>. Higher is more coverage per pass but weaker signals and more disposal ΔV; the baseline is 530 km.</dd>
+      <dt>Inclination (30–98°)</dt><dd>The highest latitude the ground track reaches. 53° is the baseline because it maximises passes over 30–45°N; the "SSO" button sets the sun-synchronous value computed from J2 (97.5° at 530 km), the orbit that rideshare launches offer most often and the one that gives a polar ground station a contact every orbit.</dd>
+      <dt>Epoch</dt><dd>Start time of the simulation; it fixes where the planes sit relative to the Earth. Changing it shifts the pass times but not the statistics.</dd>
+      <dt>Constellation type</dt><dd><em>Single</em> is TALOS-1. <em>Formation cluster</em> places N satellites on the same track separated by the along-track spacing, with alternate satellites offset cross-track by the chosen amount through a small RAAN difference (the TALOS baseline is 150 km and ±20 km). <em>Walker</em> is the classic delta pattern: P planes evenly spaced in RAAN, S satellites per plane, phasing F between planes. <em>Walker of clusters</em> puts a three-satellite formation in every Walker slot — this is how the geolocation-capable stages 3 and 4 are actually built. <em>Custom</em> accepts any list.</dd>
+      <dt>Minimum elevation (5–30°)</dt><dd>The elevation mask at the ground point. 5° counts everything the satellite can physically see; 10–20° is closer to the "useful RF geometry" within about 1,000 km ground range where geolocation is good; 30° is a strict nadir-ish cone. Pass counts fall quickly as the mask rises.</dd>
+    </dl>
+    <dl>
+      <dt>Duration (6–48 h)</dt><dd>Statistics are normalised per day. A single inclined satellite needs at least 24 h to show its two groups of passes; 48 h smooths the figures for sparse constellations. The ground-track precession of the 53° orbit (about 5°/day of RAAN drift) does not matter on this scale.</dd>
+      <dt>Grid resolution</dt><dd>Cell size and time step of the coverage grid. Medium (4°, 60 s) with 12 satellites over 24 h computes in well under a second; fine (2.5°, 45 s) is a few seconds for large constellations. The status badge on the map shows "computing…" while the grid runs; the rest of the page stays live. If the estimated work is excessive the simulator coarsens the grid and says so.</dd>
+      <dt>Heat layer metric</dt><dd><em>Mean revisit gap</em> is the average time between successive accesses of a cell; <em>maximum gap</em> is the worst wait; <em>accesses per day</em> counts separate visibility windows. Cells never seen are left blank. The legend adapts its scale to the 90th percentile of the data so that a single satellite and a 24-satellite constellation both show structure.</dd>
+      <dt>Point of interest</dt><dd>Eight presets cover the scenarios used elsewhere in the study (Aegean, Cyprus, Black Sea, Suez, Libya, Hormuz, Taiwan Strait, Arctic); type coordinates or click the map. The KPIs use exact pass computation at 20 s steps, not the grid, so they are more precise than the heat layer.</dd>
+      <dt>Animation</dt><dd>Play advances simulation time by the chosen number of seconds per frame and moves satellites, footprints and the track windows; drag the time slider to any instant. The grid and KPIs cover the whole duration and do not change with the slider.</dd>
+    </dl>
+  </div>
+
+  <h2>Experiments worth running</h2>
+  <ul>
+    <li><b>Baseline vs SSO for Athens.</b> Keep one satellite, press "SSO", and compare passes per day and maximum gap. The research note's estimate that SSO costs roughly 40 % of mid-latitude revisit should appear directly<sup class="ref"><a href="#ref-R4-17">[R4-17]</a></sup>; then move the point to Svalbard and watch the ranking invert.</li>
+    <li><b>Mask sensitivity.</b> Raise the minimum elevation from 5° to 20° with one satellite: the pass count drops from about seven to the "2–4 useful passes" quoted in research note 04 §6.1, and the mean pass length falls from eight minutes to four.</li>
+    <li><b>Cluster vs singles.</b> Switch between a Walker of 4 × 3 singles and a Walker of 4 clusters: identical satellite counts, three times the revisit nodes, and a maximum gap over Athens that differs by a factor of about two. The <a href="single_vs_constellation.html">single vs constellation page</a> discusses why the cluster is nevertheless the right first step.</li>
+    <li><b>HawkEye-class persistence.</b> Eight planes × 2 clusters (48 satellites) at 53° give sub-20-minute mean gaps at 38°N; HawkEye's "under 45 minutes globally" with 13–15 clusters mixes SSO and 40–46° planes to get the poles as well<sup class="ref"><a href="#ref-R4-2">[R4-2]</a><a href="#ref-R4-40">[R4-40]</a></sup>.</li>
+    <li><b>Ground-station contacts.</b> Turn on the ground-station layer, move the point of interest to Nemea (37.82, 22.66) and read the contacts per day; the same tool answers the downlink-opportunity question on the <a href="../04_Service_Demo/ground_segment.html">ground segment page</a>.</li>
+  </ul>
+
+  <h2>Model limits</h2>
+  <div class="callout warn"><div class="t">What this simulator does and does not model</div>
+    <p>Orbits are circular with secular J2 drift of RAAN and argument of latitude (adequate for design-level revisit; no drag, no eccentricity, no manoeuvres). Satellites are visible from a ground point when the geometric elevation exceeds the mask — the footprint is a pure minimum-elevation cone with no antenna pattern, sensitivity or terrain. Every satellite is assumed to be collecting at all times, with no duty-cycle, power, storage or tasking constraints and no downlink latency; see <a href="collection_planning.html">collection planning</a> for those. Cluster satellites are placed by along-track phase and RAAN offsets, so the cross-track separation varies with latitude and is not the J2-invariant oscillating formation that HawkEye flies<sup class="ref"><a href="#ref-R3-1">[R3-1]</a><a href="#ref-R3-2">[R3-2]</a></sup>. Grid statistics are sampled at the chosen time step, so gaps shorter than one step are not resolved and cells seen only once report the full duration as their gap.</p>
+  </div>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/data/world.js"></script>
+<script src="../assets/js/geo.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  const $ = id => document.getElementById(id);
+  const B = BASELINE;
+  $('base-txt').textContent = `${B.orbit.altKm} km, ${B.orbit.incDeg}°`; $('base-ver').textContent = B.version;
+  const PRESETS = [['Athens', 38.0, 23.7], ['Nicosia', 35.17, 33.36], ['Odesa', 46.48, 30.73], ['Suez', 29.97, 32.55], ['Tripoli', 32.9, 13.18], ['Hormuz', 26.57, 56.25], ['Taipei', 25.03, 121.57], ['Svalbard', 78.23, 15.39]];
+  PRESETS.forEach((p, i) => { const o = document.createElement('option'); o.value = i; o.textContent = `${p[0]} (${p[1].toFixed(2)}°, ${p[2].toFixed(2)}°)`; $('poi').append(o); });
+  const customOpt = document.createElement('option'); customOpt.value = 'custom'; customOpt.textContent = 'Custom point'; $('poi').append(customOpt);
+
+  // ---------- state ----------
+  const S = { orbits: [], tracks: [], epoch: new Date('2026-10-21T00:00:00Z'), durS: 86400, minEl: 5, simT: 0, playing: false, grid: null, gridVersion: 0, poi: { name: 'Athens', lat: 38.0, lon: 23.7 }, poiStats: null, period: 95 * 60, heatCache: {} };
+  const map = new GeoMap($('map'), { projection: 'equirect', center: [25, 30] });
+  map.setZoom(1.5, false);
+  const col = () => ({ s: [1,2,3,4,5,6,7,8].map(i => U.css('--s' + i)), poi: U.css('--band-ku'), gs: U.css('--band-c'), ink: U.css('--ink-2') });
+
+  // ---------- constellation construction ----------
+  function readEpoch() { const v = $('epoch').value; const d = v ? new Date(v + ':00Z') : null; return d && !isNaN(d) ? d : new Date('2026-10-21T00:00:00Z'); }
+  function clusterOrbits(slot, N, along, cross, alt, inc, epoch, prefix) {
+    const a = ORB.RE + alt, out = [];
+    for (let k = 0; k < N; k++) {
+      const off = k - (N - 1) / 2; const sign = N === 1 ? 0 : (k % 2 ? 1 : -1) * (k === Math.floor(N / 2) && N % 2 ? 0 : 1);
+      // alternate satellites sit on opposite sides of the reference track; the middle satellite of an odd formation carries the offset alone (HawkEye-style)
+      const cr = N % 2 ? (off === 0 ? cross : 0) : sign * cross / 2;
+      const dRaan = cr / (a * Math.max(0.2, Math.sin(inc * ORB.D2R))) * ORB.R2D;
+      out.push(ORB.makeOrbit({ alt, inc, raan: slot.raan + dRaan, ta: slot.ta + off * along / a * ORB.R2D, epoch, name: `${prefix}${N > 1 ? '-' + (k + 1) : ''}` }));
+    }
+    return out;
+  }
+  function walkerSlots(P, Sn, F) { const T = P * Sn, out = []; for (let p = 0; p < P; p++) for (let s = 0; s < Sn; s++) out.push({ raan: 360 * p / P, ta: 360 * s / Sn + 360 * F * p / T, name: P > 1 ? `P${p + 1}-${s + 1}` : `S${s + 1}` }); return out; }
+  function buildOrbits() {
+    const alt = +$('alt').value, inc = +$('inc').value, type = $('ctype').value, epoch = S.epoch;
+    let orbits = [], summary = '';
+    if (type === 'single') { orbits = [ORB.makeOrbit({ alt, inc, raan: 0, ta: 0, epoch, name: B.satName })]; summary = `1 satellite, ${alt} km / ${inc}°`; }
+    else if (type === 'cluster') { const N = +$('cn').value; orbits = clusterOrbits({ raan: 0, ta: 0 }, N, +$('calong').value, +$('ccross').value, alt, inc, epoch, 'C1'); summary = `${N}-satellite formation, ${$('calong').value} km along-track, ${$('ccross').value} km cross-track — one revisit node`; }
+    else if (type === 'walker') { const P = +$('wp').value, Sn = +$('ws').value, F = Math.min(+$('wf').value, P - 1); orbits = walkerSlots(P, Sn, F).map(s => ORB.makeOrbit({ alt, inc, raan: s.raan, ta: s.ta, epoch, name: s.name })); summary = `Walker ${P * Sn}/${P}/${F}: ${P * Sn} satellites in ${P} plane${P > 1 ? 's' : ''} — ${P * Sn} revisit nodes`; }
+    else if (type === 'clusters') { const P = +$('wp').value, Sn = +$('ws').value, F = Math.min(+$('wf').value, P - 1), N = +$('cn').value; orbits = walkerSlots(P, Sn, F).flatMap(s => clusterOrbits(s, N, +$('calong').value, +$('ccross').value, alt, inc, epoch, s.name)); summary = `${P * Sn} clusters of ${N} in ${P} plane${P > 1 ? 's' : ''} = ${orbits.length} satellites — ${P * Sn} revisit nodes`; }
+    else {
+      const lines = $('custom').value.split('\n').map(l => l.trim()).filter(Boolean); let bad = 0;
+      lines.forEach((l, i) => { const f = l.split(/[,\s]+/); const a = +f[0], ii = +f[1], r = +f[2], t = +f[3]; if ([a, ii, r, t].some(x => isNaN(x)) || a < 200 || a > 2000) { bad++; return; } orbits.push(ORB.makeOrbit({ alt: a, inc: ii, raan: r, ta: t, epoch, name: f[4] || ('S' + (i + 1)) })); });
+      summary = `${orbits.length} custom satellite${orbits.length !== 1 ? 's' : ''}${bad ? ` (${bad} line${bad > 1 ? 's' : ''} ignored)` : ''}`;
+      if (!orbits.length) orbits = [ORB.makeOrbit({ alt, inc, raan: 0, ta: 0, epoch, name: 'S1' })];
+    }
+    $('const-summary').textContent = summary;
+    S.orbits = orbits; S.period = ORB.period(ORB.RE + alt);
+    // precompute tracks for the whole duration plus one period (30 s step)
+    S.tracks = orbits.map(o => ORB.groundTrack(o, epoch, S.durS + S.period, 30));
+  }
+
+  // ---------- POI statistics (exact passes) ----------
+  function computePoi() {
+    const { lat, lon } = S.poi; const all = [];
+    for (const o of S.orbits) for (const p of ORB.passes(o, lat, lon, 0, S.epoch, S.durS, S.minEl, 20)) all.push({ ...p, sat: o.name });
+    all.sort((a, b) => a.aos - b.aos);
+    const w = []; for (const p of all) { const s = p.aos.getTime(), e = p.los.getTime() + 20000; const L = w[w.length - 1]; if (L && s <= L.e + 1000) { L.e = Math.max(L.e, e); L.n++; } else w.push({ s, e, n: 1 }); }
+    const gaps = []; for (let i = 1; i < w.length; i++) gaps.push((w[i].s - w[i - 1].e) / 60000);
+    const days = S.durS / 86400, tot = w.reduce((a, x) => a + (x.e - x.s), 0) / 60000;
+    S.poiStats = { passes: all, windows: w, passDay: all.length / days, winDay: w.length / days, meanGap: gaps.length ? d3.mean(gaps) : S.durS / 60, maxGap: gaps.length ? d3.max(gaps) : S.durS / 60, minDay: tot / days, meanDur: all.length ? d3.mean(all, p => p.duration) / 60 : 0 };
+    renderPoi();
+  }
+  function renderPoi() {
+    const st = S.poiStats; $('poi-title').textContent = `Point of interest — ${S.poi.name} (${S.poi.lat.toFixed(2)}°, ${S.poi.lon.toFixed(2)}°)`;
+    const set = (id, v, d = 1) => { const el = $(id); el.firstChild.textContent = isFinite(v) ? v.toFixed(d) : '—'; };
+    set('k-pass', st.passDay); set('k-win', st.winDay); set('k-mean', st.meanGap, 0); set('k-max', st.maxGap, 0); set('k-min', st.minDay, 0); set('k-dur', st.meanDur);
+    const tb = $('passes').querySelector('tbody'); tb.innerHTML = '';
+    st.passes.slice(0, 80).forEach(p => { const tr = document.createElement('tr'); tr.innerHTML = `<td>${p.aos.toISOString().slice(0, 16).replace('T', ' ')}</td><td>${p.sat}</td><td class="num">${(p.duration / 60).toFixed(1)}</td><td class="num">${p.maxEl.toFixed(0)}°</td><td>${p.aosAz.toFixed(0)}° → ${p.losAz.toFixed(0)}°</td>`; tb.append(tr); });
+    $('pass-note').textContent = st.passes.length > 80 ? `Showing the first 80 of ${st.passes.length} passes in ${S.durS / 3600} h.` : `${st.passes.length} passes in ${S.durS / 3600} h above ${S.minEl}° elevation; 20 s time step.`;
+    poiFromGrid();
+  }
+  function poiFromGrid() {
+    const g = S.grid; if (!g) { $('poi-grid').textContent = ''; return; }
+    const dLat = g.lats[1] - g.lats[0], dLon = g.lons[1] - g.lons[0];
+    const i = Math.min(g.lats.length - 1, Math.max(0, Math.floor((S.poi.lat + 90) / dLat))), j = Math.min(g.lons.length - 1, Math.max(0, Math.floor((S.poi.lon + 180) / dLon)));
+    const k = i * g.nO + j, days = S.durS / 86400;
+    $('poi-grid').textContent = `Grid cell containing the point (${dLat}° × ${dLon}°, ${g.stepS} s sampling): mean gap ${isFinite(g.revisitMean[k]) ? g.revisitMean[k].toFixed(0) : '—'} min, max gap ${isFinite(g.revisitMax[k]) ? g.revisitMax[k].toFixed(0) : '—'} min, ${(g.accesses[k] / days).toFixed(1)} accesses/day. Global fraction of cells seen at least once: ${(100 * d3.mean(g.seenAny)).toFixed(0)} %.`;
+  }
+
+  // ---------- coverage grid (async with status) ----------
+  let gridTimer = null, gridRunning = false, gridPending = false;
+  function scheduleGrid() { clearTimeout(gridTimer); gridTimer = setTimeout(runGrid, 250); }
+  function runGrid() {
+    if (gridRunning) { gridPending = true; return; }
+    const res = { coarse: [6, 60], medium: [4, 60], fine: [2.5, 45] }[$('res').value]; let [d, step] = res;
+    const cells = (180 / d) * (360 / d), work = S.orbits.length * (S.durS / step) * cells; let note = '';
+    if (work > 6e8) { d = d * 2; note = ' (grid coarsened to ' + d + '° to keep the run short)'; }
+    gridRunning = true; const st = $('status'); st.textContent = 'computing coverage grid…'; st.classList.add('busy');
+    setTimeout(() => {
+      const t = performance.now();
+      try { S.grid = ORB.coverageGrid(S.orbits, { dLat: d, dLon: d, stepS: step, durationS: S.durS, minEl: S.minEl, t0: S.epoch }); S.grid.stepS = step; S.gridVersion++; }
+      catch (e) { console.error(e); }
+      const ms = performance.now() - t;
+      st.textContent = `grid: ${S.orbits.length} sat × ${S.durS / 3600} h, ${d}° cells, ${ms.toFixed(0)} ms${note}`; st.classList.remove('busy');
+      gridRunning = false; S.heatCache = {}; buildLegend(); drawLatChart(); poiFromGrid(); draw();
+      if (gridPending) { gridPending = false; scheduleGrid(); }
+    }, 20);
+  }
+  function metricArray() { const g = S.grid; if (!g) return null; const m = $('metric').value; if (m === 'mean') return g.revisitMean; if (m === 'max') return g.revisitMax; const days = S.durS / 86400; return Float64Array.from(g.accesses, (v, k) => g.seenAny[k] ? v / days : NaN); }
+  let heatMax = 720;
+  function buildLegend() {
+    const arr = metricArray(); const lg = $('legend'); if (!arr) { lg.innerHTML = ''; return; }
+    const vals = Array.from(arr).filter(v => isFinite(v)).sort((a, b) => a - b);
+    const p90 = vals.length ? vals[Math.floor(vals.length * 0.9)] : 720; heatMax = niceCeil(Math.max(1, p90));
+    const acc = $('metric').value === 'acc';
+    const steps = GeoMap.ramp.blue; const sw = steps.map((c, i) => `<i style="background:${acc ? steps[steps.length - 1 - i] : c}"></i>`).join('');
+    lg.innerHTML = `<span>${acc ? 'accesses/day' : ($('metric').value === 'mean' ? 'mean gap' : 'max gap')}</span><span class="sw">${sw}</span><span>${acc ? '0 → ' + heatMax.toFixed(0) : '0 → ' + fmtMin(heatMax) + ' (p90)'}</span>`;
+  }
+  function niceCeil(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); const m = v / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 3 ? 3 : m <= 5 ? 5 : 10) * p; }
+  function fmtMin(m) { return m >= 120 ? (m / 60).toFixed(0) + ' h' : m.toFixed(0) + ' min'; }
+  function heatColor(v) { const acc = $('metric').value === 'acc'; if (acc) { const t = Math.max(0, Math.min(0.999, v / heatMax)); const s = GeoMap.ramp.blue; return s[s.length - 1 - Math.floor(t * s.length)]; } return GeoMap.ramp.revisit(v, heatMax); }
+  // cached heat layer: rendered once per view, blitted every frame
+  const heatLayer = { type: 'custom', draw(ctx, m) {
+    const arr = metricArray(); if (!arr || !$('l-heat').checked) return;
+    const key = [m.projName, m.zoomK, m.tx | 0, m.ty | 0, m.rotation.map(x => x.toFixed(2)).join(), m.w, m.h, S.gridVersion, $('metric').value, isDark()].join('|');
+    if (S.heatCache.key !== key) {
+      const dpr = window.devicePixelRatio || 1, off = document.createElement('canvas'); off.width = m.w * dpr; off.height = m.h * dpr; const o = off.getContext('2d'); o.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const path = d3.geoPath(m.proj, o), g = S.grid, dLat = g.lats[1] - g.lats[0], dLon = g.lons[1] - g.lons[0];
+      o.globalAlpha = 0.55; // cell rings are built clockwise: d3-geo fills the complement of a counter-clockwise ring
+      for (let r = 0; r < g.lats.length; r++) for (let c = 0; c < g.nO; c++) { const v = arr[r * g.nO + c]; if (!isFinite(v)) continue; const la = g.lats[r], lo = g.lons[c]; o.beginPath(); path({ type: 'Polygon', coordinates: [[[lo - dLon / 2, la - dLat / 2], [lo - dLon / 2, la + dLat / 2], [lo + dLon / 2, la + dLat / 2], [lo + dLon / 2, la - dLat / 2], [lo - dLon / 2, la - dLat / 2]]] }); o.fillStyle = heatColor(v); o.fill(); }
+      S.heatCache = { key, canvas: off };
+    }
+    ctx.drawImage(S.heatCache.canvas, 0, 0, m.w, m.h);
+  } };
+
+  // ---------- drawing ----------
+  function draw() {
+    const C = col(), layers = [heatLayer], t = S.simT, now = new Date(S.epoch.getTime() + t * 1000);
+    const fp = ORB.footprintRadiusKm(+$('alt').value, S.minEl), many = S.orbits.length > 16;
+    const half = S.period / 2;
+    if ($('l-gs').checked) B.ground.stations.forEach(g => { layers.push({ type: 'point', coords: [g.lon, g.lat], r: 3.5, fill: C.gs, stroke: '#fff', width: 1, label: many ? '' : g.name.split(' (')[0], size: 10 }); });
+    S.orbits.forEach((o, i) => {
+      const c = C.s[($('ctype').value === 'clusters' ? Math.floor(i / +$('cn').value) : i) % 8];
+      if ($('l-trk').checked) { const tr = S.tracks[i]; const i0 = Math.max(0, Math.floor((t - half) / 30)), i1 = Math.min(tr.length - 1, Math.ceil((t + half) / 30)); const pts = []; for (let k = i0; k <= i1; k++) pts.push([tr[k][0], tr[k][1]]); if (pts.length > 1) layers.push({ type: 'line', coords: pts, stroke: c, width: many ? 0.8 : 1.3, opacity: 0.8 }); }
+      const s = ORB.stateEcef(o, now);
+      if ($('l-fp').checked) layers.push({ type: 'circle', center: [s.lon, s.lat], radiusKm: ORB.footprintRadiusKm(s.alt, S.minEl), fill: 'rgba(42,120,214,0.13)', stroke: c, width: 0.9 });
+      layers.push({ type: 'point', coords: [s.lon, s.lat], r: many ? 2.5 : 3.5, fill: c, stroke: '#fff', width: 1, label: S.orbits.length <= 12 ? o.name : '', size: 10 });
+    });
+    layers.push({ type: 'point', coords: [S.poi.lon, S.poi.lat], r: 5, fill: C.poi, stroke: '#fff', width: 1.5, label: S.poi.name, size: 11 });
+    map.layers = layers; map.draw();
+    $('tlabel').textContent = now.toISOString().slice(5, 16).replace('T', ' ') + ' Z';
+    $('time').value = t;
+  }
+  function drawLatChart() {
+    const g = S.grid; if (!g) return;
+    const mean = [], mx = [];
+    for (let r = 0; r < g.lats.length; r++) { const a = [], b = []; for (let c = 0; c < g.nO; c++) { const k = r * g.nO + c; if (isFinite(g.revisitMean[k])) { a.push(g.revisitMean[k]); b.push(g.revisitMax[k]); } } if (a.length) { mean.push([g.lats[r], d3.mean(a)]); mx.push([g.lats[r], d3.mean(b)]); } }
+    Charts.line($('chart-lat'), { title: 'Revisit gap vs latitude (minutes, log scale)', xLabel: 'latitude (°)', yLabel: 'minutes', yLog: true, height: 300, xDomain: [-90, 90],
+      series: [{ name: 'mean gap', points: mean }, { name: 'worst gap', points: mx, dash: '5 4' }], bands: [{ x0: S.poi.lat - 1.5, x1: S.poi.lat + 1.5, color: U.css('--band-ku'), label: S.poi.name }], format: v => v >= 120 ? (v / 60).toFixed(1) + ' h' : v.toFixed(0) + ' min', xFormat: v => v.toFixed(0) + '°' });
+  }
+
+  // ---------- recompute pipeline ----------
+  let poiTimer = null;
+  function recomputeAll() {
+    S.epoch = readEpoch(); S.durS = +$('dur').value * 3600; S.minEl = +$('minel').value;
+    $('time').max = S.durS; if (S.simT > S.durS) S.simT = 0;
+    buildOrbits(); computePoi(); draw(); scheduleGrid();
+  }
+  function recomputePoi() { clearTimeout(poiTimer); poiTimer = setTimeout(() => { computePoi(); drawLatChart(); draw(); }, 60); }
+  function showTypeControls() { const t = $('ctype').value; document.querySelectorAll('#controls .ctl[data-for]').forEach(el => { el.style.display = el.dataset.for.split(' ').includes(t) ? '' : 'none'; }); }
+
+  // ---------- bindings ----------
+  ['alt', 'inc', 'cn', 'calong', 'ccross', 'wp', 'ws', 'wf', 'minel', 'dur'].forEach(id => bindRange(id, null, v => ({ alt: v + ' km', inc: v + '°', calong: v + ' km', ccross: v + ' km', minel: v + '°', dur: v + ' h' })[id] || v));
+  let allTimer = null; const debounced = () => { clearTimeout(allTimer); allTimer = setTimeout(recomputeAll, 120); };
+  ['alt', 'inc', 'cn', 'calong', 'ccross', 'wp', 'ws', 'wf', 'minel', 'dur', 'epoch', 'res'].forEach(id => $(id).addEventListener('input', debounced));
+  $('ctype').addEventListener('change', () => { showTypeControls(); recomputeAll(); });
+  $('custom').addEventListener('input', () => { clearTimeout(allTimer); allTimer = setTimeout(recomputeAll, 500); });
+  $('metric').addEventListener('change', () => { S.heatCache = {}; buildLegend(); draw(); });
+  ['l-heat', 'l-fp', 'l-trk', 'l-gs'].forEach(id => $(id).addEventListener('change', draw));
+  $('btn-sso').addEventListener('click', () => { const v = ORB.ssoInclination(+$('alt').value); $('inc').value = v.toFixed(1); $('inc').dispatchEvent(new Event('input')); });
+  $('btn-base').addEventListener('click', () => { $('alt').value = B.orbit.altKm; $('inc').value = B.orbit.incDeg; $('alt').dispatchEvent(new Event('input')); $('inc').dispatchEvent(new Event('input')); });
+  $('p-eq').addEventListener('click', () => { map.setProjection('equirect'); $('p-eq').setAttribute('aria-pressed', 'true'); $('p-or').setAttribute('aria-pressed', 'false'); S.heatCache = {}; draw(); });
+  $('p-or').addEventListener('click', () => { map.setCenter([S.poi.lon, S.poi.lat], false); map.setProjection('ortho'); $('p-eq').setAttribute('aria-pressed', 'false'); $('p-or').setAttribute('aria-pressed', 'true'); S.heatCache = {}; draw(); });
+  $('p-reset').addEventListener('click', () => { map.resetView(); if (map.projName !== 'ortho') map.setZoom(1.5); });
+  $('poi').addEventListener('change', () => { const v = $('poi').value; if (v === 'custom') return; const p = PRESETS[+v]; S.poi = { name: p[0], lat: p[1], lon: p[2] }; $('plat').value = p[1]; $('plon').value = p[2]; recomputePoi(); });
+  const poiInput = () => { const la = +$('plat').value, lo = +$('plon').value; if (isNaN(la) || isNaN(lo)) return; S.poi = { name: 'Custom point', lat: Math.max(-90, Math.min(90, la)), lon: ((lo + 540) % 360) - 180 }; $('poi').value = 'custom'; recomputePoi(); };
+  $('plat').addEventListener('change', poiInput); $('plon').addEventListener('change', poiInput);
+  map.on('click', ({ lon, lat }) => { S.poi = { name: 'Clicked point', lat, lon }; $('plat').value = lat.toFixed(2); $('plon').value = lon.toFixed(2); $('poi').value = 'custom'; recomputePoi(); });
+  map.on('move', ({ lon, lat, x, y, event }) => { if (lon == null) { hideTip(); return; } const g = S.grid; let extra = ''; if (g && $('l-heat').checked) { const dLat = g.lats[1] - g.lats[0], dLon = g.lons[1] - g.lons[0]; const i = Math.floor((lat + 90) / dLat), j = Math.floor((lon + 180) / dLon); const k = i * g.nO + j; const arr = metricArray(); if (arr && isFinite(arr[k])) extra = ` — ${$('metric').value === 'acc' ? arr[k].toFixed(1) + ' accesses/day' : fmtMin(arr[k]) + ' ' + ($('metric').value === 'mean' ? 'mean gap' : 'max gap')}`; } showTip(`${lat.toFixed(1)}°, ${lon.toFixed(1)}°${extra}`, event.clientX, event.clientY); });
+  $('map').addEventListener('pointerleave', hideTip);
+  // animation
+  $('time').addEventListener('input', () => { S.simT = +$('time').value; draw(); });
+  bindRange('step', null, v => v + ' s / frame'); $('step').addEventListener('input', () => { $('steplabel').textContent = $('step').value + ' s / frame'; });
+  let raf = null, lastTs = 0;
+  function frame(ts) { if (!S.playing) return; if (ts - lastTs > 28) { lastTs = ts; S.simT += +$('step').value; if (S.simT > S.durS) S.simT = 0; draw(); } raf = requestAnimationFrame(frame); }
+  $('play').addEventListener('click', () => { S.playing = !S.playing; $('play').textContent = S.playing ? 'Pause' : 'Play'; if (S.playing) raf = requestAnimationFrame(frame); else cancelAnimationFrame(raf); });
+  document.addEventListener('themechange', () => { S.heatCache = {}; buildLegend(); draw(); drawLatChart(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && S.playing) $('play').click(); });
+
+  showTypeControls();
+  $('ctype').value = 'single';
+  showTypeControls();
+  recomputeAll();
+  renderRefs(['R3-1', 'R3-2', 'R4-2', 'R4-17', 'R4-40']);
+  window.__sim = S;
+})();
+</script>
+</body>
+</html>

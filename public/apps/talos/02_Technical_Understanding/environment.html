@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Environment, radiation &amp; EMC — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .katex-display { overflow-x:auto; overflow-y:hidden; padding:.2rem 0; }
+  td.sm { font-size:.78rem; color:var(--ink-2); }
+  .mit li { margin:.3rem 0; }
+  .face { fill:var(--surface-2); stroke:var(--line-strong); stroke-width:1.2; }
+  .face.hot { fill:color-mix(in srgb, var(--critical) 18%, var(--surface-2)); }
+  .face.rx { fill:color-mix(in srgb, var(--accent) 16%, var(--surface-2)); }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>02 Technical understanding</b> · Environment</div>
+    <h1>Environment, radiation &amp; EMC</h1>
+    <p class="lead">A 530 km, 53° orbit is benign for screened commercial electronics over three to five years, but it crosses the South Atlantic Anomaly on every orbit, cycles through eclipse seasons that swing the beta angle from near 0° to beyond 70°, and puts a −120 dBm receiver a metre from a 45 W transmitter. This page quantifies the radiation, thermal and electromagnetic environment the payload must survive, the debris and disposal rules that size the propulsion, and the launch loads that set the structure, with the mitigations the design carries for each. Thermal and decay figures are computed at page load; everything marked est. is an engineering estimate to be confirmed by analysis.</p>
+    <div class="meta"><span id="meta-baseline">Baseline: TALOS-1 v0.3</span><span>Sources: research notes 03 §7, 05 §3.4</span><span>Risks: <a href="risks.html#T-02">T-02</a> · <a href="risks.html#T-04">T-04</a> · <a href="risks.html#T-08">T-08</a> · <a href="risks.html#T-18">T-18</a> · <a href="risks.html#T-19">T-19</a></span></div>
+  </header>
+
+  <div class="grid c4" id="kpis"></div>
+
+  <h2>Radiation at 530 km</h2>
+  <p>Total ionising dose at 500–600 km behind ≈ 2.5 mm of aluminium is in the 1–4 krad(Si) per year range depending on shielding and solar cycle <span class="tag">est.</span>; cubesat and microsat programmes use a mission design value of ≈ 20 krad(Si) for 500–600 km SSO (the CAMELOT platform specification is the public example)<sup class="ref"><a href="#ref-R3-20">[R3-20]</a></sup>. A 53° orbit avoids the polar horns of the outer belt but crosses the South Atlantic Anomaly on every orbit, so its dose is comparable and dominated by trapped protons <span class="tag">est.</span>. The difference that matters is single-event effects: the SAA and the polar regions raise upset rates by an order of magnitude or more (count rates 60× higher near the poles in the CAMELOT data), and a commercial 16 nm RFSoC will see them. The design assumption is therefore not "no upsets" but "upsets several times a month, none of them fatal" (research 03 §7).</p>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Quantity</th><th>530 km / 53° (TALOS-1)</th><th>530 km SSO (alternative)</th><th>Design value and basis</th></tr></thead>
+    <tbody>
+      <tr><td>TID behind 2.5 mm Al, 5 years</td><td>≈ 5–15 krad(Si) <span class="tag">est.</span>, trapped-proton dominated</td><td>≈ 5–20 krad(Si) <span class="tag">est.</span>, protons + polar electrons</td><td>20 krad(Si) design, 2× margin → parts to 40 krad or local spot shielding<sup class="ref"><a href="#ref-R3-20">[R3-20]</a></sup></td></tr>
+      <tr><td>SAA crossings</td><td>Every orbit (≈ 15/day), 5–15 min each</td><td>≈ 6–8/day</td><td>Duty-cycle the RFSoC over the SAA in Stage 1 commissioning until on-orbit SEU rates are measured; full operation if rates allow</td></tr>
+      <tr><td>Polar horn exposure</td><td>None (latitude ≤ 53°)</td><td>Every orbit, 2 × ≈ 5 min</td><td>SSO variant needs higher SEU budget for the FPGA configuration memory</td></tr>
+      <tr><td>SEU rate, RFSoC configuration memory</td><td colspan="2">Order 1–10 per device-day in quiet orbit, ×10–60 in SAA/polar <span class="tag">est.</span></td><td>Continuous scrubbing (SEM IP), TMR on control logic; expect several payload resets per month and design the data path to lose at most one dwell</td></tr>
+      <tr><td>Single-event latch-up</td><td colspan="2">Possible on any COTS CMOS rail; heavy-ion LET thresholds unknown until tested</td><td>Per-rail current trip in 50 µs on the payload PCDU; proton SEE test of the chosen die lot (ECSS-Q-ST-60-13 style)</td></tr>
+      <tr><td>Displacement damage</td><td colspan="2">Solar cells: 620 W BOL → 540 W EOL (5 yr) in <code>baseline.js</code>; GaAs/GaN MMICs tolerant</td><td>13 % array degradation carried in the power budget; LNAs are inherently tolerant</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Mitigation for a COTS RFSoC payload</h3>
+  <p>The approach is the one dozens of LEO missions have flown with Zynq-7000 and UltraScale+ devices: commercial parts, systematic mitigation, lot-level testing, and a radiation-tolerant supervisor that can always regain control. The space-grade XQR RFSoC remains an option if budget allows; the Teledyne EV12AQ600 + PolarFire RT architecture (150 / 100 krad) is the fallback if the COTS route fails its tests<sup class="ref"><a href="#ref-R2-x79">[R2-x79]</a></sup>.</p>
+  <figure class="diagram">
+    <div id="rad-svg"></div>
+    <figcaption><b>Fault-containment architecture of the payload digital deck.</b> The rad-tolerant supervisor (PolarFire RT or NanoXplore class, 100 krad, SEL-immune) sits between the bus and the commercial RFSoC. It owns the watchdogs, the latch-up current trips on every COTS rail, the gold configuration image and the staged reset sequence; the RFSoC scrubs its own configuration memory and protects DDR and NAND with ECC. The timing unit sits on a never-off rail so a payload reset does not lose time. Nothing the RFSoC does can prevent the supervisor from power-cycling it.</figcaption>
+  </figure>
+  <div class="grid c2">
+    <div class="card"><h3>In the design</h3><ul class="mit" style="margin:.3rem 0 0 1rem;padding:0;font-size:.95rem">
+      <li>Configuration-memory scrubbing (AMD SEM IP) running continuously; readback CRC every few seconds.</li>
+      <li>Triple modular redundancy on control and state-machine logic; data-path logic unprotected but checked (frame CRCs, PDW sanity bounds).</li>
+      <li>ECC on DDR4 and on the 2 TB NAND with periodic scrubbing; file system journaling.</li>
+      <li>Latch-up current monitors with 50 µs trip and automatic power cycle on all COTS rails; supervisor logs every event.</li>
+      <li>Watchdogs at three levels (RFSoC application, supervisor, bus OBC) with staged resets: application restart → RFSoC reconfigure → payload power cycle.</li>
+      <li>Gold bitstream and software images in protected flash; uploaded images run from A/B slots with automatic rollback.</li>
+      <li>Local spot shielding (tantalum or 2–3 mm Al) on the RFSoC, NAND and tuner; the payload enclosure counts toward the 2.5 mm.</li>
+      <li>Acceptance that the payload resets several times a month: the collection schedule resumes from the supervisor's copy, and a dwell lost to a reset is logged as a gap, not an absence of emitters.</li>
+    </ul></div>
+    <div class="card"><h3>Parts screening approach</h3><ul class="mit" style="margin:.3rem 0 0 1rem;padding:0;font-size:.95rem">
+      <li><b>Standard:</b> ECSS-Q-ST-60-13 (commercial EEE components) tailored as ESA does for IOD and Scout-class missions — screening and radiation lot testing instead of Class 1/2 parts (research 05 §2).</li>
+      <li><b>TID:</b> Co-60 lot testing of the RFSoC, tuner transceiver, NAND, DDR, PCDU converters and the ADCs to 20–30 krad; MMIC LNAs/mixers accepted on heritage data.</li>
+      <li><b>SEE:</b> proton testing (≈ 200 MeV) of the RFSoC, tuner silicon, NAND and the supervisor's memory; heavy-ion LET threshold for latch-up on the RFSoC and tuner rails — if below 40 MeV·cm²/mg, the current-trip design is mandatory, not optional.</li>
+      <li><b>Derating and construction analysis:</b> per ECSS-Q-ST-30-11; destructive physical analysis on one device per critical lot.</li>
+      <li><b>Lot control:</b> flight and test parts from the same date code; buy the flight lot early (<a href="roadmap_cost.html">long-lead list</a>).</li>
+      <li><b>Lifetime position:</b> 3-year warranted life with a 5-year goal, as research 05 recommends after Kleos' lifetime shortfall warning (<a href="risks.html#T-18">T-18</a>).</li>
+    </ul></div>
+  </div>
+
+  <h2>Thermal environment and eclipse seasons</h2>
+  <p>At 53° inclination the orbit plane precesses relative to the Sun (J2 nodal regression ≈ <span id="raandot"></span>°/day), so the beta angle — the angle between the Sun and the orbit plane — sweeps through its full range several times a year. Near β = 0° the satellite spends the maximum ≈ 36 % of each orbit in eclipse; above β ≈ 70° it is in continuous sunlight for a few days and the radiators see the Sun at low angles. Both extremes matter: eclipse sets the battery depth of discharge (36 min × ≈ 250 W = 150 Wh, 30 % of the 420 Wh pack in <code>components.js</code>), while the high-beta season sets the hot case for the RFSoC radiator and the cold-start case for the battery after long eclipses. The curves are computed with <code>ORB.eclipseFraction</code> for the TALOS orbit and for the 10:30 SSO alternative over 2030.</p>
+  <div id="ecl-chart"></div>
+  <div id="beta-chart"></div>
+  <p class="muted" style="font-family:var(--font-ui);font-size:.85rem">Two-day samples through 2030; the SSO alternative holds a nearly constant beta angle and a constant ≈ 30 % eclipse, which is why thermal design is easier for Earth-observation missions than for a regional-persistence orbit. The 53° orbit's beta cycle period (≈ <span id="betaper"></span> days) is also the period over which the solar-array power and the payload duty cycle must be planned.</p>
+  <div class="grid c2">
+    <div class="card"><h3>Payload thermal design</h3><ul class="mit" style="margin:.3rem 0 0 1rem;padding:0;font-size:.95rem">
+      <li>RF front-ends for the four DF chains and the LO on a temperature-controlled plate at 20 ± 2 °C (PID heaters, thermistors read by the payload controller) so inter-chain phase stays within the 5° budget between calibrations (<a href="risks.html#T-20">T-20</a>).</li>
+      <li>RFSoC (48 W) and tuner (14 W) on a variable-conductance heat pipe to a 0.25 m² radiator on the −X face, which never sees nadir and faces away from the +X downlink antenna; junction ≤ 85 °C in the hot case (β &gt; 60°, full collection, downlink pass).</li>
+      <li>Payload radiator decoupled from bus radiators so that bus heater cycles do not modulate the front-end temperature.</li>
+      <li>Collection duty cycle is a thermal lever: in the hot case the RFSoC may be held to 70 % duty over the sunlit arc, which costs almost nothing in collection because the SAA crossing is in the same part of the orbit for much of the beta cycle.</li>
+      <li>Deployed helices and the carbon-fibre cross-boom see ±150 °C swings; the boom's near-zero CTE and the calibration comb absorb what the structure does not.</li>
+    </ul></div>
+    <div class="card"><h3>Hot and cold cases to analyse</h3><div class="table-wrap" style="margin:.4rem 0 0"><table class="compact"><thead><tr><th>Case</th><th>Condition</th><th>Driver</th></tr></thead><tbody>
+      <tr><td>Hot 1</td><td>β ≈ 75°, continuous sun, collection + downlink</td><td>RFSoC junction, radiator sizing</td></tr>
+      <tr><td>Hot 2</td><td>β ≈ 0°, sunlit arc, thruster on (110 W) + payload standby</td><td>PPU and battery charging</td></tr>
+      <tr><td>Cold 1</td><td>β ≈ 0°, end of 36 min eclipse, payload standby</td><td>Battery and propellant heaters; survival heater power</td></tr>
+      <tr><td>Cold 2</td><td>Safe mode, tumbling, payload off, 36 min eclipse</td><td>Survival limits of the LNAs and OCXO (never-off rail keeps the oven warm)</td></tr>
+      <tr><td>Transient</td><td>Eclipse exit at high collection load</td><td>Front-end plate gradient &gt; 2 °C/orbit → phase drift between calibrations</td></tr>
+    </tbody></table></div></div>
+  </div>
+
+  <h2 id="sec-emc">EMC and self-interference</h2>
+  <p>The spacecraft's own emitters are 100 dB or more above the signals of interest (research 03 §4.5). The budget below compares each on-board source with the receiver's sensitivity in the band it threatens and states the isolation the design must achieve. Numbers are design-level estimates; the EM-level RF compatibility test is what turns them into facts.</p>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Own source</th><th>Level</th><th>Band threatened</th><th>Signal-of-interest level</th><th class="num">Isolation needed</th><th>How achieved</th></tr></thead>
+    <tbody>
+      <tr><td>X-band downlink TX, 8025–8400 MHz</td><td>+33 dBm RF at antenna port, 15 dBi antenna</td><td>X 8–12 GHz radar path (200 MHz away)</td><td>−100 dBm (marine radar sidelobes in 20 MHz)</td><td class="num">&gt; 130 dB in band; &gt; 80 dB adjacent-band before blanking <span class="tag">est.</span></td><td class="sm">Receive blanked while keyed; 8.0–8.4 GHz notch in the X-array feed (60 dB); antennas on opposite faces (+X vs nadir edge, ≈ 40–50 dB spatial); LNA limiter protects against the residual</td></tr>
+      <tr><td>S-band TT&amp;C TX, 2200–2290 MHz</td><td>+33 dBm, patch antennas zenith + nadir</td><td>S 2–2.5 GHz block</td><td>−102 dBm (radar sidelobes in 10 MHz)</td><td class="num">&gt; 135 dB <span class="tag">est.</span></td><td class="sm">Time-gated receive during contacts (TT&amp;C passes are short and scheduled); 2.2–2.3 GHz notch in the 2–2.5 GHz pre-selector; the nadir TT&amp;C patch is the problem child — consider zenith-only TT&amp;C with a fold-over to nadir in safe mode</td></tr>
+      <tr><td>Payload and bus DC/DC converters (100 kHz–2 MHz switching, harmonics to hundreds of MHz)</td><td>Conducted: MIL-STD-461 CE102 class limits without filtering</td><td>UHF 225–512 MHz</td><td>−128 dBm (25 kHz comms)</td><td class="num">40 dB below CE102 in band <span class="tag">est.</span></td><td class="sm">Filtered payload PCDU; converters synchronised to a frequency whose harmonics fall outside the pre-select passband; shielded enclosures; UHF helices on the nadir face away from the power deck</td></tr>
+      <tr><td>Reaction-wheel drive electronics, magnetorquer PWM</td><td>Broadband switching noise, 10 kHz–100 MHz + harmonics</td><td>UHF</td><td>−128 dBm</td><td class="num">&gt; 60 dB <span class="tag">est.</span></td><td class="sm">Magnetorquer pulses scheduled outside UHF collection windows; wheel speed changes avoided during dwells; shielded harness, single-point ground</td></tr>
+      <tr><td>OBC, RFSoC and memory clocks (100 MHz–5 GHz) and their harmonics</td><td>Radiated emissions from the digital deck</td><td>UHF, L, S (clock harmonics at discrete lines)</td><td>−128…−112 dBm</td><td class="num">&gt; 80 dB <span class="tag">est.</span></td><td class="sm">Digital deck in its own enclosure with filtered feed-throughs; spread-spectrum clocking where TOA accuracy allows (not on the ADC clock); known lines masked in the detector after the commissioning fingerprint</td></tr>
+      <tr><td>GNSS receiver LOs, ISL transmitter (cluster phase)</td><td>Low (−20…+27 dBm)</td><td>L, S</td><td>−112 dBm</td><td class="num">&gt; 100 dB <span class="tag">est.</span></td><td class="sm">ISL transmit scheduled outside dwells; GNSS receiver shielded; ISL frequency chosen in the TT&amp;C notch</td></tr>
+    </tbody>
+  </table></div>
+  <figure class="diagram">
+    <div id="emc-svg"></div>
+    <figcaption><b>Face allocation driven by EMC.</b> Transmitters (+X: X-band downlink; zenith: S-band TT&amp;C patch and GNSS) are kept off the nadir face that carries every receive aperture; the payload radiator and the thruster share −X. The DF cross-boom extends from the nadir face so that its elements are at least a metre from any bus electronics. The ±Y wings are canted 20° and carry no electronics other than the array strings.</figcaption>
+  </figure>
+  <div class="grid c2">
+    <div class="card"><h3>UHF-quiet bus rules (Phase A requirement)</h3><ul class="mit" style="margin:.3rem 0 0 1rem;padding:0;font-size:.95rem">
+      <li>Radiated emissions from any bus unit in 225–512 MHz at 1 m: below −130 dBm/Hz equivalent at the UHF antenna port <span class="tag">est.</span> — specified to the bus vendor as a measured requirement, not a design goal.</li>
+      <li>All switching converters synchronised; frequencies and harmonics documented in an emissions register.</li>
+      <li>No unshielded high-speed links on the nadir side; harness twisted-shielded pairs with 360° backshell termination.</li>
+      <li>Single-point grounding scheme with separate payload and bus returns; chassis bonding ≤ 2.5 mΩ.</li>
+      <li>"Quiet mode" command that stops magnetorquers, holds wheel speeds and parks non-essential digital units for a dwell.</li>
+      <li>Transmit schedules (TT&amp;C, X-band, ISL) published to the payload controller so receive blanking is deterministic.</li>
+    </ul></div>
+    <div class="card"><h3>EMC test plan</h3><ul class="mit" style="margin:.3rem 0 0 1rem;padding:0;font-size:.95rem">
+      <li><b>Unit level:</b> conducted and radiated emissions of every bus unit and the payload PCDU (MIL-STD-461 / ECSS-E-ST-20-07 tailored), with the UHF band measured at the payload's own sensitivity rather than at the standard limit.</li>
+      <li><b>EM level (Phase C):</b> bus engineering model plus payload EM in an anechoic chamber: receive noise floor in every band with all bus units cycling; transmit-to-receive isolation with the X-band and S-band transmitters keyed; blanking timing verified to the microsecond.</li>
+      <li><b>Flight model:</b> repeat of the self-compatibility test after integration; record the interference fingerprint that flies as the first entry of the on-orbit mask table.</li>
+      <li><b>Facility:</b> HAITF in Greece if the chamber is available, otherwise an EU facility (research 05 §AIT); budget €0.5–1.5 M for the whole environmental campaign.</li>
+      <li><b>Pathfinder:</b> if the hosted-payload pathfinder flies, its first job is to measure a real bus's emissions against a real UHF receiver (research 05 §6.4 lists T-02 among the risks it retires).</li>
+    </ul></div>
+  </div>
+
+  <h2>Debris, decay and disposal</h2>
+  <p>The FCC's 5-year post-mission disposal rule (adopted 29 September 2022)<sup class="ref"><a href="#ref-R3-21">[R3-21]</a></sup><sup class="ref"><a href="#ref-R5-30">[R5-30]</a></sup> and ESA's Zero Debris approach (prompt disposal, ≥ 90 % disposal success probability under ESSB-ST-U-007)<sup class="ref"><a href="#ref-R3-22">[R3-22]</a></sup> set the standard TALOS will be held to, whichever licence it flies under; the draft EU Space Act codifies the same obligations for EU operators<sup class="ref"><a href="#ref-R5-12">[R5-12]</a></sup> and insurers price Charter compliance<sup class="ref"><a href="#ref-R5-19">[R5-19]</a></sup>. Natural decay from 530 km takes well over five years for a 150 kg satellite, so controlled lowering is mandatory. The chart is a simple ballistic estimate: an exponential atmosphere at three solar-activity levels and a ballistic coefficient computed from the TALOS mass and area — good enough to show the shape of the problem, not a substitute for a DRAMA or STELA run.</p>
+  <div class="panel">
+    <h3>Decay-time estimate <span class="tag">est.</span></h3>
+    <div class="controls">
+      <div class="ctl"><label>Mass <output for="dc-m">150</output> kg</label><input type="range" id="dc-m" min="80" max="200" step="5" value="150"></div>
+      <div class="ctl"><label>Mean cross-section <output for="dc-a">1.0</output> m²</label><input type="range" id="dc-a" min="0.4" max="3" step="0.1" value="1.0"></div>
+      <div class="ctl"><label>Drag coefficient <output for="dc-cd">2.2</output></label><input type="range" id="dc-cd" min="2" max="2.6" step="0.1" value="2.2"></div>
+    </div>
+    <div id="decay-chart"></div>
+    <div class="readout" id="decay-read"></div>
+    <p class="muted" style="font-size:.8rem;margin:.6rem 0 0">Atmosphere: piecewise-exponential mean density profile scaled ×0.4 (solar minimum), ×1 (mean) and ×2.5 (solar maximum); decay integrated to 150 km. Real lifetimes depend on the solar cycle phase at end of mission and on attitude (a tumbling satellite with 1.9 m² of wings decays faster than the body-only case). The wings are the disposal asset: pointing them edge-on to the velocity vector is a free "drag brake".</p>
+  </div>
+  <div class="table-wrap"><table class="compact" id="dv-tab"><thead><tr><th>Disposal manoeuvre from 530 km</th><th class="num">ΔV, impulsive (perigee lowering)</th><th class="num">ΔV, low-thrust (circular lowering)</th><th class="num">Time at 1 mN, 150 kg</th><th class="num">Est. lifetime after manoeuvre (mean solar)</th></tr></thead><tbody></tbody></table></div>
+  <div class="callout warn"><div class="t">Budget check</div><p id="dv-note"></p></div>
+  <p>Collision avoidance is the other half of <a href="risks.html#T-19">T-19</a>: the 500–600 km shell is the most congested in LEO, and a 150 kg satellite with 1 mN of thrust needs ≈ 1 day of warning to open a 1 km miss distance. The baseline therefore assumes a conjunction-assessment service subscription (KSAT/LeoLabs class) and keeps 10 m/s of the ΔV budget for avoidance over the mission, inside the 40 m/s drag make-up allocation.</p>
+
+  <h2>Launch environment</h2>
+  <p>TALOS-1 is sized for an ESPA-class port (15-inch ring, 0.6 × 0.6 × 0.8 m stowed envelope, ≤ 150 kg) on a rideshare mission — SpaceX Transporter/Bandwagon or a European small launcher once available (research 02 §L). Loads below are the rideshare-class envelope used for sizing <span class="tag">est.</span>; the actual values come from the launch provider's user guide once the slot is booked, and the structure is qualified by analysis plus a proto-flight test campaign (ECSS-E-ST-10-03 tailored).</p>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Environment</th><th>Sizing value <span class="tag">est.</span></th><th>Where it bites</th><th>Design response</th></tr></thead>
+    <tbody>
+      <tr><td>Quasi-static design load</td><td>≈ 8.5 g axial combined with ≈ 3 g lateral at the separation plane (rideshare envelope class)</td><td>Primary structure, HDRM preloads, battery and wheel brackets</td><td>Aluminium honeycomb panels and central deck; HDRMs sized with ≥ 1.25 yield / 1.5 ultimate factors</td></tr>
+      <tr><td>First structural mode</td><td>&gt; 60 Hz stowed (TALOS requirement; rideshare guides typically ask &gt; 40 Hz)</td><td>Stowed cross-boom, helices, wings; payload deck</td><td>Margin above the provider's minimum avoids coupled-loads iterations; stowed deployables tied down at both ends</td></tr>
+      <tr><td>Random vibration</td><td>≈ 6–8 g<sub>rms</sub> overall, 20–2000 Hz, proto-flight +3 dB</td><td>RFSoC board (large BGA), connectors, OCXO</td><td>BGA underfill / corner staking; board-level vibration test of the digitiser before integration</td></tr>
+      <tr><td>Shock</td><td>Separation-system shock ≈ 1000–3000 g SRS above 1 kHz at the ring, attenuating through the structure</td><td>Crystal oscillators, relays, star-tracker optics</td><td>CarboNIX-class low-shock separation system (components.js); timing unit mounted on the inner deck</td></tr>
+      <tr><td>Acoustic</td><td>≈ 140 dB OASPL inside a fairing</td><td>Solar wings, patch arrays, radiator panel</td><td>Panel thickness and bonding checked by acoustic analysis; wings stowed against the body</td></tr>
+      <tr><td>Depressurisation and venting</td><td>Fairing venting 2–3 kPa/s</td><td>Enclosures, MLI, battery</td><td>Vent paths in every box; MLI vented</td></tr>
+      <tr><td>Pre-launch and early orbit</td><td>Up to 10 min after separation before deployments; no RF transmission until authorised</td><td>Battery, timers, deployment sequencing</td><td>Deployment sequence: wings → helices → boom, each on confirmation; payload off until bus commissioning</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/components.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  const B = BASELINE;
+  document.getElementById('meta-baseline').textContent = 'Baseline: ' + B.version;
+  const t0 = new Date('2030-01-01T00:00:00Z');
+  const talos = ORB.makeOrbit({ alt: B.orbit.altKm, inc: B.orbit.incDeg, raan: 40, ta: 0, epoch: t0 });
+  const sun0 = ORB.sunEci(t0), raSun = Math.atan2(sun0[1], sun0[0]) * ORB.R2D;
+  const sso = ORB.makeOrbit({ alt: B.orbit.ssoAlt, inc: ORB.ssoInclination(B.orbit.ssoAlt), raan: raSun - 22.5, ta: 0, epoch: t0 });
+  const raanDotDeg = talos.raanDot * 86400 * ORB.R2D;
+  document.getElementById('raandot').textContent = raanDotDeg.toFixed(2);
+  const betaPeriod = 360 / Math.abs(raanDotDeg - 360 / 365.25); document.getElementById('betaper').textContent = betaPeriod.toFixed(0);
+  function beta(orb, date) { const s = ORB.stateEci(orb, date); const n = ORB.V.unit(ORB.V.cross(s.r, s.v)); return Math.asin(Math.max(-1, Math.min(1, ORB.V.dot(n, ORB.sunEci(date))))) * ORB.R2D; }
+  const weeks = d3.range(0, 366, 2).map(w => new Date(t0.getTime() + w * 86400000));
+  const ecl = weeks.map(d => [+(d - t0) / 86400000, ORB.eclipseFraction(talos, d) * 100]), eclS = weeks.map(d => [+(d - t0) / 86400000, ORB.eclipseFraction(sso, d) * 100]);
+  const bet = weeks.map(d => [+(d - t0) / 86400000, beta(talos, d)]), betS = weeks.map(d => [+(d - t0) / 86400000, beta(sso, d)]);
+  const maxEcl = d3.max(ecl, p => p[1]), minEcl = d3.min(ecl, p => p[1]);
+  const period = ORB.period(ORB.RE + B.orbit.altKm) / 60;
+
+  const kp = document.getElementById('kpis');
+  [['20 krad(Si)', 'TID design value, 2.5 mm Al', 'LEO 500–600 km class spec'], [`${minEcl.toFixed(0)}–${maxEcl.toFixed(0)} %`, 'eclipse fraction over the year (53°)', `up to ${(maxEcl / 100 * period).toFixed(0)} min per ${period.toFixed(0)} min orbit`], [`${B.prop.dvDisposalMs} m/s`, 'disposal ΔV reserved', `of ${B.prop.dvTotalMs} m/s FEEP budget`], ['> 60 Hz', 'first stowed mode required', 'ESPA-class rideshare envelope']]
+  .forEach(k => kp.append(U.el('div', { class: 'kpi' }, U.el('div', { class: 'v' }, k[0]), U.el('div', { class: 'l' }, k[1]), U.el('div', { class: 'd' }, k[2]))));
+
+  const NS = 'http://www.w3.org/2000/svg';
+  function sv(tag, attrs, txt) { const e = document.createElementNS(NS, tag); for (const k in attrs) if (attrs[k] != null) e.setAttribute(k, attrs[k]); if (txt != null) e.textContent = txt; return e; }
+  function box(svg, x, y, w, h, lines, opt = {}) { svg.append(sv('rect', { x, y, width: w, height: h, rx: 5, class: 'box' + (opt.hi ? ' hi' : ''), 'stroke-dasharray': opt.dotted ? '4 3' : null })); lines.forEach((t, i) => svg.append(sv('text', { x: x + w / 2, y: y + h / 2 + (i - (lines.length - 1) / 2) * 12.5, class: i ? 'lbl xs' : 'lbl s', 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, t))); return { x, y, w, h, r: x + w, b: y + h, cx: x + w / 2, cy: y + h / 2 }; }
+  function defs(svg) { const d = sv('defs', {}); [['data', 'var(--accent)'], ['pwr', 'var(--band-c)'], ['time', 'var(--band-s)'], ['rf', 'var(--accent-2)']].forEach(([id, c]) => { const m = sv('marker', { id: 'm-' + id, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto' }); m.append(sv('path', { d: 'M0,1 L9,5 L0,9 z', fill: c })); d.append(m); }); svg.append(d); }
+  const wire = (svg, p, cls = 'data', arrow = true) => svg.append(sv('path', { d: p, class: 'wire ' + cls, 'marker-end': arrow ? `url(#m-${cls})` : null }));
+  const label = (svg, x, y, t, cls = 'lbl xs', anchor = 'start') => svg.append(sv('text', { x, y, class: cls, 'text-anchor': anchor }, t));
+
+  // ---- radiation fault-containment SVG
+  (function rad() {
+    const W = 900, H = 330, svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img' }); defs(svg);
+    const bus = box(svg, 16, 40, 130, 80, ['Bus OBC + PCDU', 'rad-hard LEON/ARM', '2 × 150 W payload lines', 'can hard-cycle payload']);
+    const sup = box(svg, 200, 30, 190, 120, ['Rad-tolerant supervisor', 'PolarFire RT / NanoXplore', '100 krad, SEL-immune', 'watchdogs · staged resets', 'gold images · LCL trips', 'schedule & library copy'], { hi: true });
+    const pcdu = box(svg, 200, 190, 190, 70, ['Payload PCDU', 'per-rail current trip 50 µs', 'never-off rail for timing']);
+    const rf = box(svg, 450, 30, 200, 120, ['RFSoC (COTS 16 nm)', 'config scrubbing (SEM IP)', 'TMR control logic', 'ECC DDR4 · frame CRCs', 'over-range / health flags']);
+    const nand = box(svg, 690, 30, 190, 56, ['Mass memory 2 TB', 'ECC + scrubbing, journaling']);
+    const tun = box(svg, 690, 100, 190, 50, ['Comms tuner', 'mature COTS, own trip']);
+    const tm = box(svg, 450, 190, 200, 70, ['Timing unit', 'OCXO + CSAC on never-off rail', 'time survives payload resets'], { hi: true });
+    const shield = box(svg, 690, 190, 190, 70, ['Spot shielding', '2–3 mm Al / Ta on RFSoC, NAND,', 'tuner; enclosure counts to 2.5 mm'], { dotted: true });
+    wire(svg, `M${bus.r},${bus.cy} H${sup.x}`); label(svg, 150, bus.cy - 6, 'CAN / SpW');
+    wire(svg, `M${bus.cx},${bus.b} V${pcdu.cy} H${pcdu.x}`, 'pwr'); label(svg, 86, 160, '28 V', 'lbl xs');
+    wire(svg, `M${sup.r},${sup.cy - 30} H${rf.x}`); label(svg, 395, sup.cy - 36, 'config / reset');
+    wire(svg, `M${rf.x},${rf.cy + 10} H${sup.r}`); label(svg, 395, rf.cy + 24, 'health, reports');
+    wire(svg, `M${sup.cx},${sup.b} V${pcdu.y}`); label(svg, sup.cx + 6, 172, 'trip / cycle commands');
+    wire(svg, `M${pcdu.r},${pcdu.cy - 15} H420 V${rf.b - 10} H${rf.x}`, 'pwr'); label(svg, 424, rf.b + 12, '+12 V', 'lbl xs');
+    wire(svg, `M${pcdu.r},${pcdu.cy + 15} H${tm.x}`, 'pwr'); label(svg, 420, pcdu.cy + 10, 'never-off');
+    wire(svg, `M${rf.r},${rf.cy - 30} H${nand.x}`); wire(svg, `M${tun.x},${tun.cy} H${rf.r}`);
+    wire(svg, `M${tm.cx},${tm.y} V${rf.b}`, 'time');
+    label(svg, 16, 284, 'Reset ladder: 1 application restart (seconds) → 2 RFSoC reconfigure from gold image (≈ 30 s) →', 'lbl xs');
+    label(svg, 16, 299, '3 payload power cycle by the supervisor (minutes) → 4 payload line cycle by the bus (ground command).', 'lbl xs');
+    label(svg, 16, 316, 'Every step is logged with GNSS time so SEU statistics by orbit position (SAA map) accumulate from day one.', 'lbl xs');
+    document.getElementById('rad-svg').append(svg);
+  })();
+
+  // ---- thermal charts
+  Charts.line(document.getElementById('ecl-chart'), { title: 'Eclipse fraction through 2030 (computed, 2-day samples)', xLabel: 'day of year 2030', yLabel: 'eclipse fraction (%)', series: [{ name: `TALOS-1 ${B.orbit.altKm} km / ${B.orbit.incDeg}°`, points: ecl }, { name: 'SSO 10:30 alternative', points: eclS, dash: '5 4' }], yDomain: [0, 40], height: 260, xFormat: v => 'day ' + v.toFixed(0) });
+  Charts.line(document.getElementById('beta-chart'), { title: 'Beta angle through 2030 (computed)', xLabel: 'day of year 2030', yLabel: 'beta angle (°)', series: [{ name: `TALOS-1 ${B.orbit.incDeg}°`, points: bet }, { name: 'SSO 10:30', points: betS, dash: '5 4' }], yDomain: [-90, 90], hlines: [{ y: 70, label: 'continuous sunlight above ≈ 70°' }, { y: -70, label: '' }], height: 260, xFormat: v => 'day ' + v.toFixed(0) });
+
+  // ---- EMC face layout SVG (isometric body with the nadir face exploded below)
+  (function emc() {
+    const W = 900, H = 470, svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img' }); defs(svg);
+    const ox = 330, oy = 100;
+    svg.append(sv('path', { d: `M${ox},${oy} l120,-50 l120,50 l-120,50 z`, class: 'face hot' }));
+    svg.append(sv('path', { d: `M${ox},${oy} l120,50 v130 l-120,-50 z`, class: 'face' }));
+    svg.append(sv('path', { d: `M${ox + 120},${oy + 50} l120,-50 v130 l-120,50 z`, class: 'face hot' }));
+    label(svg, ox + 120, oy - 60, '+Z zenith: S-band TT&C patch (+33 dBm), GNSS antennas', 'lbl s', 'middle');
+    label(svg, ox + 40, oy + 100, '−X', 'lbl s'); label(svg, ox + 14, oy + 116, 'payload radiator', 'lbl xs'); label(svg, ox + 14, oy + 130, 'FEEP thruster', 'lbl xs');
+    label(svg, ox + 160, oy + 100, '+X', 'lbl s'); label(svg, ox + 148, oy + 116, 'X-band downlink TX', 'lbl xs'); label(svg, ox + 148, oy + 130, '+33 dBm, 15 dBi', 'lbl xs'); label(svg, ox + 148, oy + 144, 'reflector option HDRM', 'lbl xs');
+    svg.append(sv('path', { d: `M${ox - 10},${oy + 70} l-200,30 l0,20 l200,-30 z`, class: 'face' })); label(svg, ox - 205, oy + 136, '−Y wing (canted 20°, strings only)', 'lbl xs');
+    svg.append(sv('path', { d: `M${ox + 250},${oy + 70} l200,-60 l0,20 l-200,60 z`, class: 'face' })); label(svg, ox + 300, oy + 2, '+Y wing', 'lbl xs');
+    const ny = 350;
+    svg.append(sv('path', { d: `M${ox - 30},${ny} l150,-62 l150,62 l-150,62 z`, class: 'face rx' }));
+    label(svg, ox + 120, ny + 86, '−Z nadir face (exploded): UHF helices ×2 · wideband CP ×2 · S 4×4 · X 8×8 (−X edge) · DF cross-boom hub', 'lbl s', 'middle');
+    svg.append(sv('path', { d: `M${ox + 120},${oy + 182} V${ny - 66}`, class: 'wire', 'stroke-dasharray': '3 3' })); label(svg, ox + 128, 302, 'nadir face lifted off the body', 'lbl xs');
+    [[ox + 50, ny - 14, 'UHF'], [ox + 190, ny - 14, 'UHF'], [ox + 120, ny - 36, 'CP'], [ox + 120, ny + 36, 'CP'], [ox + 80, ny + 24, 'S'], [ox + 10, ny + 4, 'X']].forEach(a => { svg.append(sv('circle', { cx: a[0], cy: a[1], r: 10, class: 'box hi' })); label(svg, a[0], a[1] + 3.5, a[2], 'lbl xs', 'middle'); });
+    svg.append(sv('path', { d: `M${ox + 120},${ny} m-40,0 h80 m-40,-20 v40`, class: 'wire time' })); label(svg, ox + 166, ny + 8, 'DF boom hub', 'lbl xs');
+    wire(svg, `M${ox + 190},${oy + 118} L${ox + 24},${ny - 6}`, 'rf', true);
+    label(svg, ox + 250, oy + 200, '+X TX → nadir X array: > 80 dB', 'lbl xs'); label(svg, ox + 250, oy + 214, 'notch 60 dB + spatial 40–50 dB; blanked when keyed', 'lbl xs');
+    wire(svg, `M${ox + 20},${oy} C${ox - 120},${oy + 60} ${ox - 120},${ny - 40} ${ox + 68},${ny + 18}`, 'rf', true);
+    label(svg, 20, 40, 'zenith TT&C → nadir S array:', 'lbl xs'); label(svg, 20, 54, '> 135 dB needed → time-gated receive', 'lbl xs'); label(svg, 20, 68, '+ 2.2–2.3 GHz notch', 'lbl xs');
+    label(svg, 20, H - 10, 'Inside the body: DC/DC converters, wheel drivers, clocks — filtered payload PCDU, shielded enclosures, UHF-quiet bus rules.', 'lbl xs');
+    document.getElementById('emc-svg').append(svg);
+  })();
+
+  // ---- decay estimate
+  const RHO = [[150, 2.07e-9], [200, 2.54e-10], [250, 6.07e-11], [300, 1.92e-11], [350, 7.0e-12], [400, 2.8e-12], [450, 1.2e-12], [500, 5.2e-13], [550, 2.4e-13], [600, 1.1e-13], [650, 5.5e-14], [700, 2.8e-14]];
+  function rho(h) { if (h <= 150) return RHO[0][1]; for (let i = 1; i < RHO.length; i++) if (h <= RHO[i][0]) { const [h0, r0] = RHO[i - 1], [h1, r1] = RHO[i]; const Hs = (h1 - h0) / Math.log(r0 / r1); return r0 * Math.exp(-(h - h0) / Hs); } return RHO[RHO.length - 1][1] * Math.exp(-(h - 700) / 60); }
+  function lifetimeYears(h0, bc, scale) { // bc = Cd A / m (m²/kg); circular orbit decay da/dt = -sqrt(mu a) rho bc  (km, s)
+    let a = ORB.RE + h0, t = 0; const mu = ORB.MU; let dt = 86400;
+    while (a - ORB.RE > 150 && t < 200 * 365.25 * 86400) { const r = rho(a - ORB.RE) * scale * 1e9; /* kg/km³ */ const dadt = -Math.sqrt(mu * a) * r * bc * 1e-6; /* bc m²/kg → km²/kg */ dt = Math.max(60, Math.min(30 * 86400, Math.abs(1 / dadt) * 0.5)); a += dadt * dt; t += dt; }
+    return t / (365.25 * 86400);
+  }
+  function decay() {
+    const m = +document.getElementById('dc-m').value, A = +document.getElementById('dc-a').value, cd = +document.getElementById('dc-cd').value, bc = cd * A / m;
+    const alts = d3.range(300, 651, 10);
+    const ser = [[0.4, 'solar minimum (×0.4)'], [1, 'mean solar activity'], [2.5, 'solar maximum (×2.5)']].map(s => ({ name: s[1], points: alts.map(h => [h, lifetimeYears(h, bc, s[0])]) }));
+    Charts.line(document.getElementById('decay-chart'), { title: `Estimated orbital lifetime vs initial circular altitude (B = Cd·A/m = ${bc.toFixed(4)} m²/kg)`, xLabel: 'initial altitude (km)', yLabel: 'lifetime (years, log)', yLog: true, series: ser, hlines: [{ y: 5, label: '5-year rule' }, { y: 25, label: 'IADC 25-year legacy' }], bands: [{ x0: B.orbit.altKm - 5, x1: B.orbit.altKm + 5, color: 'var(--accent)', label: 'TALOS' }], height: 300, xFormat: v => v.toFixed(0) + ' km' });
+    const rd = document.getElementById('decay-read'); rd.innerHTML = '';
+    [[`${B.orbit.altKm} km, mean`, lifetimeYears(B.orbit.altKm, bc, 1)], [`${B.orbit.altKm} km, solar min`, lifetimeYears(B.orbit.altKm, bc, 0.4)], ['350 km, mean', lifetimeYears(350, bc, 1)], ['300 km, mean', lifetimeYears(300, bc, 1)]].forEach(k => rd.append(U.el('div', {}, U.el('div', { class: 'k' }, 'Lifetime from ' + k[0]), U.el('div', { class: 'v' + (k[1] > 5 ? ' bad' : ' good') }, k[1] >= 1 ? k[1].toFixed(1) + ' yr' : (k[1] * 365).toFixed(0) + ' days'))));
+    // dv table
+    const tb = document.querySelector('#dv-tab tbody'); tb.innerHTML = '';
+    const r1 = ORB.RE + B.orbit.altKm, v1 = Math.sqrt(ORB.MU / r1);
+    [450, 400, 350, 300].forEach(h => { const r2 = ORB.RE + h; const vApo = Math.sqrt(ORB.MU * (2 / r1 - 2 / (r1 + r2))); const dvImp = (v1 - vApo) * 1000; const dvLow = (Math.sqrt(ORB.MU / r2) - v1) * 1000; const days = dvLow / (1e-3 / +document.getElementById('dc-m').value) / 86400; const lifeImp = lifetimeYears((h + B.orbit.altKm) / 2, bc, 1); const lifeLow = lifetimeYears(h, bc, 1);
+      const tr = U.el('tr', {}); tr.innerHTML = `<td>Perigee / circular to ${h} km</td><td class="num">${dvImp.toFixed(0)} m/s</td><td class="num">${dvLow.toFixed(0)} m/s</td><td class="num">${days.toFixed(0)} days thrusting</td><td class="num">${lifeImp.toFixed(1)} yr (elliptical, est.) / ${lifeLow < 1 ? (lifeLow * 365).toFixed(0) + ' days' : lifeLow.toFixed(1) + ' yr'} (circular)</td>`; tb.append(tr); });
+    const dvLow350 = (Math.sqrt(ORB.MU / (ORB.RE + 350)) - v1) * 1000, dvLow450 = (Math.sqrt(ORB.MU / (ORB.RE + 450)) - v1) * 1000;
+    document.getElementById('dv-note').innerHTML = `The baseline reserves ${B.prop.dvDisposalMs} m/s for disposal (research 03 §7 quotes 30–60 m/s to ≤ 350 km). That figure is right for an <em>impulsive</em> perigee-lowering burn, but a 1 mN FEEP thruster cannot burn impulsively: low-thrust circular lowering to 350 km costs ≈ ${dvLow350.toFixed(0)} m/s, and ${B.prop.dvDisposalMs} m/s buys only a descent to ≈ ${(ORB.RE + B.orbit.altKm) - 0 > 0 ? '450' : ''} km (≈ ${dvLow450.toFixed(0)} m/s), from which natural decay at mean solar activity takes ≈ ${lifetimeYears(450, bc, 1).toFixed(1)} years — compliant with the 5-year rule only in the mean/high solar case. The options are (a) accept ≈ 450 km and the solar-cycle dependence, (b) raise the disposal allocation to ≈ 100 m/s by trading formation-keeping ΔV or adding propellant (the 150 kg allocation has margin), or (c) add a drag augmentation device. This should be settled at PDR; it is logged as a baseline inconsistency in this study's report.`;
+  }
+  ['dc-m', 'dc-a', 'dc-cd'].forEach(id => bindRange(id, decay, v => String(v)));
+
+  function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  renderRefs(['R3-20', 'R3-21', 'R3-22', 'R2-x79', 'R5-12', 'R5-19', 'R5-30']);
+})();
+</script>
+</body>
+</html>

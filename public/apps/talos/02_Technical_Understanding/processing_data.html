@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>On-board processing &amp; data — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .katex-display { overflow-x:auto; overflow-y:hidden; padding:.2rem 0; }
+  td.sm { font-size:.78rem; color:var(--ink-2); }
+  .ladder li .what small { display:block; color:var(--ink-3); font-weight:400; }
+  table.gs td.best { font-weight:600; color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>02 Technical understanding</b> · Processing &amp; data</div>
+    <h1>On-board processing &amp; data</h1>
+    <p class="lead">The payload digitises about 10 Gbit/s on the comms path and 560 Gbit/s on the radar path; the X-band link can carry a few hundred gigabytes a day. Everything in between — channelisation, detection, pulse descriptor words, deinterleaving, signal reports, triggered IQ snapshots and on-board catalogue matching — exists to close that gap by three to four orders of magnitude while keeping what the ground needs for TDOA/FDOA and signature building. This page sizes each stage, computes the real pass statistics for Greek and polar ground stations for the TALOS orbit, and sets out the latency ladder and the software stack.</p>
+    <div class="meta"><span id="meta-baseline">Baseline: TALOS-1 v0.3</span><span>Sources: research notes 03 §5, 04 §ground</span><span>Pass statistics computed at page load with orbit.js</span></div>
+  </header>
+
+  <div class="grid c4" id="kpis"></div>
+
+  <h2>Why raw IQ downlink is infeasible</h2>
+  <p>The raw data rate of N coherent channels of bandwidth B digitised at n bits per I and Q sample is</p>
+  $$ R_{IQ} = 2\,B\,n_{bits}\,N_{ch} $$
+  <p>Research 03 §5.1 gives the anchor cases: four channels at 100 MHz and 12 bits are 9.6 Gbit/s (≈ 104 TB/day); eight RFSoC channels at 5 GSPS and 14 bits are 560 Gbit/s raw. A good X-band downlink delivers 100–500 GB/day, i.e. 0.1–0.5 % of the modest four-channel case. Move the sliders to see how little of the problem a faster downlink solves.</p>
+  <div class="panel">
+    <h3>Raw IQ versus downlink</h3>
+    <div class="controls">
+      <div class="ctl"><label>Channels <output for="iq-n">4</output></label><input type="range" id="iq-n" min="1" max="12" step="1" value="4"></div>
+      <div class="ctl"><label>Bandwidth per channel <output for="iq-b">100</output> MHz</label><input type="range" id="iq-b" min="1" max="2000" step="1" value="100"></div>
+      <div class="ctl"><label>Bits per sample <output for="iq-bits">12</output></label><input type="range" id="iq-bits" min="8" max="16" step="1" value="12"></div>
+      <div class="ctl"><label>Downlink rate <output for="iq-dl">1000</output> Mbit/s</label><input type="range" id="iq-dl" min="50" max="4000" step="50" value="1000"></div>
+      <div class="ctl"><label>Downlink minutes per day <output for="iq-min">30</output></label><input type="range" id="iq-min" min="5" max="150" step="1" value="30"></div>
+    </div>
+    <div class="readout">
+      <div><div class="k">Raw IQ rate</div><div class="v" id="iq-rate">—</div></div>
+      <div><div class="k">Raw IQ per day</div><div class="v" id="iq-day">—</div></div>
+      <div><div class="k">Downlink capacity per day</div><div class="v" id="iq-cap">—</div></div>
+      <div><div class="k">Fraction downlinkable</div><div class="v" id="iq-frac">—</div></div>
+      <div><div class="k">Collection time downlinkable per day</div><div class="v" id="iq-time">—</div></div>
+    </div>
+  </div>
+
+  <h2>The processing chain</h2>
+  <p>The chain is the same one every ESM system implements, split along the two receiver paths (research 03 §5.2). Rates on the wires are design-level estimates for TALOS-1 in collection mode; the point of the figure is the ratio between adjacent stages, not the last digit.</p>
+  <figure class="diagram">
+    <div id="pipe-svg"></div>
+    <figcaption><b>From samples to products.</b> Radar path (top): 560 Gbit/s of ADC samples → 64 × 31 MHz polyphase channels with per-bin CFAR → one 256-bit pulse descriptor word per threshold crossing (26 Mbit/s at 10⁵ pulses/s) → deinterleaving into 1–2 kB emitter reports per dwell. Comms path (bottom): 4 × 200 MHz → 4096 × 25 kHz bins → signal reports with modulation class and hop statistics. Both paths trigger IQ snapshots (10–500 ms comms, 1–20 ms radar) time-stamped to ≤ 20 ns with satellite PVT and attitude. The controller matches reports against the uploaded signature library to prioritise the downlink queue and raise alerts.</figcaption>
+  </figure>
+  <div class="grid c2">
+    <div class="card"><h3>1 · Channelisation and detection</h3><p>A polyphase filter bank splits each path into bins matched to the signals: 4096 × 25 kHz across 100 MHz for comms, 64 × 31 MHz across 2 GHz for radar. An order-statistic CFAR estimates the noise floor per bin and declares detections 10–13 dB above it (P<sub>fa</sub> ≈ 10<sup>−6</sup>). Matching the bin to the signal is worth up to 26 dB for a 25 kHz voice channel compared with a 10 MHz bin — more than any antenna upgrade.</p></div>
+    <div class="card"><h3>2 · Radar path — PDWs and deinterleaving</h3><p>Each threshold crossing becomes a pulse descriptor word: time of arrival (≈ 1 ns with interpolation), pulse width, amplitude, frequency, AOA phase from the coherent chains, polarisation ratio and an intra-pulse modulation flag. PDWs are clustered by AOA/frequency/PW, then PRI analysis (CDIF/SDIF histograms, PRI transform) separates interleaved trains and labels PRI type, scan period and agility pattern. Output ≈ 1–2 kB per emitter per dwell plus a short IQ exemplar of 10–100 pulses.</p></div>
+    <div class="card"><h3>3 · Comms path — signal reports</h3><p>For each occupied channel: centre frequency, bandwidth, start/stop, power, AOA, modulation class and symbol rate (cyclostationary features or a CNN on IQ / spectrogram), and hop-pattern statistics for frequency-hopping nets. Inference fits on the FPGA's DPU or on the optional ML co-processor (Ubotica / Jetson class, 1–40 W).</p></div>
+    <div class="card"><h3>4 · Snapshots and catalogue matching</h3><p>On a signal-of-interest match, an area-of-interest hit or novelty, the controller stores a time-stamped IQ snapshot for ground TDOA/FDOA cross-correlation and fine modulation-on-pulse analysis. Reports are compared on board with the uploaded library (frequency, PRI, PW, scan, MOP; modulation and bandwidth for comms) to rank the downlink queue and, in the cluster phase, to raise alerts over the ISL within minutes.</p></div>
+  </div>
+
+  <h3>Pulse descriptor word</h3>
+  <p>The PDW is the atomic radar product; its fields are what the EW database ingests and what the deinterleaver clusters. TALOS uses a 256-bit word (research 03 §5.2 gives 128–256 bits as typical). Field widths below are the TALOS-1 design values <span class="tag">est.</span>.</p>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Field</th><th class="num">Bits</th><th>Resolution / range</th><th>Derived from</th><th>Used for</th></tr></thead>
+    <tbody>
+      <tr><td>Time of arrival</td><td class="num">56</td><td>1 ns LSB, 2 years span (GNSS-referenced)</td><td>Sample index + PPS counter + interpolation</td><td>PRI analysis, TDOA, scan period</td></tr>
+      <tr><td>Pulse width</td><td class="num">20</td><td>2 ns LSB to 2 ms</td><td>Leading/trailing edge crossings</td><td>Emitter identification, deinterleaving</td></tr>
+      <tr><td>Carrier frequency</td><td class="num">24</td><td>1 kHz LSB over the 2 GHz block (+ block id)</td><td>Instantaneous frequency / FFT peak</td><td>Band, agility pattern, identification</td></tr>
+      <tr><td>Amplitude</td><td class="num">12</td><td>0.1 dB LSB over 100 dB</td><td>Calibrated bin power</td><td>Scan pattern (mainlobe passes), EIRP bound</td></tr>
+      <tr><td>AOA phases (3 baselines)</td><td class="num">3 × 12</td><td>0.1° LSB</td><td>Coherent chain pairs</td><td>Line of bearing, clustering</td></tr>
+      <tr><td>Polarisation ratio</td><td class="num">8</td><td>0.25 dB H/V</td><td>Dual-pol chains</td><td>Classification feature</td></tr>
+      <tr><td>Intra-pulse modulation</td><td class="num">16</td><td>Type (LFM/NLFM/phase code/none) + slope class</td><td>Instantaneous-frequency fit</td><td>MOP library, LPI detection</td></tr>
+      <tr><td>Flags and quality</td><td class="num">16</td><td>Over-range, blanking, multi-pulse overlap, chain id</td><td>ADC and detector status</td><td>Weighting, rejection</td></tr>
+      <tr><td>Block / channel / reserved</td><td class="num">68</td><td>—</td><td>—</td><td>Framing, growth</td></tr>
+      <tr><td><b>Total</b></td><td class="num"><b>256</b></td><td colspan="3">At 10⁵ pulses/s: 25.6 Mbit/s before deinterleaving — still 2× the average downlink rate, hence emitter formation on board.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Snapshots, storage and the data budget</h2>
+  <p>Snapshot sizes follow from decimated rate × duration × 2 × 16 bits (research 03 §5.3). The default rates — 2000 comms and 500 radar snapshots per orbit — give ≈ 1–3 GB per orbit and 15–45 GB per day, which is the figure used for the mass-memory sizing in <code>components.js</code> (2 TB buffers one to two weeks). The calculator lets you change the mix and compares the production rate with what the ground stations can take away.</p>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Snapshot type</th><th class="num">Decimated rate</th><th class="num">Duration</th><th class="num">Size (2 × 16 bit)</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>25 kHz comms (TDOA/FDOA)</td><td class="num">50 kSPS</td><td class="num">100 ms</td><td class="num">20 kB</td><td class="sm">Cross-correlation between satellites; BT = 2500 gives σ<sub>τ</sub> ≈ 139 ns at 10 dB SNR</td></tr>
+      <tr><td>1 MHz FH / data link</td><td class="num">1.25 MSPS</td><td class="num">200 ms</td><td class="num">1 MB</td><td class="sm">Hop statistics, modulation exemplar</td></tr>
+      <tr><td>20 MHz radar band</td><td class="num">25 MSPS</td><td class="num">10 ms</td><td class="num">1 MB</td><td class="sm">Several pulses for MOP and ground TDOA (σ<sub>τ</sub> ≈ 55 ns per pulse at 20 dB)</td></tr>
+      <tr><td>100 MHz radar band</td><td class="num">125 MSPS</td><td class="num">10 ms</td><td class="num">5 MB</td><td class="sm">Frequency-agile and wideband chirp radars</td></tr>
+    </tbody>
+  </table></div>
+  <div class="panel">
+    <h3>Data budget</h3>
+    <div class="controls">
+      <div class="ctl"><label>Comms snapshots per orbit <output for="db-c">2000</output></label><input type="range" id="db-c" min="0" max="10000" step="100" value="2000"></div>
+      <div class="ctl"><label>Mean comms snapshot <output for="db-cs">100</output> kB</label><input type="range" id="db-cs" min="20" max="1000" step="10" value="100"></div>
+      <div class="ctl"><label>Radar snapshots per orbit <output for="db-r">500</output></label><input type="range" id="db-r" min="0" max="5000" step="50" value="500"></div>
+      <div class="ctl"><label>Mean radar snapshot <output for="db-rs">2</output> MB</label><input type="range" id="db-rs" min="0.5" max="10" step="0.5" value="2"></div>
+      <div class="ctl"><label>Reports + PDW exemplars <output for="db-rep">200</output> MB/orbit</label><input type="range" id="db-rep" min="0" max="2000" step="50" value="200"></div>
+      <div class="ctl"><label>Downlink passes per day <output for="db-p">5</output></label><input type="range" id="db-p" min="1" max="15" step="1" value="5"></div>
+      <div class="ctl"><label>Usable pass duration <output for="db-d">6</output> min</label><input type="range" id="db-d" min="2" max="12" step="0.5" value="6"></div>
+      <div class="ctl"><label>Downlink rate <output for="db-rate">1000</output> Mbit/s</label><input type="range" id="db-rate" min="50" max="4000" step="50" value="1000"></div>
+      <div class="ctl"><label>Link efficiency <output for="db-eff">0.7</output></label><input type="range" id="db-eff" min="0.4" max="0.95" step="0.05" value="0.7"></div>
+      <div class="ctl"><label>Storage <output for="db-st">2</output> TB</label><input type="range" id="db-st" min="0.5" max="8" step="0.5" value="2"></div>
+    </div>
+    <div class="readout">
+      <div><div class="k">Produced per orbit</div><div class="v" id="db-orbit">—</div></div>
+      <div><div class="k">Produced per day</div><div class="v" id="db-day">—</div></div>
+      <div><div class="k">Downlinkable per day</div><div class="v" id="db-dl">—</div></div>
+      <div><div class="k">Balance</div><div class="v" id="db-bal">—</div></div>
+      <div><div class="k">Buffer at zero downlink</div><div class="v" id="db-buf">—</div></div>
+      <div><div class="k">Headroom for tasked raw IQ</div><div class="v" id="db-head">—</div></div>
+    </div>
+    <p class="muted" id="db-note" style="font-size:.8rem;margin:.6rem 0 0"></p>
+  </div>
+
+  <h2>Downlink passes: Greek site versus polar</h2>
+  <p>The numbers below are not quoted from the research — they are computed when the page loads by propagating the TALOS-1 orbit (530 km, 53°) and its SSO alternative for one day against the ground stations in <code>baseline.js</code>, counting passes above the baseline minimum elevation of <span id="minel"></span>° (and 10° for comparison). The last column is the downlink volume at 1 Gbit/s with 70 % link efficiency over the 5° contact time. Research 04 anchors them: Svalbard sees essentially every SSO orbit, a mid-latitude site such as Nemea 4–6 contacts a day<sup class="ref"><a href="#ref-R4-33">[R4-33]</a></sup>. Counts are two-day averages (they vary by ±1–2 from day to day as the ground track drifts) and the longest gap is taken over the 48 h run, so read the table as typical, not guaranteed. Note the behaviour of a 53° orbit seen from 38° latitude: passes come on several consecutive orbits (≈ 95 min apart) and then stop for half a day — the longest-gap column, not the pass count, is what sets latency.</p>
+  <div class="table-wrap"><table class="gs compact" id="gstab"><thead><tr><th>Station</th><th class="num">Passes (5°)</th><th class="num">min/day (5°)</th><th class="num">Passes (10°)</th><th class="num">min/day (10°)</th><th class="num">Mean pass</th><th class="num">Longest gap</th><th class="num">GB/day</th></tr></thead><tbody></tbody></table></div>
+  <div id="gs-chart"></div>
+  <div class="callout note"><div class="t">What the pass arithmetic says</div><p id="gs-conclusion"></p></div>
+  <p>Transmitter classes to match: ≈ 100 Mbit/s X-band units (Syrlinks EWC27, ~0.3 kg, ~10 W DC)<sup class="ref"><a href="#ref-R3-26">[R3-26]</a></sup> up to the ≈ 1 Gbit/s class (Syrlinks XONOS, IQ Spacecom XLink-X; DVB-S2 / CCSDS 131.2) at 20–40 W DC<sup class="ref"><a href="#ref-R3-27">[R3-27]</a></sup>. TALOS-1 carries the 1 Gbit/s class with a 15 dBi antenna, costing 45 W during passes (<code>components.js</code>). HawkEye Pathfinder managed on 3–50 Mbit/s<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup> because its products were already reduced on board — the lesson being that the downlink is a convenience, not the enabler.</p>
+
+  <h2>Latency ladder</h2>
+  <p>Latency is the time from an emission to a report on a user's screen. Store-and-forward with a single mid-latitude station is the Stage 1 reality; the ladder shows what each addition buys. HawkEye's own filings describe moving "from hours to minutes" with direct downlink, crosslinks and on-board processing<sup class="ref"><a href="#ref-R4-2">[R4-2]</a></sup>; Unseenlabs cut delivery time by 3× through KSAT network integration<sup class="ref"><a href="#ref-R3-6">[R3-6]</a></sup>.</p>
+  <ul class="timeline ladder" id="ladder"></ul>
+
+  <h2>Software stack and on-orbit updates</h2>
+  <p>The payload software is layered so that the parts most likely to change (detectors, classifiers, the signature library) can be updated in flight without touching the parts that must never fail (supervisor, file system, command handling). The architecture of the whole system including the ground is on the <a href="../04_Service_Demo/software_architecture.html">software architecture page</a>; this table is the on-board slice.</p>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Layer</th><th>Runs on</th><th>Technology</th><th>Update path</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Firmware: channeliser, CFAR, PDW extractor, timestamping</td><td>RFSoC programmable logic</td><td>VHDL / HLS; AMD DSP and SEM IP; partial reconfiguration regions for detector variants</td><td>Signed bitstream upload via TT&amp;C (tens of MB), activated at next safe window; gold image in protected flash</td><td class="sm">Timing-critical; changes rarely. Scrubbed continuously against SEUs.</td></tr>
+      <tr><td>Supervisor and payload control</td><td>Rad-tolerant FPGA (PolarFire RT / NanoXplore) + soft or hard core</td><td>F´ (NASA JPL flight framework) or cFS components: command/telemetry, scheduling, file management, watchdogs, power sequencing</td><td>Patches only through a two-step authenticated process; never over-the-air reflash of the gold image</td><td class="sm">The part that must never crash; same framework family as the bus OBC (F´/cFS) to share tooling.</td></tr>
+      <tr><td>DSP applications: deinterleaving, signal reports, snapshot triggers</td><td>RFSoC ARM A53 cores (Linux / Petalinux)</td><td>C++ blocks derived from GNU Radio and the study's own PySDR-style prototypes<sup class="ref"><a href="#ref-R3-28">[R3-28]</a></sup>; containerised processing graphs</td><td>Application bundles uploaded and swapped between orbits; A/B slots with automatic rollback</td><td class="sm">Where most of the mission-specific logic lives; HawkEye's Pathfinder ran GNU Radio on the Zynq<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup>.</td></tr>
+      <tr><td>ML inference: modulation and emitter classification</td><td>FPGA DPU or ML co-processor (option)</td><td>Quantised CNNs on spectrograms / IQ exemplars; 10–40 inferences/s</td><td>Model files (MB) uploaded like data; validated on ground against the exemplar archive first</td><td class="sm">Optional in Stage 1 — classification can run on the ground from downlinked exemplars.</td></tr>
+      <tr><td>Signature library and tasking</td><td>Payload controller storage</td><td>Compact binary catalogue (frequency, PRI, PW, scan, MOP; modulation/bandwidth), AOI polygons, SOI priorities</td><td>Delta uploads every contact over the owned S-band station (kB–MB)</td><td class="sm">The feedback loop from the EW database back to the satellite.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout decision"><div class="t">Decision D-05 — ground first, orbit later</div><p>Stage 1 runs the full classifier and all geolocation on the ground from downlinked snapshots and reports; the on-board chain is limited to channelisation, detection, PDW extraction, deinterleaving and library matching for prioritisation. This mirrors the Kleos ground-correlation reference architecture and keeps the flight software small enough to qualify<sup class="ref"><a href="#ref-R3-10">[R3-10]</a></sup>. On-board classification and cross-ambiguity move up when the cluster and the ISL make minute-latency alerts a sellable product (Stage 2–3), with the A/B application slots designed in from the start so the migration is an upload, not a redesign.</p></div>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/components.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  const B = BASELINE;
+  document.getElementById('meta-baseline').textContent = 'Baseline: ' + B.version;
+  const periodMin = ORB.period(ORB.RE + B.orbit.altKm) / 60, orbitsPerDay = 1440 / periodMin;
+  const v = id => +document.getElementById(id).value;
+  const fmtGB = gb => gb >= 1000 ? (gb / 1000).toFixed(1) + ' TB' : gb >= 10 ? gb.toFixed(0) + ' GB' : gb.toFixed(1) + ' GB';
+  const kp = document.getElementById('kpis');
+  [['560 Gbit/s', 'raw radar-path samples', '8 ch × 5 GSPS × 14 bit'], ['≈ 26 Mbit/s', 'PDW stream at 10⁵ pulses/s', 'before deinterleaving'], [`≈ ${B.payload.dataPerDayGB} GB/day`, 'reports + snapshots produced', `${B.payload.snapshotsPerOrbit.comms} comms + ${B.payload.snapshotsPerOrbit.radar} radar snapshots/orbit`], [`${B.payload.storageTB} TB`, 'mass memory', '1–2 weeks of buffer']]
+  .forEach(k => kp.append(U.el('div', { class: 'kpi' }, U.el('div', { class: 'v' }, k[0]), U.el('div', { class: 'l' }, k[1]), U.el('div', { class: 'd' }, k[2]))));
+
+  // ---- IQ calculator
+  function iq() {
+    const n = v('iq-n'), b = v('iq-b') * 1e6, bits = v('iq-bits'), dl = v('iq-dl') * 1e6, min = v('iq-min');
+    const rate = 2 * b * bits * n, perDay = rate * 86400 / 8, cap = dl * min * 60 / 8, frac = cap / perDay;
+    document.getElementById('iq-rate').textContent = U.si(rate, 'bit/s'); document.getElementById('iq-day').textContent = U.si(perDay, 'B'); document.getElementById('iq-cap').textContent = U.si(cap, 'B');
+    const f = document.getElementById('iq-frac'); f.textContent = frac >= 1 ? '100 % (feasible)' : (frac * 100).toPrecision(2) + ' %'; f.className = 'v ' + (frac >= 1 ? 'good' : frac > 0.1 ? 'warn' : 'bad');
+    const secs = cap * 8 / rate; document.getElementById('iq-time').textContent = secs >= 3600 ? (secs / 3600).toFixed(1) + ' h' : secs >= 60 ? (secs / 60).toFixed(1) + ' min' : secs.toFixed(0) + ' s';
+  }
+  ['iq-n', 'iq-b', 'iq-bits', 'iq-dl', 'iq-min'].forEach(id => bindRange(id, iq, x => String(x)));
+
+  // ---- pipeline SVG
+  const NS = 'http://www.w3.org/2000/svg';
+  function sv(tag, attrs, txt) { const e = document.createElementNS(NS, tag); for (const k in attrs) if (attrs[k] != null) e.setAttribute(k, attrs[k]); if (txt != null) e.textContent = txt; return e; }
+  (function pipe() {
+    const W = 960, H = 470; const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img' });
+    const d = sv('defs', {}); [['data', 'var(--accent)'], ['rf', 'var(--accent-2)']].forEach(([id, c]) => { const m = sv('marker', { id: 'a-' + id, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto' }); m.append(sv('path', { d: 'M0,1 L9,5 L0,9 z', fill: c })); d.append(m); }); svg.append(d);
+    const box = (x, y, w, h, lines, hi) => { svg.append(sv('rect', { x, y, width: w, height: h, rx: 5, class: 'box' + (hi ? ' hi' : '') })); lines.forEach((t, i) => svg.append(sv('text', { x: x + w / 2, y: y + h / 2 + (i - (lines.length - 1) / 2) * 12.5, class: i ? 'lbl xs' : 'lbl s', 'text-anchor': 'middle', 'dominant-baseline': 'middle' }, t))); return { x, y, w, h, r: x + w, b: y + h, cx: x + w / 2, cy: y + h / 2 }; };
+    const wire = (p, cls = 'data', lab, lx, ly) => { svg.append(sv('path', { d: p, class: 'wire ' + cls, 'marker-end': `url(#a-${cls})` })); if (lab) svg.append(sv('text', { x: lx, y: ly, class: 'lbl xs num', 'text-anchor': 'middle' }, lab)); };
+    svg.append(sv('text', { x: 14, y: 12, class: 'lbl s' }, 'Radar path — RFSoC, 8 ch × 2 GHz'));
+    svg.append(sv('text', { x: 14, y: 252, class: 'lbl s' }, 'Comms path — tuner, 4 ch × 200 MHz'));
+    const r1 = box(14, 36, 120, 64, ['ADC samples', '8 × 5 GSPS × 14 bit']);
+    const r2 = box(176, 36, 130, 64, ['Polyphase channeliser', '64 × 31 MHz bins', 'order-statistic CFAR']);
+    const r3 = box(348, 36, 130, 64, ['PDW extractor', 'TOA, PW, f, amp, φ×3', '256 bit per pulse']);
+    const r4 = box(520, 36, 130, 64, ['Deinterleaver', 'PRI / scan / agility', 'emitter formation']);
+    const r5 = box(692, 36, 120, 64, ['Emitter reports', '1–2 kB per emitter', 'per dwell + exemplar'], true);
+    wire(`M${r1.r},${r1.cy} H${r2.x}`, 'rf', '560 Gbit/s', (r1.r + r2.x) / 2, r1.y - 6);
+    wire(`M${r2.r},${r2.cy} H${r3.x}`, 'data', 'bin powers', (r2.r + r3.x) / 2, r1.y - 6);
+    wire(`M${r3.r},${r3.cy} H${r4.x}`, 'data', '26 Mbit/s', (r3.r + r4.x) / 2, r1.y - 6);
+    wire(`M${r4.r},${r4.cy} H${r5.x}`, 'data', '≈ 0.1–1 Mbit/s', (r4.r + r5.x) / 2, r1.y - 6);
+    const c1 = box(14, 276, 120, 64, ['ADC samples', '4 × 250 MSPS × 16 bit']);
+    const c2 = box(176, 276, 130, 64, ['Polyphase channeliser', '4096 × 25 kHz bins', 'CFAR, long FFTs']);
+    const c3 = box(348, 276, 130, 64, ['Occupancy & features', 'f, BW, start/stop, power', 'AOA, cyclostationary']);
+    const c4 = box(520, 276, 130, 64, ['Modulation classifier', 'CNN / features', 'hop statistics (FH nets)']);
+    const c5 = box(692, 276, 120, 64, ['Signal reports', '≈ 200 B per signal', 'per occupancy'], true);
+    wire(`M${c1.r},${c1.cy} H${c2.x}`, 'rf', '16 Gbit/s', (c1.r + c2.x) / 2, c1.y - 6);
+    wire(`M${c2.r},${c2.cy} H${c3.x}`, 'data', 'bin powers', (c2.r + c3.x) / 2, c1.y - 6);
+    wire(`M${c3.r},${c3.cy} H${c4.x}`, 'data', 'detections', (c3.r + c4.x) / 2, c1.y - 6);
+    wire(`M${c4.r},${c4.cy} H${c5.x}`, 'data', '≈ 10–100 kbit/s', (c4.r + c5.x) / 2, c1.y - 6);
+    // snapshot capture
+    const s1 = box(348, 142, 302, 76, ['Snapshot capture (triggered)', 'radar 1–20 ms @ 25–125 MSPS → 1–5 MB', 'comms 100–200 ms @ 50 kSPS–1.25 MSPS → 20 kB–1 MB', 'GNSS time ≤ 20 ns, PVT, attitude attached'], false);
+    wire(`M${r2.cx},${r2.b} V${s1.y}`, 'data', 'IQ tap', r2.cx + 24, s1.y - 10);
+    wire(`M${c2.cx},${c2.y} V${s1.b}`, 'data', 'IQ tap', c2.cx + 24, s1.b + 16);
+    wire(`M${r4.cx},${r4.b} V${s1.y}`, 'data', 'trigger', r4.cx + 22, s1.y - 10);
+    wire(`M${c4.cx},${c4.y} V${s1.b}`, 'data', 'trigger', c4.cx + 22, s1.b + 16);
+    // controller / storage / downlink
+    const k1 = box(846, 36, 100, 170, ['Payload', 'controller', '', 'catalogue match', 'AOI / SOI rules', 'priority queue', 'alerts (ISL)'], true);
+    const k2 = box(846, 230, 100, 60, ['Mass memory', '2 TB', '≈ 1–3 GB/orbit']);
+    const k3 = box(846, 310, 100, 60, ['X-band TX', '1 Gbit/s', '≈ 200 GB/day']);
+    wire(`M${r5.r},${r5.cy} H${k1.x}`); wire(`M${c5.r},${c5.cy} H830 V${k1.cy + 40} H${k1.x}`);
+    wire(`M${s1.r},${s1.cy} H830 V${k2.cy} H${k2.x}`, 'data', 'snapshots', 760, s1.cy - 8);
+    wire(`M${k1.cx},${k1.b} V${k2.y}`); wire(`M${k2.cx},${k2.b} V${k3.y}`, 'data', 'playback', k2.cx + 32, k2.b + 14);
+    svg.append(sv('text', { x: 14, y: 395, class: 'lbl xs' }, 'Design values for TALOS-1 collection mode. Reduction ratio radar path ≈ 10⁵ : 1 (samples → reports); comms path ≈ 10⁴ : 1; snapshots carry the IQ the ground needs for TDOA/FDOA and library building.'));
+    svg.append(sv('text', { x: 14, y: 412, class: 'lbl xs' }, 'Uplinked from ground: signature library deltas, AOI polygons, SOI priorities, detector/classifier updates (kB–MB per contact).'));
+    const u = box(14, 426, 300, 34, ['Signature library · tasking · model updates (uplink)']); wire(`M${u.r},${u.cy} H838 V${k1.b - 10} H${k1.x}`, 'data');
+    document.getElementById('pipe-svg').append(svg);
+  })();
+
+  // ---- data budget
+  function db() {
+    const perOrbitGB = (v('db-c') * v('db-cs') * 1e3 + v('db-r') * v('db-rs') * 1e6 + v('db-rep') * 1e6) / 1e9;
+    const perDay = perOrbitGB * orbitsPerDay, dl = v('db-p') * v('db-d') * 60 * v('db-rate') * 1e6 * v('db-eff') / 8 / 1e9, bal = dl - perDay;
+    document.getElementById('db-orbit').textContent = fmtGB(perOrbitGB); document.getElementById('db-day').textContent = fmtGB(perDay); document.getElementById('db-dl').textContent = fmtGB(dl);
+    const b = document.getElementById('db-bal'); b.textContent = (bal >= 0 ? '+' : '−') + fmtGB(Math.abs(bal)) + '/day'; b.className = 'v ' + (bal >= 0 ? 'good' : 'bad');
+    const buf = v('db-st') * 1000 / perDay; document.getElementById('db-buf').textContent = isFinite(buf) ? buf.toFixed(1) + ' days' : '∞';
+    const headS = bal > 0 ? bal * 1e9 * 8 / (2 * 100e6 * 16 * 4) : 0; document.getElementById('db-head').textContent = bal > 0 ? (headS >= 60 ? (headS / 60).toFixed(1) + ' min' : headS.toFixed(0) + ' s') + ' of 4 × 100 MHz IQ' : 'none — backlog grows';
+    document.getElementById('db-note').textContent = `${orbitsPerDay.toFixed(1)} orbits/day at ${B.orbit.altKm} km (period ${periodMin.toFixed(1)} min). ${bal >= 0 ? 'The link empties the store every day; the surplus can carry tasked raw-IQ captures or lower the prioritisation threshold.' : 'Production exceeds the link: the store fills in ' + (v('db-st') * 1000 / -bal).toFixed(1) + ' days unless snapshots are prioritised harder or more passes are bought.'}`;
+  }
+  ['db-c', 'db-cs', 'db-r', 'db-rs', 'db-rep', 'db-p', 'db-d', 'db-rate', 'db-eff', 'db-st'].forEach(id => bindRange(id, db, x => String(x)));
+
+  // ---- ground station passes
+  (function gs() {
+    document.getElementById('minel').textContent = B.ground.minElDeg;
+    const t0 = new Date('2030-06-21T00:00:00Z');
+    const talos = ORB.makeOrbit({ alt: B.orbit.altKm, inc: B.orbit.incDeg, raan: 40, ta: 0, epoch: t0, name: 'TALOS-1' });
+    const sun = ORB.sunEci(t0); const raSun = Math.atan2(sun[1], sun[0]) * ORB.R2D;
+    const sso = ORB.makeOrbit({ alt: B.orbit.ssoAlt, inc: ORB.ssoInclination(B.orbit.ssoAlt), raan: raSun - 22.5, ta: 0, epoch: t0, name: 'SSO 10:30' });
+    const tb = document.querySelector('#gstab tbody'); const rows = [];
+    [[talos, `TALOS-1 ${B.orbit.altKm} km / ${B.orbit.incDeg}°`], [sso, `SSO alternative ${B.orbit.ssoAlt} km / ${ORB.ssoInclination(B.orbit.ssoAlt).toFixed(1)}°`]].forEach(([orb, name]) => {
+      const hdr = U.el('tr', {}); hdr.innerHTML = `<td colspan="8" style="background:var(--surface-2);font-weight:600">${name}</td>`; tb.append(hdr);
+      B.ground.stations.forEach(s => {
+        const a = ORB.siteStats([orb], s.lat, s.lon, { t0, minEl: B.ground.minElDeg, stepS: 15, durationS: 172800 }), b = ORB.siteStats([orb], s.lat, s.lon, { t0, minEl: 10, stepS: 15, durationS: 172800 });
+        a.count /= 2; a.totalMin /= 2; b.count /= 2; b.totalMin /= 2; // two simulated days → daily averages; gaps from the 48 h run
+        const gb = a.totalMin * 60 * 1e9 * 0.7 / 8 / 1e9;
+        rows.push({ orb: name, st: s, a, b, gb });
+        const tr = U.el('tr', {}); tr.innerHTML = `<td style="min-width:14rem"><b>${s.name}</b><div class="sm">${s.lat.toFixed(1)}°, ${s.lon.toFixed(1)}° · ${s.bands.join('/')} · ${s.role}</div></td><td class="num">${a.count}</td><td class="num">${a.totalMin.toFixed(0)}</td><td class="num">${b.count}</td><td class="num">${b.totalMin.toFixed(0)}</td><td class="num">${a.count ? a.meanDurMin.toFixed(1) + ' min' : '—'}</td><td class="num">${a.count ? (a.maxGapMin >= 120 ? (a.maxGapMin / 60).toFixed(1) + ' h' : a.maxGapMin.toFixed(0) + ' min') : '—'}</td><td class="num">${a.count ? fmtGB(gb) : '—'}</td>`; tb.append(tr);
+      });
+    });
+    const tal = rows.filter(r => r.orb.startsWith('TALOS')), ss = rows.filter(r => !r.orb.startsWith('TALOS'));
+    Charts.bar(document.getElementById('gs-chart'), { title: 'Contact minutes per day above 5° (two-day average)', data: [...tal.map(r => ({ label: r.st.name.split(' (')[0] + ' — 53°', value: +r.a.totalMin.toFixed(0), color: 'var(--accent)' })), ...ss.map(r => ({ label: r.st.name.split(' (')[0] + ' — SSO', value: +r.a.totalMin.toFixed(0), color: 'var(--accent-2)' }))], unit: 'min', horizontal: true, height: 360 });
+    const nem = tal.find(r => r.st.id === 'nemea'), sval = ss.find(r => r.st.id === 'svalbard'), nemS = ss.find(r => r.st.id === 'nemea'), dub = tal.find(r => r.st.id === 'dubai'), pue = tal.find(r => r.st.id === 'puertollano');
+        const medStations = [nem, dub, pue].filter(Boolean);
+    const sumMin = medStations.reduce((s, r) => s + r.a.totalMin, 0);
+    document.getElementById('gs-conclusion').innerHTML = `At 53° inclination the Greek site alone gives ${nem.a.count} passes and ${nem.a.totalMin.toFixed(0)} minutes a day (≈ ${fmtGB(nem.gb)} at 1 Gbit/s with 70 % link efficiency), with a longest gap of ${(nem.a.maxGapMin / 60).toFixed(1)} h — comfortably above the ≈ ${B.payload.dataPerDayGB} GB/day the payload produces, so a single national station closes the data budget. Adding Puertollano and Dubai raises the total to ${sumMin.toFixed(0)} minutes and shortens the worst gap. Svalbard is useless at 53° (${tal.find(r => r.st.id === 'svalbard').a.count} passes) but sees the SSO alternative ${sval.a.count} times a day (${sval.a.totalMin.toFixed(0)} min): the SSO buys ${sval.a.totalMin.toFixed(0) / Math.max(1, nem.a.totalMin.toFixed(0)) > 1 ? (sval.a.totalMin / nem.a.totalMin).toFixed(1) + '×' : 'more'} contact time and ≈ 95 min worst-case data age, at the price of ≈ 40 % less regional revisit (baseline.js rationale) and ${nemS.a.count} rather than ${nem.a.count} Greek passes. The choice of 53° is therefore a choice to prioritise collection over the Eastern Mediterranean over downlink convenience, and it makes a Mediterranean-latitude ground network (Greece, Spain, Gulf) mandatory — exactly as research 03 §5.4 concludes.`;
+  })();
+
+  // ---- latency ladder
+  (function ladder() {
+    const ul = document.getElementById('ladder');
+    [['Stage 1 · Nemea only', 'Store-and-forward, single mid-latitude station', '45–100 min typical for collections near Greece; up to 8–10 h for the far side of the Earth (longest gap in the table above). Adequate for EW-database building, pattern-of-life and daily jamming maps; not for tactical cueing.'],
+     ['Stage 1+ · Nemea + Puertollano + Dubai', 'Three Mediterranean/Gulf stations on GSaaS', 'Worst gap falls to ≈ 3–5 h; collections over the Eastern Mediterranean, Black Sea and Red Sea come down on the same or the next orbit. Cost: €40–250 per pass (research 05).'],
+     ['SSO variant · polar station', 'Svalbard/Troll every orbit', 'Data age ≤ one orbit (≈ 95 min) worldwide. Only available if the first launch rides an SSO rideshare; incompatible with the 53° regional-persistence choice.'],
+     ['Stage 2 · cluster with S-band ISL', 'On-board alerts relayed within the cluster, prioritised snapshots first in the queue', 'Detection-to-alert in minutes for catalogue matches once any cluster member is in view of a station; full products still one downlink cycle later.'],
+     ['Stage 3+ · ISL to relay or optical crosslink', 'Commercial relay (GEO data relay or LEO backbone) or optical ISL to a satellite in view of a station', 'Minutes end-to-end for alerts anywhere in the coverage area — the "hours to minutes" transition HawkEye describes. Needs the relay-capable terminal (Tesat SCOT20 / Mynaric class) carried as a Stage 3 option.']]
+    .forEach(r => { const li = U.el('li', {}); li.innerHTML = `<div class="when">${r[0]}</div><div class="what">${r[1]}<small>${r[2]}</small></div>`; ul.append(li); });
+  })();
+
+  function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  renderRefs(['R3-1', 'R3-6', 'R3-10', 'R3-26', 'R3-27', 'R3-28', 'R4-2', 'R4-33']);
+})();
+</script>
+</body>
+</html>

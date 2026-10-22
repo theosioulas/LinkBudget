@@ -108,7 +108,14 @@ src/core/      pure TypeScript engine (no DOM) – unit tested with Vitest
   sim/         scenario runtime, MBB handover simulator (runs in a Web Worker), coverage maps
 src/globe/     CesiumJS controller (imagery, day/night, satellites, orbits, beams, links)
 src/ui/        React panels (editors, link budget, timeline charts, Beam Lab, reports)
+src/Shell.tsx  site shell: app tabs + link page; only the open tab is mounted
+public/apps/   static SIGINT apps shown as tabs (copied in, no build step)
+  lyra3/       LYRA-3 mission simulator; lyra3/baseline/ holds the tabs taken from the 100–150 kg baseline study
+  talos/       TALOS SIGINT constellation study
 ```
+
+The site opens on a link page. The link budget simulator (and Cesium) only loads when its tab is
+opened, and leaving a tab unmounts it, so nothing keeps running in the background.
 
 Deployment: `.github/workflows/pages.yml` tests, builds and publishes `dist/` to GitHub Pages on pushes to `main`
 (enable *Settings → Pages → Source: GitHub Actions*). The build uses relative paths, so it also works from any static host.

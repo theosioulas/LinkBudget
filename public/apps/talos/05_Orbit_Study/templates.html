@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Constellation templates — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<style>
+  .tpl { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 1.1rem 1.3rem; margin: 1rem 0; scroll-margin-top: 4.5rem; }
+  .tpl:target { border-color: var(--accent); box-shadow: var(--shadow); }
+  .tpl .head { display: flex; gap: 1rem; align-items: baseline; flex-wrap: wrap; font-family: var(--font-ui); }
+  .tpl .head h3 { margin: 0; font-size: 1.15rem; }
+  .tpl .head .id { font-weight: 700; color: var(--accent); }
+  .tpl .facts { display: flex; gap: 0.5rem 1.2rem; flex-wrap: wrap; font-family: var(--font-ui); font-size: 0.82rem; color: var(--ink-2); margin: 0.4rem 0 0.8rem; }
+  .tpl .facts b { color: var(--ink); }
+  .tpl .body { display: grid; grid-template-columns: 180px minmax(0,1fr) minmax(0,1fr); gap: 1rem; }
+  .tpl .geom svg { width: 100%; height: auto; }
+  .tpl ul { font-size: 0.9rem; padding-left: 1.1rem; margin: 0.2rem 0; }
+  .tpl h4 { font-size: 0.82rem; color: var(--ink-3); margin: 0 0 0.2rem; }
+  .tpl .cap { font-family: var(--font-body); font-size: 0.95rem; margin: 0.6rem 0 0; grid-column: 1 / -1; }
+  .tpl .perf { grid-column: 1 / -1; min-width: 0; }
+  .tpl .body > * { min-width: 0; }
+  .tpl .perf table { font-size: 0.78rem; }
+  .ctl-row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; font-family: var(--font-ui); font-size: 0.85rem; margin: 0.8rem 0 1.2rem; }
+  .ok { color: var(--ok); font-weight: 700; } .bad { color: var(--critical); font-weight: 700; }
+  @media (max-width: 900px) { .tpl .body { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="content wide">
+  <header class="page-head">
+    <div class="kicker"><b>05 Orbit study</b> · Templates</div>
+    <h1>Constellation templates</h1>
+    <p class="lead">Twelve ready-made constellations from one satellite to twenty-four, each with its geometry, what it can do, what it cannot, how it is launched, roughly what it costs, and its measured revisit at eight latitudes. Pick the elevation mask and the metric you care about; the comparison table and chart update, and each card carries its own performance row.</p>
+    <div class="meta"><span>Node = a single satellite or one cluster flying as a unit</span><span>530 km, epoch 2031-03-18, 3-day propagation</span><span>Costs from the study cost model (est.)</span></div>
+  </header>
+
+  <h2>Comparison</h2>
+  <div class="ctl-row">
+    <span class="seg" role="group"><button data-el="el5" aria-pressed="true">5° mask</button><button data-el="el15" aria-pressed="false">15° mask</button></span>
+    <span class="seg" role="group"><button data-m="medianGapMin" aria-pressed="true">typical gap</button><button data-m="meanGapMin" aria-pressed="false">mean gap</button><button data-m="maxGapMin" aria-pressed="false">worst gap</button><button data-m="windowsPerDay" aria-pressed="false">looks / day</button><button data-m="accessMinPerDay" aria-pressed="false">access min / day</button></span>
+    <label>Chart latitude <select id="site"></select></label>
+  </div>
+  <div class="table-wrap"><table id="cmp"><thead></thead><tbody></tbody></table></div>
+  <div id="chart"></div>
+  <div class="callout note"><div class="t">How to read the table</div><p>Gaps are in hours (h) or minutes. "Typical" is the median gap between consecutive looks — what an analyst experiences most of the time; "worst" is the longest hole in three days — what a service-level agreement must survive. A dash means the latitude is never seen (a 53° orbit does not reach the Arctic). Cluster templates (T4, T5, T6, T7, T9, T10, T11) deliver instantaneous geolocation on every look; single-satellite templates deliver detection and Doppler/AOA fixes.</p></div>
+
+  <h2>The templates</h2>
+  <div id="cards"></div>
+
+  <h2>Choosing between the families</h2>
+  <div class="grid c3">
+    <div class="card"><h3>Singles (T1, T2, T3, T8, T12)</h3><p>Every satellite is a revisit node, so revisit per euro is three times better than clusters. Geolocation is coarse on a single pass (Doppler/AOA, 5–20 km) and improves with repeated looks: fixed sites and slow ships converge to kilometre class within a day; fast or bursty emitters do not. The Unseenlabs model.</p></div>
+    <div class="card"><h3>Clusters (T4, T5, T6, T7, T9, T10)</h3><p>Three satellites per node buy instantaneous TDOA/FDOA fixes on single bursts with confidence ellipses — the product governments pay for. Revisit is that of the node count. Formation keeping, timing and inter-satellite data exchange add engineering. The HawkEye 360 and CERES model.</p></div>
+    <div class="card"><h3>Mixed (T11 and variants)</h3><p>A sun-synchronous node for global catalogue building and polar downlink plus mid-inclination nodes for regional density. Costs two spacecraft thermal/power designs or a compromise, but hedges the market: global data sells to NATO/EU, regional persistence to the Hellenic anchor. HawkEye flies SSO plus 40–46° planes for this reason.</p></div>
+  </div>
+  <p>The recommended path in this study is T2 → T4 → T7 → T9/T10 (one satellite that becomes the first member of a cluster, then clusters in more planes), with T8-style singles added later only if detection-revisit products outsell geolocation. Section 02's <a href="../02_Technical_Understanding/roadmap_cost.html">roadmap</a> prices that path; the <a href="../03_Scenarios_Services/coverage_sim.html">coverage simulator</a> lets you build any variant and test it against your own point of interest.</p>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/orbit_study.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function () {
+  const S = ORBIT_STUDY, T = S.templates, SITES = S.sites.map(s => s.name);
+  let mask = 'el5', metric = 'medianGapMin', site = 'Athens 38°N';
+  const fmt = (m, v) => { if (v == null) return '—'; if (m.endsWith('GapMin')) return v >= 120 ? (v / 60).toFixed(1) + ' h' : v + ' min'; return String(v); };
+  const siteSel = document.getElementById('site'); SITES.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; if (s === site) o.selected = true; siteSel.append(o); });
+  siteSel.addEventListener('change', () => { site = siteSel.value; draw(); });
+  document.querySelectorAll('[data-el]').forEach(b => b.addEventListener('click', () => { mask = b.dataset.el; document.querySelectorAll('[data-el]').forEach(x => x.setAttribute('aria-pressed', x === b)); draw(); cards(); }));
+  document.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => { metric = b.dataset.m; document.querySelectorAll('[data-m]').forEach(x => x.setAttribute('aria-pressed', x === b)); draw(); }));
+  const costOf = t => { const u = BASELINE.cost.unit.recurringSat, f = BASELINE.cost.demonstrator; if (t.sats === 1) return `€${f[0]}–${f[1]} M`; return `€${Math.round(f[0] + (t.sats - 1) * u[0])}–${Math.round(f[1] + (t.sats - 1) * u[1])} M`; };
+  function draw() {
+    const th = document.querySelector('#cmp thead'), tb = document.querySelector('#cmp tbody');
+    th.innerHTML = `<tr><th>Template</th><th class="num">Sats</th><th class="num">Nodes</th><th class="num">Planes</th><th>Geoloc.</th>${SITES.map(s => `<th class="num">${s.replace(' (Gulf of Guinea)', '')}</th>`).join('')}<th>Cost (est.)</th></tr>`;
+    tb.innerHTML = T.map(t => `<tr><td style="min-width:220px"><a href="#${t.id}"><b>${t.id}</b> ${t.name}</a></td><td class="num">${t.sats}</td><td class="num">${t.nodes}</td><td class="num">${t.planes}</td><td>${t.geoloc === 'cluster' ? '<span class="tag ok">instant</span>' : '<span class="tag">coarse</span>'}</td>${SITES.map(s => { const p = t.perf[s][mask]; return `<td class="num">${p.covered ? fmt(metric, p[metric]) : '—'}</td>`; }).join('')}<td>${costOf(t)}</td></tr>`).join('');
+    const lab = { medianGapMin: 'typical gap', meanGapMin: 'mean gap', maxGapMin: 'worst gap', windowsPerDay: 'looks per day', accessMinPerDay: 'access minutes per day' }[metric];
+    const unit = metric.endsWith('GapMin') ? 'min' : '';
+    const el = document.getElementById('chart'); el.innerHTML = '';
+    Charts.bar(el, { title: `${lab} at ${site}, ${mask === 'el5' ? '5°' : '15°'} mask`, horizontal: true, height: 360, unit, data: T.map(t => ({ label: `${t.id} ${t.name} (${t.sats})`, value: t.perf[site][mask].covered ? (t.perf[site][mask][metric] ?? 0) : 0, color: t.geoloc === 'cluster' ? Charts.css('--s1') : Charts.css('--s3') })) });
+    const lg = document.createElement('div'); lg.className = 'legend'; lg.innerHTML = `<span style="--c:${Charts.css('--s1')}">cluster templates (instant geolocation)</span><span style="--c:${Charts.css('--s3')}">single-satellite templates</span>`; el.prepend(lg);
+  }
+  function geomSvg(t) {
+    // schematic: planes as arcs around Earth, nodes as dots; clusters as triangles
+    const w = 180, h = 150, cx = 90, cy = 78, R = 56; let s = `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="${t.name} geometry"><circle cx="${cx}" cy="${cy}" r="34" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="0.8"/>`;
+    const planes = typeof t.inc === 'number' ? t.planes : 2;
+    for (let p = 0; p < planes; p++) { const ang = (p / planes) * 180 - 90 + (typeof t.inc === 'number' ? 0 : p * 50); const rx = R, ry = R * 0.32 + (p / Math.max(1, planes - 1)) * 0; s += `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${R * 0.35}" fill="none" stroke="var(--line-strong)" stroke-width="1" transform="rotate(${ang} ${cx} ${cy})"/>`; }
+    const nodesPerPlane = Math.ceil(t.nodes / planes); let k = 0;
+    for (let p = 0; p < planes; p++) for (let n = 0; n < nodesPerPlane && k < t.nodes; n++, k++) {
+      const ang = (p / planes) * 180 - 90 + (typeof t.inc === 'number' ? 0 : p * 50); const th = (n / nodesPerPlane) * 2 * Math.PI + p * 0.6 + 0.4;
+      const x0 = R * Math.cos(th), y0 = R * 0.35 * Math.sin(th); const a = ang * Math.PI / 180; const x = cx + x0 * Math.cos(a) - y0 * Math.sin(a), y = cy + x0 * Math.sin(a) + y0 * Math.cos(a);
+      if (t.clusterSize >= 3) s += `<polygon points="${x},${y - 4.5} ${x - 4},${y + 3} ${x + 4},${y + 3}" fill="var(--s1)" stroke="var(--surface)" stroke-width="0.8"/>`; else s += `<circle cx="${x}" cy="${y}" r="3.2" fill="var(--s3)" stroke="var(--surface)" stroke-width="0.8"/>`;
+    }
+    s += `<text x="${cx}" y="${h - 6}" text-anchor="middle" class="lbl xs">${t.sats} sat · ${t.nodes} node${t.nodes > 1 ? 's' : ''} · ${t.planes} plane${t.planes > 1 ? 's' : ''}${t.clusterSize > 1 ? ' · clusters of ' + t.clusterSize : ''}</text></svg>`;
+    return s;
+  }
+  function cards() {
+    document.getElementById('cards').innerHTML = T.map(t => `
+      <section class="tpl" id="${t.id}">
+        <div class="head"><span class="id">${t.id}</span><h3>${t.name}</h3><span class="tag accent">${t.tag}</span>${t.geoloc === 'cluster' ? '<span class="tag ok">instant geolocation</span>' : '<span class="tag">detection + coarse geolocation</span>'}</div>
+        <div class="facts"><span><b>${t.sats}</b> satellites</span><span><b>${t.nodes}</b> revisit node${t.nodes > 1 ? 's' : ''}</span><span><b>${t.planes}</b> plane${t.planes > 1 ? 's' : ''}</span><span>inclination <b>${typeof t.inc === 'number' ? t.inc.toFixed(1) + '°' : t.inc}</b></span><span>altitude <b>${t.alt} km</b></span><span>cost <b>${costOf(t)}</b> (est.)</span></div>
+        <div class="body">
+          <div class="geom">${geomSvg(t)}</div>
+          <div><h4>Benefits</h4><ul>${t.pros.map(x => `<li>${x}</li>`).join('')}</ul></div>
+          <div><h4>Drawbacks</h4><ul>${t.cons.map(x => `<li>${x}</li>`).join('')}</ul><h4 style="margin-top:.6rem">Launch</h4><div style="font-size:.85rem">${t.launch}</div></div>
+          <p class="cap"><b>Capabilities:</b> ${t.capabilities}</p>
+          <div class="perf"><div class="table-wrap" style="margin:0"><table class="compact"><thead><tr><th>${mask === 'el5' ? '5°' : '15°'} mask</th>${SITES.map(s => `<th class="num">${s.replace(' (Gulf of Guinea)', '')}</th>`).join('')}</tr></thead><tbody>
+            ${[['looks / day', 'windowsPerDay'], ['typical gap', 'medianGapMin'], ['worst gap', 'maxGapMin'], ['access min / day', 'accessMinPerDay']].map(([l, m]) => `<tr><td>${l}</td>${SITES.map(s => { const p = t.perf[s][mask]; return `<td class="num">${p.covered ? fmt(m, p[m]) : '—'}</td>`; }).join('')}</tr>`).join('')}
+          </tbody></table></div></div>
+        </div>
+      </section>`).join('');
+  }
+  draw(); cards();
+  if (location.hash) { const el = document.querySelector(location.hash); if (el) el.scrollIntoView(); }
+})();
+</script>
+</body>
+</html>

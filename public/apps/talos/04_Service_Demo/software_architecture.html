@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Software architecture — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+svg .c4 { fill:var(--surface-2); stroke:var(--line-strong); stroke-width:1; rx:6; }
+svg .c4.flight { fill:color-mix(in srgb,var(--band-uhf) 14%,var(--surface)); stroke:var(--band-uhf); }
+svg .c4.proc { fill:color-mix(in srgb,var(--accent) 14%,var(--surface)); stroke:var(--accent); }
+svg .c4.store { fill:color-mix(in srgb,var(--band-c) 16%,var(--surface)); stroke:var(--band-c); }
+svg .c4.api { fill:color-mix(in srgb,var(--band-s) 16%,var(--surface)); stroke:var(--band-s); }
+svg .c4.ext { fill:var(--surface); stroke:var(--ink-faint); stroke-dasharray:4 3; }
+svg .sys { fill:none; stroke:var(--line-strong); stroke-dasharray:6 4; rx:10; }
+svg .life { stroke:var(--line-strong); stroke-dasharray:3 3; }
+svg .act { fill:var(--accent-soft); stroke:var(--accent); }
+svg .msg { fill:none; stroke:var(--ink-2); stroke-width:1.3; marker-end:url(#arr); }
+svg .msg.ret { stroke-dasharray:4 3; }
+.api-table td:first-child { font-family:var(--font-data); font-size:.8rem; white-space:nowrap; }
+.lvl { display:grid; grid-template-columns:auto 1fr; gap:.3rem 1rem; }
+pre.json { font-size:.78rem; max-height:420px; }
+.skills td { vertical-align:top; }
+@media (max-width:900px){ .chart svg{ overflow:hidden !important; } .chart .chart-table .body{ overflow-x:auto; } }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>04 Service demo</b> · Software</div>
+    <h1>Software architecture</h1>
+    <p class="lead">For the developers: the end-to-end software stack from the FPGA blocks in the payload to the webhook that drops an alert into a customer's common operating picture. The rule from the build-versus-buy analysis is simple — the digital receiver firmware, the geolocation solver, the catalogue and the analytics are the product and are built in-house; flight-software frameworks, mission control, databases and map engines are taken from open source or licensed. Everything is designed so that the same containers run in an EU sovereign cloud and, with no code changes, inside an air-gapped classified enclave.</p>
+    <div class="meta"><span>Baseline: TALOS-1 v0.3</span><span>Sources: research notes 02 §J/§N, 03 §5–§6, 04 §4–§5, 05 §3</span><span>Data model: see <a href="../03_Scenarios_Services/ew_database.html">EW database &amp; signature catalogue</a></span></div>
+  </header>
+
+  <h2>Principles and the big picture</h2>
+  <p>Five principles shape the stack. <strong>Reduce on board, correlate on the ground</strong>: raw IQ is 9.6 Gbit/s for the comms path alone, so the satellite emits reports and short snapshots and the ground does the cross-correlation (research 03 §5). <strong>Time is a first-class datum</strong>: every sample, report and product carries GNSS time to ≤20 ns, because TDOA lives or dies on it. <strong>One pipeline, four product levels</strong>: L1 detections, L2 geolocations, L3 catalogue, L4 analytics, matching the operators' practice and the products page<sup class="ref"><a href="#ref-R4-29">[R4-29]</a></sup>. <strong>Sovereign by construction</strong>: no managed service that cannot run on-premises; a one-way path into the enclave. <strong>Standards at the edges</strong>: GeoJSON and OGC API Features for commercial users, STANAG 4676 tracks and a 4559-style catalogue for NATO — a gap no commercial operator fills today<sup class="ref"><a href="#ref-R4-44">[R4-44]</a></sup>.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 980 475" role="img" aria-label="C4-style container diagram of the TALOS software: flight segment containers, ground data platform containers, storage, APIs and external systems">
+      <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ink-2)"/></marker></defs>
+      <!-- flight system -->
+      <rect class="sys" x="12" y="12" width="300" height="300"/><text class="lbl" x="22" y="32" font-weight="600">Flight segment (per satellite)</text>
+      <rect class="c4 flight" x="24" y="44" width="130" height="58"/><text class="lbl s" x="89" y="64" text-anchor="middle">Payload controller</text><text class="lbl xs" x="89" y="78" text-anchor="middle">F´ / cFS · Zynq US+ ARM</text><text class="lbl xs" x="89" y="91" text-anchor="middle">C++ · TM, FDIR, modes</text>
+      <rect class="c4 flight" x="170" y="44" width="130" height="58"/><text class="lbl s" x="235" y="64" text-anchor="middle">RFSoC firmware</text><text class="lbl xs" x="235" y="78" text-anchor="middle">PFB · CFAR · PDW · snaps</text><text class="lbl xs" x="235" y="91" text-anchor="middle">VHDL/HLS · 8 ch × 2 GHz</text>
+      <rect class="c4 flight" x="24" y="118" width="130" height="58"/><text class="lbl s" x="89" y="138" text-anchor="middle">Tasking executor</text><text class="lbl xs" x="89" y="152" text-anchor="middle">signed collection deck</text><text class="lbl xs" x="89" y="165" text-anchor="middle">tune plan · SOI list</text>
+      <rect class="c4 flight" x="170" y="118" width="130" height="58"/><text class="lbl s" x="235" y="138" text-anchor="middle">On-board catalogue</text><text class="lbl xs" x="235" y="152" text-anchor="middle">signature match · priority</text><text class="lbl xs" x="235" y="165" text-anchor="middle">low-latency alert flags</text>
+      <rect class="c4 flight" x="24" y="192" width="130" height="58"/><text class="lbl s" x="89" y="212" text-anchor="middle">Timing service</text><text class="lbl xs" x="89" y="226" text-anchor="middle">GNSS PPS → OCXO/CSAC</text><text class="lbl xs" x="89" y="239" text-anchor="middle">hardware timestamp unit</text>
+      <rect class="c4 flight" x="170" y="192" width="130" height="58"/><text class="lbl s" x="235" y="212" text-anchor="middle">Store &amp; downlink mgr</text><text class="lbl xs" x="235" y="226" text-anchor="middle">2 TB NAND, CCSDS/CFDP</text><text class="lbl xs" x="235" y="239" text-anchor="middle">AES-256, X-band 1 Gbit/s</text>
+      <rect class="c4 ext" x="24" y="264" width="276" height="36"/><text class="lbl s" x="162" y="286" text-anchor="middle">Bus OBC (vendor FSW) · ADCS · EPS · TT&amp;C · propulsion</text>
+      <!-- ground: ingest and processing -->
+      <rect class="sys" x="330" y="12" width="420" height="440"/><text class="lbl" x="340" y="32" font-weight="600">Ground data platform (sovereign cloud / enclave)</text>
+      <rect class="c4 proc" x="342" y="44" width="120" height="50"/><text class="lbl s" x="402" y="63" text-anchor="middle">Ingest</text><text class="lbl xs" x="402" y="77" text-anchor="middle">frames → L0 · decrypt</text>
+      <rect class="c4 proc" x="474" y="44" width="120" height="50"/><text class="lbl s" x="534" y="63" text-anchor="middle">L1 detection service</text><text class="lbl xs" x="534" y="77" text-anchor="middle">reports, PDW trains, QC</text>
+      <rect class="c4 proc" x="606" y="44" width="132" height="50"/><text class="lbl s" x="672" y="63" text-anchor="middle">Association</text><text class="lbl xs" x="672" y="77" text-anchor="middle">cross-sat / cross-pass</text>
+      <rect class="c4 proc" x="342" y="110" width="120" height="50"/><text class="lbl s" x="402" y="129" text-anchor="middle">CAF solver</text><text class="lbl xs" x="402" y="143" text-anchor="middle">GPU cross-ambiguity</text>
+      <rect class="c4 proc" x="474" y="110" width="120" height="50"/><text class="lbl s" x="534" y="129" text-anchor="middle">Geolocation service</text><text class="lbl xs" x="534" y="143" text-anchor="middle">TDOA/FDOA/AOA · ellipse</text>
+      <rect class="c4 proc" x="606" y="110" width="132" height="50"/><text class="lbl s" x="672" y="129" text-anchor="middle">Catalogue service</text><text class="lbl xs" x="672" y="143" text-anchor="middle">maturity state machine</text>
+      <rect class="c4 proc" x="342" y="176" width="120" height="50"/><text class="lbl s" x="402" y="195" text-anchor="middle">Pattern-of-life engine</text><text class="lbl xs" x="402" y="209" text-anchor="middle">baselines · z-score</text>
+      <rect class="c4 proc" x="474" y="176" width="120" height="50"/><text class="lbl s" x="534" y="195" text-anchor="middle">Alerting</text><text class="lbl xs" x="534" y="209" text-anchor="middle">rules, severity, caveats</text>
+      <rect class="c4 proc" x="606" y="176" width="132" height="50"/><text class="lbl s" x="672" y="195" text-anchor="middle">Fusion adapters</text><text class="lbl xs" x="672" y="209" text-anchor="middle">AIS / ADS-B / imagery cue</text>
+      <rect class="c4 proc" x="342" y="242" width="120" height="50"/><text class="lbl s" x="402" y="261" text-anchor="middle">Tasking planner</text><text class="lbl xs" x="402" y="275" text-anchor="middle">deck · CEP prediction</text>
+      <rect class="c4 proc" x="474" y="242" width="120" height="50"/><text class="lbl s" x="534" y="261" text-anchor="middle">Pass scheduler</text><text class="lbl xs" x="534" y="275" text-anchor="middle">GSaaS booking · conflicts</text>
+      <rect class="c4 ext" x="606" y="242" width="132" height="50"/><text class="lbl s" x="672" y="261" text-anchor="middle">Mission control (COTS)</text><text class="lbl xs" x="672" y="275" text-anchor="middle">TM/TC, flight dynamics</text>
+      <!-- bus -->
+      <rect class="c4" x="342" y="308" width="396" height="26"/><text class="lbl s" x="540" y="325" text-anchor="middle">Message bus (NATS JetStream / Kafka) · topics per level · mTLS</text>
+      <!-- storage -->
+      <rect class="c4 store" x="342" y="350" width="124" height="54"/><text class="lbl s" x="404" y="369" text-anchor="middle">PostgreSQL + PostGIS</text><text class="lbl xs" x="404" y="383" text-anchor="middle">catalogue, geolocations,</text><text class="lbl xs" x="404" y="396" text-anchor="middle">tasks, audit</text>
+      <rect class="c4 store" x="478" y="350" width="124" height="54"/><text class="lbl s" x="540" y="369" text-anchor="middle">TimescaleDB</text><text class="lbl xs" x="540" y="383" text-anchor="middle">detections, PDW trains,</text><text class="lbl xs" x="540" y="396" text-anchor="middle">telemetry, PoL bins</text>
+      <rect class="c4 store" x="614" y="350" width="124" height="54"/><text class="lbl s" x="676" y="369" text-anchor="middle">Object store (S3 API)</text><text class="lbl xs" x="676" y="383" text-anchor="middle">L0 frames, IQ snapshots,</text><text class="lbl xs" x="676" y="396" text-anchor="middle">exemplars · WORM tier</text>
+      <text class="lbl xs" x="540" y="430" text-anchor="middle">Kubernetes · containers · OpenTelemetry · Keycloak / OIDC · HSM for keys</text>
+      <!-- api / console -->
+      <rect class="sys" x="770" y="12" width="198" height="300"/><text class="lbl" x="780" y="32" font-weight="600">Delivery</text>
+      <rect class="c4 api" x="782" y="44" width="174" height="56"/><text class="lbl s" x="869" y="63" text-anchor="middle">Product API gateway</text><text class="lbl xs" x="869" y="77" text-anchor="middle">OGC API Features · GeoJSON</text><text class="lbl xs" x="869" y="90" text-anchor="middle">REST, row-level data rights</text>
+      <rect class="c4 api" x="782" y="112" width="174" height="56"/><text class="lbl s" x="869" y="131" text-anchor="middle">Export &amp; interop</text><text class="lbl xs" x="869" y="145" text-anchor="middle">STANAG 4676 tracks</text><text class="lbl xs" x="869" y="158" text-anchor="middle">4559/NSILI catalogue, CoT</text>
+      <rect class="c4 api" x="782" y="180" width="174" height="56"/><text class="lbl s" x="869" y="199" text-anchor="middle">Webhooks &amp; feeds</text><text class="lbl xs" x="869" y="213" text-anchor="middle">alerts to COP / e-mail / API</text><text class="lbl xs" x="869" y="226" text-anchor="middle">signed, retried, audited</text>
+      <rect class="c4 api" x="782" y="248" width="174" height="52"/><text class="lbl s" x="869" y="267" text-anchor="middle">Mission console (web)</text><text class="lbl xs" x="869" y="281" text-anchor="middle">map, timeline, spectrum,</text><text class="lbl xs" x="869" y="294" text-anchor="middle">tasking, alerts, catalogue</text>
+      <!-- externals -->
+      <rect class="c4 ext" x="24" y="340" width="130" height="50"/><text class="lbl s" x="89" y="359" text-anchor="middle">GSaaS stations</text><text class="lbl xs" x="89" y="373" text-anchor="middle">KSAT API · S3 landing</text>
+      <rect class="c4 ext" x="170" y="340" width="130" height="50"/><text class="lbl s" x="235" y="359" text-anchor="middle">Owned S-band TT&amp;C</text><text class="lbl xs" x="235" y="373" text-anchor="middle">TC uplink, ranging</text>
+      <rect class="c4 ext" x="24" y="410" width="130" height="50"/><text class="lbl s" x="89" y="429" text-anchor="middle">AIS / ADS-B providers</text><text class="lbl xs" x="89" y="443" text-anchor="middle">platform association</text>
+      <rect class="c4 ext" x="170" y="410" width="130" height="50"/><text class="lbl s" x="235" y="429" text-anchor="middle">SAR / EO partners</text><text class="lbl xs" x="235" y="443" text-anchor="middle">cue requests, footprints</text>
+      <rect class="c4 ext" x="770" y="340" width="198" height="50"/><text class="lbl s" x="869" y="359" text-anchor="middle">Customer COPs &amp; GIS</text><text class="lbl xs" x="869" y="373" text-anchor="middle">TAK, SitaWare, ArcGIS, Windward-class</text>
+      <rect class="c4 ext" x="770" y="410" width="198" height="50"/><text class="lbl s" x="869" y="429" text-anchor="middle">National / NATO EW database</text><text class="lbl xs" x="869" y="443" text-anchor="middle">one-way contribution from enclave</text>
+      <!-- arrows -->
+      <path class="msg" d="M235 250 L235 262"/><path class="msg" d="M300 230 L330 100 L342 69"/>
+      <path class="msg" d="M154 365 L300 365 L330 300 L342 80"/><text class="lbl xs" x="160" y="359">bulk TM 1 Gbit/s</text>
+      <path class="msg ret" d="M235 340 L235 300"/><text class="lbl xs" x="242" y="322">TC / decks</text>
+      <path class="msg" d="M462 69 L474 69"/><path class="msg" d="M594 69 L606 69"/><path class="msg" d="M672 94 L672 110"/>
+      <path class="msg" d="M606 135 L594 135"/><path class="msg" d="M474 135 L462 135"/><path class="msg ret" d="M462 128 L474 128"/>
+      <path class="msg" d="M672 160 L672 176"/><path class="msg" d="M606 201 L594 201"/><path class="msg" d="M474 201 L462 201"/>
+      <path class="msg" d="M402 226 L402 242"/><path class="msg" d="M462 267 L474 267"/><path class="msg" d="M594 267 L606 267"/>
+      <path class="msg" d="M738 69 L782 69"/><path class="msg" d="M738 201 L782 208"/><path class="msg" d="M750 135 L782 140"/>
+      <path class="msg" d="M869 236 L869 248"/><path class="msg" d="M869 300 L869 340"/><path class="msg" d="M956 168 L960 168 L960 410 L956 410"/>
+      <path class="msg" d="M154 435 L330 435 L342 226"/><path class="msg ret" d="M300 435 L342 215"/>
+      <path class="msg" d="M402 292 L402 308"/><path class="msg" d="M540 292 L540 308"/><path class="msg" d="M540 334 L540 350"/>
+    </svg>
+    <figcaption><b>Container view (C4 level 2).</b> Purple: flight software containers on the payload processor; blue: ground processing services, each a container subscribing to and publishing on message-bus topics named after the product level it produces; amber: the three stores; green: delivery. Dashed boxes are external or bought systems. The on-board catalogue is a read-only copy of the ground catalogue's signature classes, uplinked with the collection deck.</figcaption>
+  </figure>
+
+  <h2>Flight software</h2>
+  <p>The payload processor is a Zynq UltraScale+ RFSoC class board (the Xiphos Q8RF doubles as digitiser and processor on HawkEye 360's satellites<sup class="ref"><a href="#ref-R2-x82">[R2-x82]</a></sup>) with a rad-tolerant supervisor. The ARM cores run a flight-software framework — F´ (JPL) or NASA cFS, both Apache-2.0 with large heritage and no export issue (research 02 §J) — and the programmable logic runs the signal-processing blocks. The bus OBC keeps the vendor's own software; the two talk over CAN/SpaceWire with a small, versioned command and telemetry dictionary.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Component</th><th>Runs on</th><th>Responsibility</th><th>Key interfaces and numbers</th></tr></thead>
+    <tbody>
+      <tr><td>Payload controller</td><td>ARM Cortex-A53, F´/cFS, Linux or RTOS partition</td><td>Modes (safe, standby, collect, collect+downlink, calibrate), FDIR, telemetry packaging, software update with signed images, watchdog of the FPGA blocks</td><td>CCSDS space packets; ~200 telemetry points at 1 Hz; 124 W payload budget enforced by mode</td></tr>
+      <tr><td>Channeliser (PFB)</td><td>FPGA</td><td>Polyphase filter bank: 4096 × 25 kHz bins across 100–200 MHz for the comms path, 64 × 31 MHz bins across 2 GHz for the radar path; per-bin order-statistic noise floor</td><td>Fixed-point, 5 GSPS inputs via block downconverters; CFAR threshold 10–13 dB for P<sub>fa</sub> ≈ 10⁻⁶ (research 03 §5.2)</td></tr>
+      <tr><td>PDW extractor and deinterleaver</td><td>FPGA (extraction) + ARM/DPU (deinterleaving)</td><td>TOA, PW, amplitude, frequency, AOA phase, polarisation ratio, intra-pulse flag per threshold crossing; CDIF/SDIF and PRI-transform clustering into emitter reports</td><td>128–256-bit PDWs; up to 10⁵ pulses/s (13–26 Mbit/s) reduced to ~1–2 kB per emitter per dwell</td></tr>
+      <tr><td>Comms signal reports</td><td>FPGA + DPU/embedded GPU</td><td>Occupancy start/stop, centre, bandwidth, power, AOA, modulation class and symbol rate; hop statistics for FH nets (cyclostationary or CNN classifier)</td><td>Classifier inference on FPGA DPU or Jetson Orin-class module, 15–40 W (est.)</td></tr>
+      <tr><td>Snapshot capture</td><td>FPGA + NAND</td><td>Time-stamped IQ snapshots on SOI, AOI or novelty triggers: 10–500 ms comms, 1–20 ms radar; each tagged with GNSS time, PVT and attitude</td><td>20 kB (25 kHz, 100 ms) to 5 MB (100 MHz, 10 ms); ~2000 comms + 500 radar per orbit → 1–3 GB/orbit</td></tr>
+      <tr><td>Timing service</td><td>FPGA timestamp unit + ARM</td><td>Disciplines the OCXO to GNSS PPS, logs holdover state, stamps every ADC frame; exports raw GNSS observables for common-view time transfer</td><td>≤20 ns sync target; CSAC holdover 3 × 10⁻¹⁰ at 1 s (<code>BASELINE.payload.timing</code>)</td></tr>
+      <tr><td>On-board catalogue</td><td>ARM</td><td>Matches emitter reports against an uplinked signature library (frequency, PRI, PW, scan, MOP; modulation/bandwidth for comms) to prioritise downlink and raise alert flags</td><td>Library ≤ 10 MB, versioned with the collection deck; flags ride the S-band TT&C or ISL for minutes-class latency</td></tr>
+      <tr><td>Tasking executor</td><td>ARM</td><td>Applies the signed collection deck: per-orbit tune plan for the four tuner channels and the RFSoC block converters, SOI lists, snapshot budgets, downlink blanking windows</td><td>Deck = JSON, signed (Ed25519), ≤ 100 kB per day; rejects unsigned or stale decks</td></tr>
+      <tr><td>Store and downlink manager</td><td>ARM</td><td>Priority queues over the 2 TB store, CFDP file transfer with retransmission, AES-256 link encryption, X-band blanking coordination with the receiver</td><td>1 Gbit/s X-band; 30 GB/day nominal products; 1–2 weeks of buffering against outages</td></tr>
+    </tbody></table></div>
+  <p>Formation flying touches the flight software only lightly: the bus executes manoeuvres planned on the ground; the payload needs to know its own PVT and the cluster partners' ephemerides (uplinked) to time-tag and to decide which snapshots are worth keeping for cross-correlation. Coherent on-board processing across the S-band ISL is a Stage 3 option, not in the baseline (research 03 §6.4).</p>
+
+  <h2>Ground data platform</h2>
+  <p>Every service is a stateless container that consumes from one message-bus topic and publishes to the next, with the stores as the only state. That makes the pipeline replayable (reprocess a day of L0 with a new detector), horizontally scalable (the CAF solver is the only compute hotspot) and portable into the enclave (the same images, pulled through the diode).</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Level</th><th>Service</th><th>Input → output</th><th>Latency budget</th><th>Store</th></tr></thead>
+    <tbody>
+      <tr><td>L0</td><td>Ingest</td><td>CCSDS frames from the GSaaS landing bucket → decrypted, de-duplicated, time-ordered files; completeness report per pass</td><td>&lt; 2 min after LOS</td><td>Object store (immutable)</td></tr>
+      <tr><td>L1</td><td>Detection service</td><td>Emitter reports, PDW trains, signal reports, snapshot index → validated detections with satellite PVT, footprint, QC flags</td><td>&lt; 5 min</td><td>TimescaleDB hypertable <code>detections</code></td></tr>
+      <tr><td>L1→L2</td><td>Association</td><td>Gates detections across satellites (same cluster, same time) and across passes (same frequency/parametrics) into candidate measurement sets</td><td>&lt; 2 min</td><td>Bus only</td></tr>
+      <tr><td>L2</td><td>CAF solver</td><td>Pairs of IQ snapshots → TDOA/FDOA measurements with σ<sub>τ</sub>, σ<sub>f</sub> from the CAF peak; clock-bias estimation from reference emitters</td><td>&lt; 8 min (GPU)</td><td>TimescaleDB <code>measurements</code></td></tr>
+      <tr><td>L2</td><td>Geolocation service</td><td>Measurements + geometry → WLS/MLE fix on the WGS-84 ellipsoid, 95 % ellipse, CEP, GDOP, method, terrain adjustment flag; single-satellite Doppler/AOA and multi-pass accumulation paths</td><td>&lt; 1 min</td><td>PostGIS <code>geolocations</code></td></tr>
+      <tr><td>L3</td><td>Catalogue service</td><td>Fixes → emitter instances through the maturity state machine; parametric drift, mode-change detection, platform association via fusion adapters, track formation (STANAG 4676)</td><td>&lt; 2 min</td><td>PostGIS <code>emitters</code>, <code>tracks</code>; audit log</td></tr>
+      <tr><td>L4</td><td>Pattern-of-life and alerting</td><td>Baselines per AOI / class / cell / hour-of-week; z-score against a rolling quiet baseline with streak confirmation (reliability 86 % at N=1 → 100 % at N=3 in the CYGNSS study<sup class="ref"><a href="#ref-R4-17">[R4-17]</a></sup>); rule evaluation; severity and release caveats</td><td>&lt; 2 min</td><td>TimescaleDB <code>pol_bins</code>; PostGIS <code>alerts</code></td></tr>
+      <tr><td>—</td><td>Tasking planner and pass scheduler</td><td>Customer requests → collection deck per orbit with predicted passes, dwell and CEP; GSaaS bookings; conflict resolution over the ~70 collection-min/sat/day<sup class="ref"><a href="#ref-R4-8">[R4-8]</a></sup></td><td>daily cycle + on-demand</td><td>PostGIS <code>tasks</code>, <code>decks</code></td></tr>
+    </tbody></table></div>
+
+  <h3>The CAF / TDOA–FDOA solver</h3>
+  <p>The solver computes, for each satellite pair and each candidate emitter, the cross-ambiguity function of the two time-aligned snapshots and finds its peak in delay and Doppler:</p>
+  $$ A(\tau,\nu)=\int_{0}^{T} s_1(t)\,s_2^{*}(t+\tau)\,e^{-j2\pi\nu t}\,dt ,\qquad (\hat\tau,\hat\nu)=\arg\max_{\tau,\nu}|A(\tau,\nu)| $$
+  <p>The achievable measurement precision follows from the signal bandwidth \(B\), integration time \(T\) and effective SNR \(\gamma\): \( \sigma_\tau \approx 1/(\beta\sqrt{BT\gamma}) \) and \( \sigma_f \approx 1/(T_e\sqrt{BT\gamma}) \), with \(\beta\) and \(T_e\) the RMS bandwidth and duration (the <a href="../02_Technical_Understanding/geolocation.html">geolocation theory</a> page derives them and the <a href="../03_Scenarios_Services/geolocation_sim.html">TDOA/FDOA simulator</a> turns them into ellipses on the map). The solver's job in software terms is to size the snapshot so that these σ values meet the CEP target without blowing the downlink budget — the calculator below uses the same <code>ORB.RF</code> functions the simulator uses.</p>
+  <div class="panel"><h3>Snapshot sizing calculator</h3>
+    <div class="controls">
+      <div class="ctl"><label>Signal bandwidth <output for="bw">1</output> MHz</label><input type="range" id="bw" min="-1.6" max="2" step="0.1" value="0"></div>
+      <div class="ctl"><label>Snapshot duration <output for="dur">100</output> ms</label><input type="range" id="dur" min="1" max="500" step="1" value="100"></div>
+      <div class="ctl"><label>Effective SNR <output for="snr">10</output> dB</label><input type="range" id="snr" min="-10" max="40" step="1" value="10"></div>
+      <div class="ctl"><label>Sample width <output for="bits">16</output> bit (I and Q)</label><input type="range" id="bits" min="8" max="16" step="4" value="16"></div>
+    </div>
+    <div class="readout">
+      <div><div class="k">σ<sub>τ</sub> (timing)</div><div class="v" id="o-st">—</div></div>
+      <div><div class="k">→ range-difference error</div><div class="v" id="o-sr">—</div></div>
+      <div><div class="k">σ<sub>f</sub> (FDOA)</div><div class="v" id="o-sf">—</div></div>
+      <div><div class="k">Snapshot size per satellite</div><div class="v" id="o-size">—</div></div>
+      <div><div class="k">Cluster set (3 sats)</div><div class="v" id="o-set">—</div></div>
+      <div><div class="k">Sets per day in 30 GB</div><div class="v" id="o-n">—</div></div>
+    </div>
+    <p class="small muted" style="margin-top:.6rem">Timing error floors at the 20 ns synchronisation budget (6 m of range difference) whatever the signal; the catalogue stores σ<sub>τ</sub>, σ<sub>f</sub> per measurement so the geolocation service weights them correctly.</p>
+  </div>
+
+  <h3>Catalogue service and the maturity state machine</h3>
+  <p>The catalogue is the product that compounds over time. New fixes are gated against it (position within k·ellipse, class match, parametric distance); non-matches create <em>Candidate</em> instances, matches with drift raise <em>mode change</em>, instances unseen for N expected observation opportunities become <em>dormant</em>. Maturity moves Candidate → Provisional (≥3 consistent geolocations) → Confirmed (corroborated by imagery, AIS/ADS-B or ground truth) → Characterised (stable parametrics, platform assigned) → Archived, and every transition is logged with who or what triggered it, because government customers audit it<sup class="ref"><a href="#ref-R4-28">[R4-28]</a></sup>. The unclassified core never holds ELNOT/ENOT mappings or national platform associations; those live in a classified annex table set in the enclave with the same keys (research 04 §5.3). The entity model (signal class, detection, geolocation, emitter instance, track, pattern-of-life, alert) is specified on the <a href="../03_Scenarios_Services/ew_database.html">EW database page</a>.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 980 170" role="img" aria-label="Maturity state machine: Candidate, Provisional, Confirmed, Characterised, Archived, with Dormant side state">
+      <g class="lbl s">
+        <rect class="box" x="20" y="50" width="150" height="46" rx="23"/><text x="95" y="70" text-anchor="middle">Candidate</text><text class="lbl xs" x="95" y="84" text-anchor="middle">1 pass, 1 class match</text>
+        <rect class="box" x="220" y="50" width="150" height="46" rx="23"/><text x="295" y="70" text-anchor="middle">Provisional</text><text class="lbl xs" x="295" y="84" text-anchor="middle">≥3 fixes within ellipse</text>
+        <rect class="box" x="420" y="50" width="150" height="46" rx="23"/><text x="495" y="70" text-anchor="middle">Confirmed</text><text class="lbl xs" x="495" y="84" text-anchor="middle">imagery / AIS / ground truth</text>
+        <rect class="box hi" x="620" y="50" width="150" height="46" rx="23"/><text x="695" y="70" text-anchor="middle">Characterised</text><text class="lbl xs" x="695" y="84" text-anchor="middle">stable parametrics, platform</text>
+        <rect class="box" x="820" y="50" width="140" height="46" rx="23"/><text x="890" y="70" text-anchor="middle">Archived</text><text class="lbl xs" x="890" y="84" text-anchor="middle">retired, kept for history</text>
+        <rect class="box" x="420" y="118" width="150" height="36" rx="18"/><text x="495" y="140" text-anchor="middle">Dormant (N missed opportunities)</text>
+      </g>
+      <path class="msg" d="M170 73 L220 73"/><path class="msg" d="M370 73 L420 73"/><path class="msg" d="M570 73 L620 73"/><path class="msg" d="M770 73 L820 73"/>
+      <path class="msg ret" d="M495 96 L495 118"/><path class="msg ret" d="M570 136 L600 136 L600 96"/><path class="msg ret" d="M420 136 L380 136 L380 96"/>
+      <path class="msg ret" d="M295 50 Q400 10 495 50"/><text class="lbl xs" x="395" y="22" text-anchor="middle">parametric drift → mode-change flag, stays or demotes</text>
+      <path class="msg ret" d="M95 96 Q95 150 420 150"/><text class="lbl xs" x="200" y="160">no second detection → dormant → archived</text>
+    </svg>
+    <figcaption><b>Maturity state machine</b> implemented in the catalogue service. Solid arrows are promotions driven by evidence; dashed arrows are demotions, dormancy and the mode-change loop. Each transition writes an audit row (<code>emitter_id, from, to, evidence_ref, actor, time, caveat</code>).</figcaption>
+  </figure>
+
+  <h2>Processing pipeline — sequence from downlink to L4 alert</h2>
+  <figure class="diagram">
+    <svg viewBox="0 0 980 580" role="img" aria-label="Sequence diagram from satellite downlink through ingest, detection, CAF and geolocation, catalogue, pattern-of-life and alert delivery">
+      <g class="lbl s" font-weight="600"><text x="50" y="22" text-anchor="middle">Satellite</text><text x="160" y="22" text-anchor="middle">GSaaS station</text><text x="270" y="22" text-anchor="middle">Ingest</text><text x="380" y="22" text-anchor="middle">L1 detection</text><text x="490" y="22" text-anchor="middle">CAF + geoloc</text><text x="600" y="22" text-anchor="middle">Catalogue</text><text x="710" y="22" text-anchor="middle">PoL + alerting</text><text x="830" y="22" text-anchor="middle">Delivery</text></g>
+      <g class="life"><line x1="50" y1="30" x2="50" y2="560"/><line x1="160" y1="30" x2="160" y2="560"/><line x1="270" y1="30" x2="270" y2="560"/><line x1="380" y1="30" x2="380" y2="560"/><line x1="490" y1="30" x2="490" y2="560"/><line x1="600" y1="30" x2="600" y2="560"/><line x1="710" y1="30" x2="710" y2="560"/><line x1="830" y1="30" x2="830" y2="560"/></g>
+      <rect class="act" x="45" y="40" width="10" height="70"/>
+      <rect class="act" x="155" y="60" width="10" height="70"/>
+      <rect class="act" x="265" y="125" width="10" height="60"/>
+      <rect class="act" x="375" y="175" width="10" height="65"/>
+      <rect class="act" x="485" y="230" width="10" height="140"/>
+      <rect class="act" x="595" y="365" width="10" height="75"/>
+      <rect class="act" x="705" y="430" width="10" height="70"/>
+      <rect class="act" x="825" y="480" width="10" height="80"/>
+      <text class="lbl xs" x="2" y="63">T−9 min</text>
+      <path class="msg" d="M55 60 L155 60"/><text class="lbl xs" x="58" y="56">AOS · X-band 1 Gbit/s: CFDP files (reports, PDW trains, snapshot index, IQ snapshots), AES-256</text>
+      <text class="lbl xs" x="2" y="103">T+0 LOS</text>
+      <path class="msg" d="M55 100 L155 100"/><text class="lbl xs" x="58" y="96">LOS · CFDP NAK list for the next contact</text>
+      <path class="msg" d="M165 130 L265 130"/><text class="lbl xs" x="168" y="126">landing-bucket event (~40 GB per pass)</text>
+      <text class="lbl xs" x="2" y="163">T+2 min</text>
+      <path class="msg" d="M275 160 L375 160"/><text class="lbl xs" x="278" y="156">topic L0.pass: decrypted, de-duplicated files + completeness report</text>
+      <path class="msg" d="M385 205 L485 205"/><text class="lbl xs" x="388" y="201">topic L1.detections: reports with PVT · snapshot pointers</text>
+      <text class="lbl xs" x="2" y="253">T+6 min</text>
+      <path class="msg ret" d="M485 250 L275 250"/><text class="lbl xs" x="278" y="246">fetch IQ snapshots for cluster pairs (object store)</text>
+      <rect class="box" x="498" y="265" width="170" height="32"/><text class="lbl xs" x="583.0" y="278" text-anchor="middle">GPU CAF per pair → τ, ν, σ</text><text class="lbl xs" x="583.0" y="291" text-anchor="middle">clock-bias from reference emitters</text>
+      <rect class="box" x="498" y="305" width="170" height="32"/><text class="lbl xs" x="583.0" y="318" text-anchor="middle">WLS fix · 95 % ellipse · GDOP</text><text class="lbl xs" x="583.0" y="331" text-anchor="middle">single-sat Doppler/AOA fallback</text>
+      <text class="lbl xs" x="2" y="358">T+15 min</text>
+      <path class="msg" d="M495 355 L595 355"/><text class="lbl xs" x="498" y="351">topic L2.geolocations</text>
+      <path class="msg ret" d="M605 385 L705 385"/><text class="lbl xs" x="608" y="381">AIS / ADS-B lookup via fusion adapter</text>
+      <path class="msg" d="M605 415 L705 415"/><text class="lbl xs" x="608" y="411">topic L3.catalogue: instances, maturity transitions, mode flags</text>
+      <text class="lbl xs" x="2" y="448">T+18 min</text>
+      <rect class="box" x="718" y="440" width="150" height="32"/><text class="lbl xs" x="793.0" y="453" text-anchor="middle">baseline z-score · streak check</text><text class="lbl xs" x="793.0" y="466" text-anchor="middle">rules: new-in-AOI, jammer, mode, dark</text>
+      <path class="msg" d="M715 485 L825 485"/><text class="lbl xs" x="718" y="481">topic L4.alerts (severity, caveat, evidence refs)</text>
+      <text class="lbl xs" x="2" y="513">T+22 min</text>
+      <path class="msg" d="M835 500 L890 500"/><text class="lbl xs" x="894" y="503">webhook → COP</text>
+      <path class="msg" d="M835 520 L890 520"/><text class="lbl xs" x="894" y="523">console (SSE)</text>
+      <path class="msg" d="M835 540 L890 540"/><text class="lbl xs" x="894" y="543">OGC API / 4676</text>
+      <text class="lbl xs" x="2" y="558">T+25 min</text>
+      <path class="msg ret" d="M825 555 L275 555"/><text class="lbl xs" x="278" y="551">audit + provenance written for every product (pass id, software versions, operator)</text>
+      </svg>
+    <figcaption><b>Nominal latency budget from loss of signal to a Level 4 alert: about 25 minutes</b>, dominated by the CAF step. Alerts raised by the on-board catalogue bypass this path over the TT&C or ISL channel in minutes, but carry only a class and a footprint, not a geolocation. Times are design targets (est.), consistent with the "product by" column in the demo console.</figcaption>
+  </figure>
+
+  <h2>APIs and payloads</h2>
+  <p>Commercial operators deliver GeoJSON over REST and JSON detections with ellipses<sup class="ref"><a href="#ref-R4-13">[R4-13]</a></sup><sup class="ref"><a href="#ref-R4-8">[R4-8]</a></sup>; NATO expects STANAG 4676 tracks and 4559/NSILI libraries<sup class="ref"><a href="#ref-R4-44">[R4-44]</a></sup>. TALOS exposes one gateway with OGC API Features collections per product level, a tasking resource, webhooks and export endpoints. Every response carries <code>classification</code>, <code>release_caveat</code> and <code>provenance</code>; data rights are enforced per customer with row-level security on the AOI subscription, never by filtering in the client.</p>
+  <div class="table-wrap"><table class="api-table">
+    <thead><tr><th>Endpoint</th><th>Method</th><th>Purpose</th><th>Format</th></tr></thead>
+    <tbody>
+      <tr><td>/collections/detections/items</td><td>GET</td><td>L1 detections in bbox/time window, filter by band, class, satellite</td><td>OGC API Features, GeoJSON (footprint polygons)</td></tr>
+      <tr><td>/collections/geolocations/items</td><td>GET</td><td>L2 fixes with 95 % ellipse, CEP, method, GDOP, measurement σ</td><td>GeoJSON Point + ellipse properties</td></tr>
+      <tr><td>/collections/emitters/items/{id}</td><td>GET</td><td>L3 emitter instance: parametrics, maturity, history, platform association, linked detections</td><td>GeoJSON Feature; <code>?history=true</code> adds position and parametric drift arrays</td></tr>
+      <tr><td>/collections/tracks/items</td><td>GET</td><td>Moving-emitter tracks</td><td>GeoJSON LineString; <code>Accept: application/stanag4676+xml</code> for NATO export</td></tr>
+      <tr><td>/collections/alerts/items</td><td>GET</td><td>L4 alerts with evidence references and acknowledgement state</td><td>GeoJSON</td></tr>
+      <tr><td>/alerts/{id}/ack</td><td>POST</td><td>Acknowledge (audited)</td><td>JSON</td></tr>
+      <tr><td>/tasks</td><td>POST / GET</td><td>Submit tasking (AOI, bands, priority, revisit, product level); returns predicted passes, dwell, CEP class, capacity impact; status lifecycle</td><td>JSON; AOI as GeoJSON Polygon</td></tr>
+      <tr><td>/passes</td><td>GET</td><td>Predicted passes over an AOI or contacts per station for planning</td><td>JSON</td></tr>
+      <tr><td>/spectrum/occupancy</td><td>GET</td><td>Per-pass occupancy strip for an AOI (Stage 1 product)</td><td>JSON arrays (frequency bins × passes)</td></tr>
+      <tr><td>/webhooks</td><td>POST / DELETE</td><td>Register an HTTPS endpoint for alert or catalogue events; HMAC-signed deliveries with retry</td><td>JSON</td></tr>
+      <tr><td>/catalogue/nsili</td><td>GET</td><td>STANAG 4559-style library view of signal classes and emitter instances (metadata only)</td><td>NSILI-compatible profile</td></tr>
+      <tr><td>/export</td><td>POST</td><td>Bulk export job: GeoJSON, CSV, KML, STANAG 4676, PDF report</td><td>Job resource + signed download URL</td></tr>
+    </tbody></table></div>
+  <div class="grid c2">
+    <div><h4>L2 geolocation feature</h4><pre class="json"><code>{
+  "type": "Feature",
+  "id": "GL-2032-05-18-00417",
+  "geometry": { "type": "Point", "coordinates": [26.071, 40.004] },
+  "properties": {
+    "time": "2032-05-18T06:03:41.212Z",
+    "emitter_id": "E-0092",
+    "signal_class": "coastal-surveillance-radar",
+    "band": "X", "f_center_mhz": 9412.6, "bandwidth_hz": 2.0e7,
+    "method": "TDOA/FDOA",
+    "satellites": ["TALOS-1", "TALOS-2", "TALOS-3"],
+    "measurements": [
+      { "pair": ["TALOS-1","TALOS-2"], "tdoa_s": -1.173e-4, "sigma_t_s": 2.1e-8,
+        "fdoa_hz": 412.7, "sigma_f_hz": 0.9 }
+    ],
+    "ellipse95": { "semi_major_km": 0.42, "semi_minor_km": 0.19,
+                   "orientation_deg_from_east": 61.0 },
+    "cep_km": 0.18, "gdop": 2.4, "terrain_adjusted": true,
+    "pass_id": "P-TALOS-C1-2032-05-18-0601",
+    "classification": "UNCLASSIFIED", "release_caveat": "EULA-shared",
+    "provenance": { "l1_version": "1.8.2", "caf_version": "2.3.0", "geoloc_version": "2.3.0" }
+  }
+}</code></pre></div>
+    <div><h4>Tasking request and L4 alert webhook</h4><pre class="json"><code>POST /tasks
+{
+  "name": "Dardanelles approach — radar watch",
+  "aoi": { "type": "Polygon", "coordinates": [[[25.6,39.6],[27.2,39.6],[27.2,40.6],[25.6,40.6],[25.6,39.6]]] },
+  "bands": ["S", "X"], "priority": "priority",
+  "revisit": "every_pass", "product_level": "L2",
+  "window": { "start": "2032-05-18T06:00:00Z", "end": "2032-05-25T06:00:00Z" },
+  "snapshots": { "max_per_pass": 40, "radar_ms": 10, "comms_ms": 100 }
+}
+→ 201 { "task_id": "TSK-00031", "status": "queued",
+        "predicted": { "passes_24h": 8, "dwell_min_24h": 42,
+                       "cep_class": "100-500 m (pulsed radars)",
+                       "capacity_impact_pct": 19.8 } }
+
+POST https://customer.example/hooks/talos   (X-TALOS-Signature: hmac-sha256=…)
+{
+  "event": "alert.created",
+  "alert": { "id": "AL-00912", "rule": "jammer_active", "severity": "high",
+    "time": "2032-05-18T06:22:10Z", "aoi": "blacksea-west",
+    "emitter_id": "E-0133", "signal_class": "gnss-jammer",
+    "geolocation_id": "GL-2032-05-18-00441",
+    "summary": "GNSS jammer (L1) active after 19 h silence; 95% ellipse 1.1 x 0.6 km",
+    "classification": "UNCLASSIFIED", "release_caveat": "customer-only" },
+  "links": { "emitter": "/collections/emitters/items/E-0133",
+             "geolocation": "/collections/geolocations/items/GL-2032-05-18-00441" }
+}</code></pre></div>
+  </div>
+
+  <h2>Console front-end</h2>
+  <p>The <a href="index.html">operations console demo</a> is the prototype of the production front-end and fixes its information architecture: map with band-coloured emitters and ellipses, a time scrubber as the primary axis, a per-pass spectrum strip, AOI tasking with predicted passes and CEP, a rule-based alert feed and a catalogue browser with maturity levels — the feature set the research derives from Mission Space, Guardian LOCATE, satID and military COPs<sup class="ref"><a href="#ref-R4-29">[R4-29]</a></sup>. The production build replaces the demo's canvas renderer with a vector-tile map engine (MapLibre GL) and nautical/aeronautical basemaps, adds APP-6 symbology as a toggle, reads live data through the OGC API with server-sent events for alerts, and keeps the classification banners, release caveats and audit hooks the demo already shows. It is a TypeScript single-page application with no server-side rendering so that the same bundle can be hosted in the enclave; it must work with keyboard only and pass WCAG 2.1 AA, which matters for the analyst desks of government customers.</p>
+
+  <h2>Security and accreditation architecture</h2>
+  <p>The threat model is a nation-state adversary interested in what TALOS collects and in the ability to task it (risk T-17 in the <a href="../02_Technical_Understanding/risks.html">risk register</a>). The architecture answers with: identity for every service and user (OIDC, hardware tokens for operators, mutual TLS on the bus); AES-256 for TC/TM and products with keys in an HSM in Greece; signed collection decks and signed flight-software images; an unclassified platform and a classified enclave that run the same containers but are joined only by a one-way diode; row-level data rights; SBOMs and continuous vulnerability scanning; incident reporting and resilience obligations under NIS2 and the proposed EU Space Act<sup class="ref"><a href="#ref-R5-12">[R5-12]</a></sup>; and a Facility Security Clearance with cleared staff for NATO/EU SECRET products, which the EUSPA RFI shows institutional buyers will audit<sup class="ref"><a href="#ref-R4-16">[R4-16]</a></sup>. Export control is enforced in software too: product tiers are tagged, and the gateway refuses to release IQ, parametric libraries or tasking rights to customer identities without the matching licence record (research 05 §3.5).</p>
+
+  <h2>Deployment</h2>
+  <div class="grid c2">
+    <div class="card"><h3>Sovereign cloud (unclassified line)</h3><p>Kubernetes on an EU provider or a national data centre; PostgreSQL with PostGIS and TimescaleDB for the relational and time-series stores; S3-compatible object storage for L0 and IQ with a WORM tier for provenance; NATS JetStream (or Kafka) as the bus; GPU node pool for the CAF solver; Keycloak for identity; everything deployed from signed images by GitOps. No managed service that lacks an on-premises equivalent is allowed, so the enclave can mirror it.</p></div>
+    <div class="card"><h3>Classified enclave (government line)</h3><p>The same Helm charts on an air-gapped cluster inside the cleared facility; MinIO for object storage; images and the daily unclassified product feed arrive through the data diode; outputs go to the MoD COP over an accredited link and to the national EW database as low-classification source records. Cleared analysts work here; the ELNOT annex and national platform associations never leave.</p></div>
+  </div>
+  <h3>Sizing</h3>
+  <div class="grid c4" id="sizing"></div>
+  <p class="small muted">Computed from <code>BASELINE.payload</code> (30 GB/day of reduced products per satellite, 2,000 comms and 500 radar snapshots per orbit) and the stage definitions; IQ snapshots dominate storage, so the retention policy (hot 90 days, cold 3 years, exemplars for ever) is the main cost lever.</p>
+
+  <h2>Observability</h2>
+  <p>Every service emits OpenTelemetry traces keyed by <code>pass_id</code>, so one trace follows a pass from the landing bucket to the alert webhook and the latency budget in the sequence diagram becomes a measured histogram. Service-level objectives are stated as products, not servers: L2 geolocations published within 25 min of LOS for 95 % of passes; alert webhook delivery within 60 s of creation; API availability 99.5 %; catalogue update latency per customer SLA. Pipeline health is watched with per-level counters (frames ingested, detections, measurements, fixes, transitions, alerts) and their ratios — a sudden drop in fixes per detection points to a clock-bias or snapshot problem before any customer notices. Spacecraft telemetry lands in the same TimescaleDB so that payload health (RFSoC temperature, SEU counters, OCXO lock) can be correlated with product quality.</p>
+
+  <h2>CI/CD, simulation and test</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Layer</th><th>What is tested</th><th>How</th></tr></thead>
+    <tbody>
+      <tr><td>FPGA firmware</td><td>Channeliser, CFAR, PDW extractor, timestamp unit</td><td>Simulation against recorded and synthetic IQ (GNU Radio flowgraphs generate radar trains, FH nets, chirp jammers); bit-exact comparison with the Python reference model; hardware-in-the-loop on the RFSoC evaluation board with a vector signal generator</td></tr>
+      <tr><td>Flight software</td><td>Modes, FDIR, tasking executor, downlink manager</td><td>F´/cFS unit tests; software-in-the-loop with a bus emulator and a payload simulator; fault injection (SEU in the FPGA, GNSS loss, store full); every release signed and rehearsed on the engineering model</td></tr>
+      <tr><td>Processing services</td><td>L1→L4 behaviour, CAF accuracy, geolocation ellipses, maturity transitions</td><td>Replay of recorded IQ and L0 archives (the ground segment keeps a golden set of passes); synthetic scenarios from the orbit engine — the same Keplerian + J2 model as this study's <code>ORB</code> for fast runs, Orekit for high-fidelity ephemerides; regression against calibration emitters of known position (own transponders, cooperative coastal radars)</td></tr>
+      <tr><td>End to end</td><td>Latency budget, data rights, alert delivery</td><td>Nightly simulated day: synthetic constellation passes, synthetic emitters (the demo console's generator is the seed of this), full pipeline, SLO assertions; chaos tests on the bus and stores</td></tr>
+      <tr><td>Security</td><td>Supply chain, access control, enclave isolation</td><td>SBOM and signature verification in CI; dependency scanning; annual red-team; diode and egress tests before each enclave release</td></tr>
+    </tbody></table></div>
+  <p>Software-in-the-loop with the orbit engine is the backbone: the collection planner, pass scheduler, geolocation geometry and the console are all exercised against a simulated constellation long before launch, and the same harness later reproduces on-orbit anomalies from telemetry. Replay of recorded IQ is how the detector and classifier are improved without new collections — HawkEye describes a billion-point unclassified database used to train and validate its algorithms<sup class="ref"><a href="#ref-R4-2">[R4-2]</a></sup>; TALOS starts that archive in commissioning.</p>
+
+  <h2>Open-source and licensed building blocks</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Block</th><th>Licence / origin</th><th>Used for</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>F´ (JPL) or NASA cFS</td><td>Apache-2.0, US open source</td><td>Payload flight-software framework</td><td>No export issue; large heritage (research 02 §J)</td></tr>
+      <tr><td>GNU Radio, gr-satellites, gr-radar</td><td>GPL</td><td>DSP prototyping, test-signal generation, ground processing blocks incl. cross-ambiguity functions</td><td>Core of payload DSP prototyping (research 02 §N)</td></tr>
+      <tr><td>Orekit (CS Group, FR)</td><td>Apache-2.0, EU origin</td><td>Precise orbit propagation, OD, pass prediction in production</td><td>Used by CNES; this study's <code>ORB</code> engine is the fast design-level stand-in</td></tr>
+      <tr><td>numpy / scipy / CuPy</td><td>BSD</td><td>CAF solver, estimators, calibration</td><td>GPU path via CuPy or CUDA kernels</td></tr>
+      <tr><td>PostgreSQL + PostGIS + TimescaleDB</td><td>PostgreSQL / Apache-2.0</td><td>Catalogue, geolocations, detections, telemetry</td><td>Recommended by the research for the PDW/signature database (02 §N)</td></tr>
+      <tr><td>NATS JetStream or Apache Kafka</td><td>Apache-2.0</td><td>Message bus, replayable topics</td><td>Both run air-gapped</td></tr>
+      <tr><td>MinIO / S3 API</td><td>AGPL / provider</td><td>Object storage in the enclave; cloud S3 outside</td><td>WORM for provenance</td></tr>
+      <tr><td>MapLibre GL, d3</td><td>BSD / ISC</td><td>Console map and charts</td><td>Offline vector tiles for the enclave</td></tr>
+      <tr><td>Keycloak, OpenTelemetry</td><td>Apache-2.0</td><td>Identity, tracing and metrics</td><td>—</td></tr>
+      <tr><td>SatNOGS / Libre Space tooling</td><td>Open source, Greek foundation</td><td>TT&C rehearsal, community ground stations, SIDLOC</td><td>Greek open-source leadership (research 02 §J)</td></tr>
+      <tr><td>Commercial MCS (licensed)</td><td>Vendor licence, €0.2–0.6 M/yr class</td><td>TM/TC, flight dynamics, procedures</td><td>Buy and customise (research 05 build-vs-buy)</td></tr>
+      <tr><td>STK / GMAT</td><td>Licence / NASA open source</td><td>Independent cross-check of coverage and access analyses</td><td>Verification, not operations</td></tr>
+    </tbody></table></div>
+
+  <h2>Team and skills</h2>
+  <p>The software organisation grows with the programme phases in <code>HEADCOUNT</code>: within the 15–22 FTE of Phase B the software and firmware core is about a third; by operations and cluster build (35–50 FTE) the data platform and product teams dominate. The skills that are hard to hire in Greece and should be secured early are FPGA DSP for RFSoC, ELINT-literate algorithm engineers and security engineers with accreditation experience.</p>
+  <div class="table-wrap"><table class="skills">
+    <thead><tr><th>Team</th><th class="num">Phase B</th><th class="num">Phase C/D</th><th class="num">Ops + cluster</th><th>Skills</th></tr></thead>
+    <tbody>
+      <tr><td>Payload firmware (FPGA/DSP)</td><td class="num">3</td><td class="num">4</td><td class="num">3</td><td>VHDL/HLS on Zynq US+, polyphase filter banks, CFAR, timestamping, radiation-aware design, GNU Radio</td></tr>
+      <tr><td>Flight software</td><td class="num">2</td><td class="num">3</td><td class="num">2</td><td>F´/cFS, C++, CCSDS/CFDP, FDIR, ECSS-E-ST-40 tailoring, HIL test</td></tr>
+      <tr><td>Signal processing and geolocation</td><td class="num">2</td><td class="num">3</td><td class="num">4</td><td>CAF/TDOA-FDOA estimation, orbit mechanics, estimation theory, Python/CUDA, calibration campaigns</td></tr>
+      <tr><td>Data platform and backend</td><td class="num">1</td><td class="num">3</td><td class="num">5</td><td>Kubernetes, PostGIS/Timescale, message buses, OGC APIs, STANAG 4676/4559, GeoJSON</td></tr>
+      <tr><td>Front-end and products</td><td class="num">0.5</td><td class="num">2</td><td class="num">3</td><td>TypeScript, MapLibre/d3, accessibility, analyst UX, COP integration (TAK/CoT)</td></tr>
+      <tr><td>Analytics / ML</td><td class="num">0.5</td><td class="num">1</td><td class="num">3</td><td>Signal classification, pattern-of-life statistics, anomaly detection, EW database practice</td></tr>
+      <tr><td>Security and accreditation</td><td class="num">0.5</td><td class="num">1</td><td class="num">2</td><td>NIS2, zero trust, HSM/crypto, facility clearance process, enclave operations</td></tr>
+      <tr><td>DevOps / SIL and test</td><td class="num">0.5</td><td class="num">2</td><td class="num">2</td><td>GitOps, CI for FPGA and FSW, simulation harness, IQ replay library</td></tr>
+    </tbody></table></div>
+  <p class="small muted">FTE figures are this page's allocation of the programme headcount ranges in <code>programmatics.js</code> (est.); they are inside, not additional to, those totals.</p>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/programmatics.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+renderRefs(['R4-29','R4-44','R2-x82','R4-17','R4-8','R4-28','R4-13','R5-12','R4-16','R4-2']);
+const $=id=>document.getElementById(id);
+function calc(){ const bw=Math.pow(10,+$('bw').value)*1e6, T=+$('dur').value/1000, snr=U.lin(+$('snr').value), bits=+$('bits').value; const st=Math.max(ORB.RF.sigmaTdoa(bw,T,snr),20e-9), sf=ORB.RF.sigmaFdoa(bw,T,snr); const size=1.25*bw*T*2*bits/8; const set=3*size; const n=30e9/set; $('o-st').innerHTML=U.si(st,'s')+(st<=20.5e-9?' <small>(sync floor)</small>':''); $('o-sr').innerHTML=U.si(st*299792458,'m'); $('o-sf').innerHTML=U.si(sf,'Hz'); $('o-size').innerHTML=U.si(size,'B'); $('o-set').innerHTML=U.si(set,'B'); $('o-n').innerHTML=U.fmt(n,0)+' <small>sets</small>'; }
+bindRange('bw',calc,v=>{ const m=Math.pow(10,v); return m>=1?m.toFixed(m<10?1:0):(m*1000).toFixed(0)+' k'; });
+['dur','snr','bits'].forEach(id=>bindRange(id,calc));
+// sizing from baseline
+const snaps=BASELINE.payload.snapshotsPerOrbit, orbitsDay=86400/ORB.period(ORB.RE+BASELINE.orbit.altKm);
+const perSat=BASELINE.payload.dataPerDayGB; const stages=BASELINE.constellation.stages;
+const cards=[];
+cards.push(`<div class="kpi"><div class="v">${perSat}<small>GB/day/sat</small></div><div class="l">Reduced products to ingest</div><div class="d">${((snaps.comms+snaps.radar)*orbitsDay).toFixed(0)} snapshots/day/sat (${orbitsDay.toFixed(1)} orbits)</div></div>`);
+stages.forEach(s=>{ const gbDay=perSat*s.sats; const tbYr=gbDay*365/1000; cards.push(`<div class="kpi"><div class="v">${(tbYr).toFixed(0)}<small>TB/yr</small></div><div class="l">${s.name.replace(/ — .*/,'')} · ${s.sats} sat</div><div class="d">${gbDay} GB/day ingest · ~${(gbDay/1e3*90).toFixed(1)} TB hot (90 d) · ${(s.sats*(snaps.comms+snaps.radar)*orbitsDay/1000).toFixed(0)}k snapshots/day</div></div>`); });
+$('sizing').innerHTML=cards.slice(0,4).join('');
+})();
+</script>
+</body>
+</html>

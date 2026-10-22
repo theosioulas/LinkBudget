@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LYRA-3 Mission Simulator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Saira+Semi+Condensed:wght@500;600;700&display=swap">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14.5' fill='%230a0f17' stroke='%23223147' stroke-width='1.2'/%3E%3Cpath d='M5 21 Q16 3 27 21' fill='none' stroke='%23f2a53a' stroke-width='1.8'/%3E%3Ccircle cx='9' cy='13.6' r='2.5' fill='%2356c7f5'/%3E%3Ccircle cx='16' cy='9.6' r='2.5' fill='%23f590b8'/%3E%3Ccircle cx='23' cy='13.6' r='2.5' fill='%23a9dc7b'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <circle cx="16" cy="16" r="14.5" fill="none" stroke="var(--line)" stroke-width="1.2"/>
+        <path d="M5 21 Q16 3 27 21" fill="none" stroke="var(--accent)" stroke-width="1.4"/>
+        <circle cx="9" cy="13.6" r="2.3" fill="var(--s1)"/><circle cx="16" cy="9.6" r="2.3" fill="var(--s2)"/><circle cx="23" cy="13.6" r="2.3" fill="var(--s3)"/>
+        <path d="M12.5 24.5 a4.5 4.5 0 0 1 7 0 M10.5 27 a7.5 7.5 0 0 1 11 0" fill="none" stroke="var(--muted)" stroke-width="1.2"/>
+      </svg>
+      <div><span class="brand-name">LYRA-3</span><span class="brand-sub">RF geolocation cluster · mission simulator</span></div>
+    </div>
+    <nav class="tabs" role="tablist" id="tabs" aria-label="Views">
+      <button role="tab" id="tab-ops" data-tab="ops" aria-selected="true">Operations</button>
+      <button role="tab" id="tab-orbit" data-tab="orbit" aria-selected="false">Orbit &amp; formation</button>
+      <button role="tab" id="tab-rf" data-tab="rf" aria-selected="false">Payload RF</button>
+      <button role="tab" id="tab-geo" data-tab="geo" aria-selected="false">Geolocation</button>
+      <button role="tab" id="tab-plan" data-tab="plan" aria-selected="false">Planning</button>
+      <button role="tab" id="tab-bus" data-tab="bus" aria-selected="false">Spacecraft</button>
+      <button role="tab" id="tab-design" data-tab="design" aria-selected="false">System design</button>
+      <span class="tabs-sep" aria-hidden="true"></span>
+      <button role="tab" id="tab-chain" data-tab="chain" aria-selected="false" title="From the 100–150 kg baseline study">Link chain</button>
+      <button role="tab" id="tab-scaling" data-tab="scaling" aria-selected="false" title="From the 100–150 kg baseline study">Single-sat &amp; scaling</button>
+      <button role="tab" id="tab-hardware" data-tab="hardware" aria-selected="false" title="From the 100–150 kg baseline study">Flight hardware</button>
+      <button role="tab" id="tab-library" data-tab="library" aria-selected="false" title="From the 100–150 kg baseline study">Suppliers &amp; library</button>
+    </nav>
+    <div class="clock">
+      <div class="utc" aria-live="off"><span id="clk">2026-10-21 06:00:00</span><small>UTC</small></div>
+      <button class="btn icon" id="btn-play" title="Pause simulation" aria-label="Pause simulation">
+        <svg viewBox="0 0 14 14" id="ico-pause"><rect x="2.5" y="2" width="3" height="10"/><rect x="8.5" y="2" width="3" height="10"/></svg>
+        <svg viewBox="0 0 14 14" id="ico-play" hidden><path d="M3 2 L12 7 L3 12 Z"/></svg>
+      </button>
+      <select id="sel-speed" aria-label="Time acceleration">
+        <option value="1">1×</option><option value="5">5×</option><option value="20" selected>20×</option>
+        <option value="60">60×</option><option value="200">200×</option><option value="600">600×</option><option value="1800">1800×</option>
+      </select>
+      <button class="btn" id="btn-next" title="Jump to 60 s before the next planned collection">Next collection</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ===================== OPERATIONS ===================== -->
+    <section class="view fit active" id="view-ops" role="tabpanel" aria-labelledby="tab-ops">
+      <div class="ops-grid">
+        <div class="panel map-panel">
+          <div class="panel-head">
+            <h2>Common operating picture</h2>
+            <div class="chips" id="ops-layers">
+              <label class="chip"><input type="checkbox" data-layer="tracks" checked>Ground tracks</label>
+              <label class="chip"><input type="checkbox" data-layer="foot" checked>Footprints</label>
+              <label class="chip"><input type="checkbox" data-layer="night" checked>Night</label>
+              <label class="chip"><input type="checkbox" data-layer="emitters" checked>Emitters</label>
+              <label class="chip"><input type="checkbox" data-layer="gs" checked>Stations</label>
+              <label class="chip"><input type="checkbox" data-layer="fixes" checked>Fixes</label>
+            </div>
+          </div>
+          <div class="canvas-wrap" id="ops-wrap">
+            <canvas id="ops-map" aria-label="World map with satellite tracks, footprints, emitters and geolocation fixes"></canvas>
+            <div class="map-ctl"><button class="btn icon" id="ops-zin" aria-label="Zoom in">+</button><button class="btn icon" id="ops-zout" aria-label="Zoom out">−</button><button class="btn icon" id="ops-zreset" aria-label="Reset view" title="Reset view">⌂</button></div>
+            <div class="map-hud" id="ops-hud"></div>
+            <div class="tooltip" id="ops-tip" hidden></div>
+          </div>
+        </div>
+        <aside class="stack ops-side">
+          <div class="panel">
+            <div class="panel-head"><h2>Cluster state</h2><span id="ops-cluster-pill"></span></div>
+            <div id="ops-sats"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Upcoming</h2></div>
+            <div class="events" id="ops-next"></div>
+          </div>
+          <div class="panel grow">
+            <div class="panel-head"><h2>Geolocation products</h2><span class="muted mono" id="ops-prod-count">0</span></div>
+            <div class="scroll grow" id="ops-products"></div>
+          </div>
+        </aside>
+        <div class="panel ops-log">
+          <div class="panel-head"><h2>Event log</h2><span class="hint">Spacecraft, ground and processing events</span></div>
+          <div class="scroll grow log" id="ops-log"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== ORBIT ===================== -->
+    <section class="view fit" id="view-orbit" role="tabpanel" aria-labelledby="tab-orbit">
+      <div class="orbit-grid">
+        <div class="panel globe-panel">
+          <div class="panel-head">
+            <h2>Orbit view</h2>
+            <div class="seg" id="globe-frame"><button data-frame="eci" aria-pressed="true">Inertial</button><button data-frame="ecef" aria-pressed="false">Earth-fixed</button></div>
+            <label class="chip"><input type="checkbox" id="globe-follow" checked>Follow cluster</label>
+            <label class="chip"><input type="checkbox" id="globe-los" checked>Lines of sight</label>
+          </div>
+          <div class="canvas-wrap"><canvas id="globe" aria-label="3D globe with orbit and formation"></canvas><div class="map-hud" id="globe-hud">Drag to rotate · scroll to zoom</div></div>
+        </div>
+        <div class="panel lvlh-panel">
+          <div class="panel-head"><h2>Formation, LVLH frame of LYRA-3A</h2></div>
+          <div class="canvas-wrap"><canvas id="lvlh" aria-label="Relative motion of the formation"></canvas></div>
+        </div>
+        <div class="panel base-panel">
+          <div class="panel-head"><h2>Baselines over one orbit</h2></div>
+          <div class="canvas-wrap"><canvas id="baselines" aria-label="Baseline lengths vs time"></canvas></div>
+        </div>
+        <div class="stack form-col">
+          <div class="panel">
+            <div class="panel-head"><h2>Mean orbital elements</h2><span class="pill info">J2 secular</span></div>
+            <div class="panel-body"><dl class="kv" id="orbit-elements"></dl></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Orbit &amp; formation design</h2></div>
+            <form class="panel-body form" id="orbit-form">
+              <label>Altitude (km)<input type="number" id="f-alt" min="400" max="900" step="5" value="550"></label>
+              <label>LTAN (h)<input type="number" id="f-ltan" min="0" max="24" step="0.25" value="22.5"></label>
+              <label class="inline full"><input type="checkbox" id="f-sso" checked> Sun-synchronous (inclination from J2)</label>
+              <label>Inclination (°)<input type="number" id="f-inc" min="0" max="180" step="0.1" value="97.6" disabled></label>
+              <label>Satellites<select id="f-nsat"><option value="2">2</option><option value="3" selected>3</option><option value="4">4</option></select></label>
+              <label class="full">Formation preset<select id="f-preset">
+                <option value="tri">Trail + cross-track (default)</option>
+                <option value="trail">Pure along-track trail</option>
+                <option value="wide">Wide baseline (125 km)</option>
+                <option value="tight">Tight cluster (10 km)</option>
+              </select></label>
+              <div class="full tbl-wrap"><table class="data" id="f-sats"><thead><tr><th>Sat</th><th class="num">Along-track (km)</th><th class="num">Cross-track (km)</th></tr></thead><tbody></tbody></table></div>
+              <div class="note">Along-track offset sets the mean anomaly; cross-track offset sets ΔΩ. Equal inclinations keep J2 drift common, so the formation does not separate secularly.</div>
+              <div class="actions"><button type="submit" class="btn primary">Apply and re-plan</button></div>
+            </form>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Two-line elements</h2><button class="btn" id="tle-copy" type="button">Copy</button></div>
+            <div class="panel-body"><pre class="mono" id="tle" style="margin:0;font-size:11px;white-space:pre;overflow-x:auto"></pre><div class="hint">Generated from the mean elements; approximate for interoperability, not an SGP4 fit.</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== PAYLOAD RF ===================== -->
+    <section class="view fit" id="view-rf" role="tabpanel" aria-labelledby="tab-rf">
+      <div class="rf-grid">
+        <div class="stack rf-left">
+          <div class="panel">
+            <div class="panel-head"><h2>Receiver control</h2></div>
+            <div class="panel-body form">
+              <label>Spacecraft<select id="rf-sat"></select></label>
+              <label>Averaging<select id="rf-avg"><option value="1">1</option><option value="4">4</option><option value="16" selected>16</option><option value="64">64</option></select></label>
+              <label class="full">Tuning<select id="rf-tune"></select></label>
+              <label class="full">Emitter of interest<select id="rf-em"></select></label>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Receive chains</h2></div>
+            <div class="tbl-wrap"><table class="data" id="rf-bands"></table></div>
+            <div class="panel-body hint" id="rf-bands-note"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Digital receiver</h2></div>
+            <div class="panel-body"><dl class="kv">
+              <dt>Platform</dt><dd>RFSoC, 4 × 14-bit ADC</dd>
+              <dt>Instantaneous BW</dt><dd>20–400 MHz per chain</dd>
+              <dt>Channeliser</dt><dd>4096-bin polyphase</dd>
+              <dt>Detection</dt><dd>CFAR, PDW extraction</dd>
+              <dt>Snapshot buffer</dt><dd>256 GB, 16-bit I/Q</dd>
+              <dt>Time tag</dt><dd>GNSS 1 PPS + CSAC</dd>
+              <dt>Sync (cluster)</dt><dd>≤ 15 ns rms</dd>
+              <dt>LO stability</dt><dd>1×10⁻¹¹ (1 s)</dd>
+            </dl></div>
+          </div>
+        </div>
+        <div class="panel rf-scope">
+          <div class="panel-head"><h2 id="rf-scope-title">Spectrum and waterfall</h2><span class="muted mono" id="rf-scope-info"></span></div>
+          <div class="canvas-wrap"><canvas id="rf-spec" aria-label="Spectrum analyser and waterfall"></canvas><div class="tooltip" id="rf-tip" hidden></div></div>
+        </div>
+        <div class="panel rf-pass">
+          <div class="panel-head"><h2>Pass geometry for the emitter of interest</h2><div class="seg" id="rf-pass-mode"><button data-m="dop" aria-pressed="true">Doppler</button><button data-m="tdoa" aria-pressed="false">TDOA</button><button data-m="fdoa" aria-pressed="false">FDOA</button><button data-m="snr" aria-pressed="false">SNR</button></div></div>
+          <div class="canvas-wrap"><canvas id="rf-passplot" aria-label="Doppler, TDOA, FDOA and SNR over the pass"></canvas></div>
+        </div>
+        <div class="stack rf-right">
+          <div class="panel grow">
+            <div class="panel-head"><h2>Signals in view</h2><span class="muted mono" id="rf-sig-count"></span></div>
+            <div class="tbl-wrap grow"><table class="data" id="rf-signals"></table></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Link budget</h2><span class="muted" id="rf-lb-title"></span></div>
+            <div class="tbl-wrap"><table class="data" id="rf-lb"></table></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== GEOLOCATION ===================== -->
+    <section class="view fit" id="view-geo" role="tabpanel" aria-labelledby="tab-geo">
+      <div class="geo-grid">
+        <div class="stack geo-left">
+          <div class="panel grow">
+            <div class="panel-head"><h2>Collections</h2><span class="muted mono" id="geo-coll-count"></span></div>
+            <div class="scroll grow" id="geo-colls"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Processing settings</h2></div>
+            <form class="panel-body form" id="geo-form">
+              <label class="full">Method<select id="g-mode"></select></label>
+              <label>Snapshots<input type="number" id="g-nsnap" min="2" max="60" step="1"></label>
+              <label>Interval (s)<input type="number" id="g-dt" min="1" max="60" step="1"></label>
+              <label>Integration ×<select id="g-tint"><option value="0.25">0.25</option><option value="0.5">0.5</option><option value="1">1</option><option value="2">2</option><option value="4">4</option></select></label>
+              <label>Clock sync (ns)<input type="number" id="g-clk" min="0" max="500" step="1"></label>
+              <label>Ephemeris (m)<input type="number" id="g-pos" min="0" max="100" step="0.5"></label>
+              <label>Velocity (mm/s)<input type="number" id="g-vel" min="0" max="200" step="1"></label>
+              <label>LO stability<select id="g-lo"><option value="1e-12">1×10⁻¹²</option><option value="1e-11">1×10⁻¹¹</option><option value="1e-10">1×10⁻¹⁰</option><option value="1e-9">1×10⁻⁹</option></select></label>
+              <label>TEC (TECU)<input type="number" id="g-tec" min="0" max="150" step="1"></label>
+              <label>Target speed (m/s)<input type="number" id="g-spd" min="0" max="30" step="0.5"></label>
+              <label>Monte Carlo runs<select id="g-mc"><option value="0">Off</option><option value="100">100</option><option value="200" selected>200</option><option value="500">500</option></select></label>
+              <div class="actions"><button type="button" class="btn" id="g-reset">Defaults</button><button type="submit" class="btn primary">Re-process</button></div>
+            </form>
+          </div>
+        </div>
+        <div class="panel geo-map">
+          <div class="panel-head">
+            <h2 id="geo-title">Isochrones and isodops</h2>
+            <div class="chips">
+              <label class="chip"><input type="checkbox" id="gl-t" checked>Iso-TDOA</label>
+              <label class="chip"><input type="checkbox" id="gl-f" checked>Iso-FDOA</label>
+              <label class="chip"><input type="checkbox" id="gl-all">All snapshots</label>
+              <label class="chip"><input type="checkbox" id="gl-mc" checked>Monte Carlo</label>
+              <label class="chip"><input type="checkbox" id="gl-ais" checked>AIS claim</label>
+            </div>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="geo-map" aria-label="Local map with TDOA hyperbolae, FDOA isodops, estimate and error ellipse"></canvas>
+            <div class="map-ctl"><button class="btn icon" id="geo-zin" aria-label="Zoom in">+</button><button class="btn icon" id="geo-zout" aria-label="Zoom out">−</button></div>
+            <div class="map-hud" id="geo-hud"></div>
+          </div>
+        </div>
+        <div class="panel geo-caf">
+          <div class="panel-head"><h2>Cross-ambiguity function</h2><select id="caf-pair" aria-label="Satellite pair and snapshot"></select><span class="muted mono" id="caf-info"></span></div>
+          <div class="canvas-wrap"><canvas id="caf" aria-label="Cross-ambiguity surface with delay and Doppler cuts"></canvas></div>
+        </div>
+        <div class="panel geo-right">
+          <div class="panel-head"><h2>Fix</h2><span id="geo-status"></span><button class="btn" id="geo-copy" type="button" style="margin-left:auto" title="Copy fix coordinates and error ellipse to clipboard">Copy</button></div>
+          <div class="scroll grow" id="geo-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== PLANNING ===================== -->
+    <section class="view scrolly" id="view-plan" role="tabpanel" aria-labelledby="tab-plan">
+      <div class="plan-grid">
+        <div class="panel task-form">
+          <div class="panel-head"><h2>New collection request</h2><span class="pill dim">Tasking</span></div>
+          <form class="panel-body form" id="task-form">
+            <label class="full">Target name<input type="text" id="t-name" value="Contact XRAY-21" maxlength="40"></label>
+            <label>Latitude (°)<input type="number" id="t-lat" step="0.01" min="-85" max="85" value="35.10"></label>
+            <label>Longitude (°)<input type="number" id="t-lon" step="0.01" min="-180" max="180" value="27.80"></label>
+            <label class="full">Signal of interest<select id="t-type"></select></label>
+            <label>Priority<select id="t-prio"><option value="1">1, urgent</option><option value="2" selected>2, high</option><option value="3">3, routine</option></select></label>
+            <label>Required CEP (m)<input type="number" id="t-cep" min="10" max="20000" step="10" value="500"></label>
+            <label class="inline full"><input type="checkbox" id="t-mobile" checked> Target is a vessel (moving)</label>
+            <div class="note" id="t-feas">Feasibility is computed against the next 36 h of passes.</div>
+            <div class="actions"><button type="submit" class="btn primary">Submit request</button></div>
+          </form>
+        </div>
+        <div class="panel deck">
+          <div class="panel-head"><h2>Target deck</h2><span class="muted" id="deck-count"></span></div>
+          <div class="tbl-wrap"><table class="data" id="deck"></table></div>
+        </div>
+        <div class="panel gantt">
+          <div class="panel-head">
+            <h2>Collection plan, 36 h</h2>
+            <div class="legend">
+              <span><i class="swatch" style="background:var(--accent)"></i>Planned collection</span>
+              <span><i class="swatch" style="background:var(--ok)"></i>Completed</span>
+              <span><i class="swatch" style="background:var(--dim)"></i>Access, not scheduled</span>
+              <span><i class="swatch" style="background:var(--s1)"></i>Ground contact</span>
+              <span><i class="swatch" style="background:var(--line)"></i>Eclipse</span>
+            </div>
+          </div>
+          <div class="canvas-wrap" style="min-height:340px"><canvas id="gantt-c" aria-label="Timeline of accesses, collections, contacts and eclipses"></canvas><div class="tooltip" id="gantt-tip" hidden></div></div>
+        </div>
+        <div class="plan-tables">
+          <div class="panel">
+            <div class="panel-head"><h2>Scheduled collections</h2><span class="muted" id="coll-count"></span></div>
+            <div class="tbl-wrap" style="max-height:340px"><table class="data" id="coll-table"></table></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Ground contacts</h2><span class="muted" id="gs-count"></span></div>
+            <div class="tbl-wrap" style="max-height:340px"><table class="data" id="gs-table"></table></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== SPACECRAFT ===================== -->
+    <section class="view scrolly" id="view-bus" role="tabpanel" aria-labelledby="tab-bus">
+      <div class="stack">
+        <div class="row"><div class="seg" id="bus-sat"></div><span class="hint">Simulated telemetry, 30 s resolution, over the 36 h planning horizon</span></div>
+        <div class="kpis" id="bus-kpis"></div>
+        <div class="bus-grid">
+          <div class="panel span2">
+            <div class="panel-head"><h2>Housekeeping telemetry</h2><div class="seg" id="bus-win"><button data-w="3" aria-pressed="false">±3 h</button><button data-w="6" aria-pressed="true">±6 h</button><button data-w="18" aria-pressed="false">Full</button></div></div>
+            <div class="canvas-wrap" style="min-height:420px"><canvas id="bus-chart" aria-label="Battery, power, storage and temperature over time"></canvas></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Operating modes</h2></div>
+            <div class="panel-body diagram" style="overflow-x:auto">
+              <svg viewBox="0 0 520 250" id="mode-svg" style="width:100%;min-width:460px;height:auto" role="img" aria-label="Spacecraft mode state machine">
+                <defs><marker id="ah-m" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="ar" d="M0,0 L8,4 L0,8 z"/></marker></defs>
+                <rect class="mode" id="m-SAFE" x="10" y="95" width="100" height="50" rx="8"/><text class="t" x="60" y="117" text-anchor="middle">SAFE</text><text class="ts" x="60" y="133" text-anchor="middle">sun-point, payload off</text>
+                <rect class="mode" id="m-STANDBY" x="160" y="20" width="110" height="50" rx="8"/><text class="t" x="215" y="42" text-anchor="middle">STANDBY</text><text class="ts" x="215" y="58" text-anchor="middle">nadir, SoC &lt; 45 %</text>
+                <rect class="mode" id="m-SURVEY" x="160" y="170" width="110" height="50" rx="8"/><text class="t" x="215" y="192" text-anchor="middle">SURVEY</text><text class="ts" x="215" y="208" text-anchor="middle">wideband scan</text>
+                <rect class="mode" id="m-COLLECT" x="370" y="20" width="130" height="50" rx="8"/><text class="t" x="435" y="42" text-anchor="middle">COLLECT</text><text class="ts" x="435" y="58" text-anchor="middle">synced IQ snapshots</text>
+                <rect class="mode" id="m-DOWNLINK" x="370" y="170" width="130" height="50" rx="8"/><text class="t" x="435" y="192" text-anchor="middle">DOWNLINK</text><text class="ts" x="435" y="208" text-anchor="middle">X-band, ACM</text>
+                <path class="ln" d="M110 110 L158 52" marker-end="url(#ah-m)"/><path class="ln" d="M158 40 L112 100" marker-end="url(#ah-m)"/>
+                <path class="ln" d="M215 70 L215 168" marker-end="url(#ah-m)"/><path class="ln" d="M228 168 L228 72" marker-end="url(#ah-m)"/>
+                <path class="ln" d="M270 182 L368 58" marker-end="url(#ah-m)"/><path class="ln" d="M370 45 L272 45" marker-end="url(#ah-m)"/>
+                <path class="ln" d="M270 200 L368 200" marker-end="url(#ah-m)"/><path class="ln" d="M368 210 L272 210" marker-end="url(#ah-m)"/>
+                <path class="ln" d="M160 195 L112 140" marker-end="url(#ah-m)"/>
+                <text class="tm" x="296" y="110">plan window</text><text class="tm" x="292" y="236">AOS / LOS</text><text class="tm" x="64" y="186">SoC &lt; 25 %</text><text class="tm" x="236" y="124">SoC</text>
+              </svg>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Power budget</h2><span class="muted" id="pwr-note"></span></div>
+            <div class="tbl-wrap"><table class="data" id="pwr-table"></table></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>Mass budget</h2><span class="pill acc" id="mass-pill"></span></div>
+            <div class="tbl-wrap"><table class="data" id="mass-table"></table></div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><h2>X-band downlink budget</h2><select id="dl-gs" aria-label="Ground station"></select></div>
+            <div class="tbl-wrap"><table class="data" id="dl-table"></table></div>
+            <div class="panel-body hint">8.2 GHz, 5 W SSPA, isoflux antenna, DVB-S2 ACM at 100 Msym/s, 2 dB implementation margin.</div>
+          </div>
+          <div class="panel span2">
+            <div class="panel-head"><h2>Propulsion and lifetime</h2></div>
+            <div class="tbl-wrap"><table class="data" id="dv-table"></table></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== SYSTEM DESIGN ===================== -->
+    <section class="view doc-view" id="view-design" role="tabpanel" aria-labelledby="tab-design">
+      <div class="doc" id="doc"></div>
+    </section>
+
+    <!-- ===================== 100–150 kg BASELINE STUDY (loaded on first open) ===================== -->
+    <section class="view embed-view" id="view-chain" role="tabpanel" aria-labelledby="tab-chain" data-src="baseline/index.html?view=link"></section>
+    <section class="view embed-view" id="view-scaling" role="tabpanel" aria-labelledby="tab-scaling" data-src="baseline/index.html?view=scaling"></section>
+    <section class="view embed-view" id="view-hardware" role="tabpanel" aria-labelledby="tab-hardware" data-src="baseline/index.html?view=hardware"></section>
+    <section class="view embed-view" id="view-library" role="tabpanel" aria-labelledby="tab-library" data-src="baseline/index.html?view=library"></section>
+  </main>
+</div>
+<script src="js/core.js"></script>
+<script src="js/orbit.js"></script>
+<script src="js/rf.js"></script>
+<script src="js/geoloc.js"></script>
+<script src="js/dsp.js"></script>
+<script src="js/plan.js"></script>
+<script src="js/bus.js"></script>
+<script src="js/world.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/view-ops.js"></script>
+<script src="js/view-orbit.js"></script>
+<script src="js/view-rf.js"></script>
+<script src="js/view-geo.js"></script>
+<script src="js/view-plan.js"></script>
+<script src="js/view-bus.js"></script>
+<script src="js/view-design.js"></script>
+<script src="js/view-baseline.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

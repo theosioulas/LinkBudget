@@ -1,0 +1,284 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 850" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="antBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070c18"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+
+    <!-- Card Gradients -->
+    <linearGradient id="antCardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+
+    <!-- Reflector Mesh Pattern -->
+    <pattern id="meshPat" width="8" height="8" patternUnits="userSpaceOnUse">
+      <path d="M 0 0 L 8 8 M 8 0 L 0 8" stroke="#fbbf24" stroke-width="0.4" stroke-opacity="0.3"/>
+    </pattern>
+
+    <!-- Filters -->
+    <filter id="antShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+
+    <!-- Markers -->
+    <marker id="antArr" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8"/>
+    </marker>
+    <marker id="goldArr" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#fbbf24"/>
+    </marker>
+  </defs>
+
+  <style>
+    .title { font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-weight: 700; fill: #f8fafc; font-size: 20px; letter-spacing: 0.5px; }
+    .subtitle { font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; fill: #94a3b8; }
+    .box-title { font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-weight: 600; font-size: 13px; fill: #f1f5f9; }
+    .box-sub { font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 10px; fill: #94a3b8; }
+    .box-value { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 600; fill: #fbbf24; }
+    .box-metric { font-family: 'JetBrains Mono', monospace; font-size: 10px; fill: #38bdf8; }
+    .tag { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; text-anchor: middle; }
+    .diag-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; fill: #e2e8f0; font-weight: 600; }
+  </style>
+
+  <!-- Background -->
+  <rect width="1200" height="850" fill="url(#antBgGrad)"/>
+
+  <!-- Subtle Grid -->
+  <g opacity="0.05" stroke="#94a3b8" stroke-width="0.5">
+    <path d="M 0,100 L 1200,100 M 0,200 L 1200,200 M 0,300 L 1200,300 M 0,400 L 1200,400 M 0,500 L 1200,500 M 0,600 L 1200,600 M 0,700 L 1200,700 M 0,800 L 1200,800"/>
+    <path d="M 100,0 L 100,850 M 200,0 L 200,850 M 300,0 L 300,850 M 400,0 L 400,850 M 500,0 L 500,850 M 600,0 L 600,850 M 700,0 L 700,850 M 800,0 L 800,850 M 900,0 L 900,850 M 1000,0 L 1000,850 M 1100,0 L 1100,850"/>
+  </g>
+
+  <!-- Header -->
+  <g transform="translate(40, 35)">
+    <rect x="-10" y="-12" width="1140" height="60" rx="8" fill="#1e293b" fill-opacity="0.6" stroke="#334155" stroke-width="1"/>
+    <text x="15" y="18" class="title">LEO SIGINT SATELLITE: ANTENNA SYSTEMS KINEMATICS &amp; DEPLOYMENT MECHANISMS</text>
+    <text x="15" y="36" class="subtitle">Wideband UHF to X-Band Suite | SMA Non-Explosive Actuation | Stowed Volume &lt; 50 L | Zero-Backlash Structural Lockout</text>
+    <rect x="940" y="-3" width="170" height="40" rx="6" fill="#0f172a" stroke="#fbbf24" stroke-width="1"/>
+    <text x="1025" y="14" class="tag" fill="#fbbf24">TOTAL STOWED: 47.5 L</text>
+    <text x="1025" y="28" class="tag" fill="#38bdf8">DEPLOYED MODAL: 2.15 Hz</text>
+  </g>
+
+  <!-- PANEL 1: 1.8M DEPLOYABLE PARABOLIC MESH REFLECTOR (Top Left: x=40..610, y=110..430) -->
+  <g transform="translate(40, 110)">
+    <rect x="0" y="0" width="560" height="325" rx="10" fill="url(#antCardGrad)" stroke="#fbbf24" stroke-width="1.5" filter="url(#antShadow)"/>
+    <rect x="15" y="12" width="530" height="26" rx="4" fill="#78350f" fill-opacity="0.3"/>
+    <text x="25" y="30" class="box-title" fill="#fde047">1. DEPLOYABLE PARABOLIC MESH REFLECTOR (1.8m APERTURE, C/X-BAND)</text>
+
+    <!-- Text Specifications (Left Column) -->
+    <g transform="translate(15, 50)">
+      <text x="10" y="18" class="box-sub">• Operational Freq: 4.0 – 12.0 GHz (C &amp; X Band)</text>
+      <text x="10" y="34" class="box-sub">• Directivity: 32.5 dBi @ 4 GHz | 38.2 dBi @ 12 GHz</text>
+      <text x="10" y="50" class="box-sub">• Half-Power Beamwidth: 1.4° (4 GHz) to 0.8° (12 GHz)</text>
+      <text x="10" y="66" class="box-sub">• Surface Accuracy: &lt;= 0.40 mm RMS (Ruze Loss &lt; 0.18 dB)</text>
+      <text x="10" y="86" class="box-value">Stowed: Ø250 mm x 550 mm (27.0 Liters)</text>
+      <text x="10" y="104" class="box-value">Deployed: Ø1,800 mm Aperture x 950 mm Focal Depth</text>
+      <text x="10" y="122" class="box-metric">Actuation: 3x TiNi SMA Frangibolt FC4-100 (Zero Shock)</text>
+      <text x="10" y="140" class="box-metric">12-Rib Radial Pantograph Truss + Over-Center Latches</text>
+      <text x="10" y="158" class="box-sub">Mesh: 40 OPI Gold-Plated Molybdenum Wire (0.03 mm)</text>
+    </g>
+
+    <!-- Visual Kinematic Illustration (Right Column) -->
+    <g transform="translate(320, 50)">
+      <!-- Stowed Cylinder -->
+      <rect x="15" y="15" width="45" height="100" rx="4" fill="#0f172a" stroke="#64748b" stroke-width="1.5"/>
+      <line x1="15" y1="35" x2="60" y2="35" stroke="#f59e0b" stroke-width="1"/>
+      <line x1="15" y1="95" x2="60" y2="95" stroke="#f59e0b" stroke-width="1"/>
+      <text x="37" y="125" class="tag" fill="#94a3b8">STOWED</text>
+      <text x="37" y="137" class="tag" fill="#64748b">Ø250x550</text>
+
+      <!-- Deployment Arrow -->
+      <path d="M 75,65 L 105,65" fill="none" stroke="#fbbf24" stroke-width="2.5" marker-end="url(#goldArr)"/>
+      <text x="90" y="55" class="tag" fill="#fbbf24">SMA RELEASE</text>
+
+      <!-- Deployed Parabola Schematic -->
+      <g transform="translate(115, 10)">
+        <!-- Dish curve -->
+        <path d="M 5,20 Q 55,95 105,20" fill="url(#meshPat)" stroke="#fbbf24" stroke-width="2"/>
+        <path d="M 5,20 Q 55,95 105,20" fill="none" stroke="#f59e0b" stroke-width="2"/>
+        <!-- Central Hub -->
+        <rect x="47" y="90" width="16" height="15" rx="2" fill="#475569" stroke="#94a3b8"/>
+        <!-- Feed Struts -->
+        <line x1="10" y1="25" x2="55" y2="2" stroke="#94a3b8" stroke-width="1.2"/>
+        <line x1="100" y1="25" x2="55" y2="2" stroke="#94a3b8" stroke-width="1.2"/>
+        <!-- Feed Horn -->
+        <circle cx="55" cy="2" r="5" fill="#38bdf8" stroke="#0284c7" stroke-width="1.5"/>
+        <text x="55" y="125" class="tag" fill="#fbbf24">DEPLOYED 1.8m</text>
+        <text x="55" y="137" class="tag" fill="#38bdf8">38.2 dBi (X-Band)</text>
+      </g>
+    </g>
+
+    <!-- Bottom Step Sequence Bar -->
+    <rect x="15" y="240" width="530" height="70" rx="6" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+    <text x="25" y="260" class="diag-label">3-STAGE DEPLOYMENT KINEMATICS SEQUENCE:</text>
+    <text x="25" y="280" class="box-sub">1. T=0s: TiNi SMA Frangibolt heated (28V, 3.5A) -&gt; Clean notched bolt release (&lt; 25g shock signature)</text>
+    <text x="25" y="295" class="box-sub">2. T+15s: Torsional spring hinges rotate 12 composite ribs radially; sync cables deploy from central hub</text>
+    <text x="25" y="308" class="box-sub">3. T+45s: Over-center spring-loaded latches engage with zero backlash; mesh achieves &lt;= 0.4 mm RMS tension</text>
+  </g>
+
+  <!-- PANEL 2: DEPLOYABLE LOG-PERIODIC DIPOLE ARRAY (LPDA) (Top Right: x=620..1160, y=110..430) -->
+  <g transform="translate(620, 110)">
+    <rect x="0" y="0" width="540" height="325" rx="10" fill="url(#antCardGrad)" stroke="#38bdf8" stroke-width="1.5" filter="url(#antShadow)"/>
+    <rect x="15" y="12" width="510" height="26" rx="4" fill="#0369a1" fill-opacity="0.3"/>
+    <text x="25" y="30" class="box-title" fill="#7dd3fc">2. MULTI-OCTAVE DEPLOYABLE LPDA BOOM (400 MHz – 3.0 GHz)</text>
+
+    <!-- Text Specifications (Left Column) -->
+    <g transform="translate(15, 50)">
+      <text x="10" y="18" class="box-sub">• Operational Freq: 400 MHz to 3,000 MHz (UHF, L, S Bands)</text>
+      <text x="10" y="34" class="box-sub">• Directivity: 7.5 to 9.2 dBi Across Entire Band</text>
+      <text x="10" y="50" class="box-sub">• Beamwidth: ~65° (Broad Earth-Disk Visibility)</text>
+      <text x="10" y="66" class="box-sub">• Polarization: Dual Linear (Orthogonal dual-boom pairs)</text>
+      <text x="10" y="86" class="box-value">Stowed: 120 x 120 x 650 mm Canister (9.4 Liters)</text>
+      <text x="10" y="104" class="box-value">Deployed: 1,200 mm Boom x 750 mm Maximum Dipole Span</text>
+      <text x="10" y="122" class="box-metric">Actuation: High-Strain Composite (HSC) Tape-Spring Hinges</text>
+      <text x="10" y="140" class="box-metric">Stored Elastic Strain Energy Deployment (Motorless)</text>
+      <text x="10" y="158" class="box-sub">Dipoles: 14 Pairs Beryllium-Copper (CuBe) Roll-Up Tape Springs</text>
+    </g>
+
+    <!-- Visual Kinematic Illustration (Right Column) -->
+    <g transform="translate(330, 50)">
+      <!-- Stowed Box -->
+      <rect x="10" y="25" width="35" height="85" rx="4" fill="#0f172a" stroke="#64748b" stroke-width="1.5"/>
+      <text x="27" y="125" class="tag" fill="#94a3b8">STOWED</text>
+      <text x="27" y="137" class="tag" fill="#64748b">120x120x650</text>
+
+      <!-- Deployment Arrow -->
+      <path d="M 55,65 L 85,65" fill="none" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#antArr)"/>
+      <text x="70" y="55" class="tag" fill="#38bdf8">TAPE HINGE</text>
+
+      <!-- Deployed LPDA Schematic -->
+      <g transform="translate(95, 10)">
+        <!-- Central Boom -->
+        <line x1="5" y1="65" x2="105" y2="65" stroke="#38bdf8" stroke-width="3"/>
+        <!-- Dipole Elements (Decreasing Length Logarithmically) -->
+        <line x1="15" y1="15" x2="15" y2="115" stroke="#fbbf24" stroke-width="2"/>
+        <line x1="30" y1="22" x2="30" y2="108" stroke="#fbbf24" stroke-width="1.8"/>
+        <line x1="45" y1="28" x2="45" y2="102" stroke="#fbbf24" stroke-width="1.6"/>
+        <line x1="60" y1="35" x2="60" y2="95" stroke="#fbbf24" stroke-width="1.4"/>
+        <line x1="75" y1="42" x2="75" y2="88" stroke="#fbbf24" stroke-width="1.2"/>
+        <line x1="90" y1="48" x2="90" y2="82" stroke="#fbbf24" stroke-width="1.0"/>
+        <line x1="100" y1="53" x2="100" y2="77" stroke="#fbbf24" stroke-width="1.0"/>
+        <text x="55" y="125" class="tag" fill="#38bdf8">DEPLOYED 1.2m</text>
+        <text x="55" y="137" class="tag" fill="#fbbf24">9.2 dBi (S-Band)</text>
+      </g>
+    </g>
+
+    <!-- Bottom Step Sequence Bar -->
+    <rect x="15" y="240" width="510" height="70" rx="6" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+    <text x="25" y="260" class="diag-label">TAPE-SPRING CARPENTER HINGE DEPLOYMENT:</text>
+    <text x="25" y="280" class="box-sub">1. SMA Pin Puller retracts retention latch; stored bending strain energy initiates boom swing</text>
+    <text x="25" y="295" class="box-sub">2. Eddy-current magnetic damper regulates deployment velocity to &lt; 0.15 rad/s (no latch rebound)</text>
+    <text x="25" y="308" class="box-sub">3. Curved tape-springs snap into rigid tubular cross-section; CuBe dipoles unspool to full resonance</text>
+  </g>
+
+  <!-- PANEL 3: DEPLOYABLE AXIAL-MODE QUADRIFILAR HELIX (Bottom Left: x=40..610, y=455..775) -->
+  <g transform="translate(40, 455)">
+    <rect x="0" y="0" width="560" height="320" rx="10" fill="url(#antCardGrad)" stroke="#10b981" stroke-width="1.5" filter="url(#antShadow)"/>
+    <rect x="15" y="12" width="530" height="26" rx="4" fill="#065f46" fill-opacity="0.3"/>
+    <text x="25" y="30" class="box-title" fill="#6ee7b7">3. DEPLOYABLE AXIAL HELICAL ANTENNA (300 MHz – 1.0 GHz, UHF/L-BAND)</text>
+
+    <!-- Text Specifications -->
+    <g transform="translate(15, 50)">
+      <text x="10" y="18" class="box-sub">• Operational Freq: 300 MHz – 1,000 MHz (UHF &amp; Low L-Band)</text>
+      <text x="10" y="34" class="box-sub">• Directivity: 11.5 to 13.0 dBi (High Gain Axial Mode)</text>
+      <text x="10" y="50" class="box-sub">• Polarization: Pure Circular (RHCP, Axial Ratio &lt; 1.5 dB)</text>
+      <text x="10" y="66" class="box-sub">• Beamwidth: 42° to 50° Half-Power Coverage</text>
+      <text x="10" y="86" class="box-value">Stowed: Ø180 mm x 220 mm Canister (5.6 Liters)</text>
+      <text x="10" y="104" class="box-value">Deployed: Ø240 mm Diameter x 950 mm Extended Length</text>
+      <text x="10" y="122" class="box-metric">Pre-Stressed Elastic CuBe Spring in Nomex/Kapton Sock</text>
+      <text x="10" y="140" class="box-metric">SMA Pin Puller Deployment Release</text>
+      <text x="10" y="158" class="box-sub">Mission: Intercept of UHF MilSatCom, Tactical VHF/UHF Comms</text>
+    </g>
+
+    <!-- Visual Kinematic Illustration -->
+    <g transform="translate(340, 50)">
+      <!-- Stowed Canister -->
+      <rect x="10" y="30" width="40" height="60" rx="3" fill="#0f172a" stroke="#64748b" stroke-width="1.5"/>
+      <line x1="10" y1="45" x2="50" y2="45" stroke="#10b981" stroke-dasharray="2,2"/>
+      <line x1="10" y1="60" x2="50" y2="60" stroke="#10b981" stroke-dasharray="2,2"/>
+      <text x="30" y="105" class="tag" fill="#94a3b8">STOWED</text>
+      <text x="30" y="117" class="tag" fill="#64748b">Ø180x220</text>
+
+      <!-- Arrow -->
+      <path d="M 60,60 L 85,60" fill="none" stroke="#10b981" stroke-width="2.5" marker-end="url(#antArr)"/>
+      <text x="72" y="50" class="tag" fill="#10b981">SPRING</text>
+
+      <!-- Deployed Helix -->
+      <g transform="translate(95, 10)">
+        <path d="M 10,95 Q 35,90 20,80 Q 5,70 30,65 Q 5,55 25,45 Q 5,35 25,25 Q 5,15 20,5" fill="none" stroke="#10b981" stroke-width="2.5"/>
+        <line x1="2" y1="98" x2="38" y2="98" stroke="#64748b" stroke-width="2"/>
+        <text x="20" y="115" class="tag" fill="#10b981">DEPLOYED</text>
+        <text x="20" y="127" class="tag" fill="#34d399">950 mm (13 dBi)</text>
+      </g>
+    </g>
+
+    <!-- Bottom Bar -->
+    <rect x="15" y="235" width="530" height="70" rx="6" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+    <text x="25" y="255" class="diag-label">ELASTIC COLLAPSIBLE SPRING KINEMATICS:</text>
+    <text x="25" y="275" class="box-sub">• Pre-compressed CuBe spring stores 18 Joules of mechanical energy inside composite canister</text>
+    <text x="25" y="290" class="box-sub">• Internal viscous damper prevents overshoot; flexible Nomex sock ensures pitch stability (α=12.5°)</text>
+  </g>
+
+  <!-- PANEL 4: 4-ELEMENT SINUOUS SPIRAL ARRAY (AOA INTERFEROMETRY) (Bottom Right: x=620..1160, y=455..775) -->
+  <g transform="translate(620, 455)">
+    <rect x="0" y="0" width="540" height="320" rx="10" fill="url(#antCardGrad)" stroke="#c084fc" stroke-width="1.5" filter="url(#antShadow)"/>
+    <rect x="15" y="12" width="510" height="26" rx="4" fill="#581c87" fill-opacity="0.3"/>
+    <text x="25" y="30" class="box-title" fill="#e9d5ff">4. 4-ELEMENT CAVITY-BACKED SINUOUS SPIRAL ARRAY (AOA DF)</text>
+
+    <!-- Text Specifications -->
+    <g transform="translate(15, 50)">
+      <text x="10" y="18" class="box-sub">• Operational Freq: 2.0 – 12.0 GHz (Continuous Multi-Octave)</text>
+      <text x="10" y="34" class="box-sub">• Directivity: 5.0 to 7.5 dBi (Broad Hemispherical 85° HPBW)</text>
+      <text x="10" y="50" class="box-sub">• Simultaneous Dual Circular Polarization (RHCP / LHCP)</text>
+      <text x="10" y="66" class="box-sub">• Axial Ratio: &lt; 1.2 dB across entire operational band</text>
+      <text x="10" y="86" class="box-value">Body Mounted: Flush Nadir Deck (Zero Deployment Mechanism)</text>
+      <text x="10" y="104" class="box-value">Array Layout: 4 Elements in Orthogonal L-Shape Geometry</text>
+      <text x="10" y="122" class="box-metric">Short Baseline: d = 0.5 λ (Phase Ambiguity Resolution)</text>
+      <text x="10" y="140" class="box-metric">Long Baseline: d = 4.0 λ (Fine Angular AOA Accuracy &lt; 0.1°)</text>
+      <text x="10" y="158" class="box-sub">Mission: Instantaneous Single-Sat Direction Finding (PDOA)</text>
+    </g>
+
+    <!-- Visual Array Geometry Illustration -->
+    <g transform="translate(320, 50)">
+      <rect x="15" y="10" width="180" height="150" rx="6" fill="#0f172a" stroke="#a855f7" stroke-width="1"/>
+      <text x="105" y="28" class="tag" fill="#c084fc">NADIR ARRAY GEOMETRY</text>
+
+      <!-- Element 1 (Origin) -->
+      <circle cx="50" cy="120" r="14" fill="#581c87" stroke="#c084fc" stroke-width="1.5"/>
+      <text x="50" y="124" class="tag" fill="#fff">ANT 1</text>
+
+      <!-- Element 2 (Short Az Baseline) -->
+      <circle cx="95" cy="120" r="14" fill="#581c87" stroke="#c084fc" stroke-width="1.5"/>
+      <text x="95" y="124" class="tag" fill="#fff">ANT 2</text>
+      <line x1="64" y1="120" x2="81" y2="120" stroke="#fbbf24" stroke-width="1.5"/>
+      <text x="72" y="114" class="tag" fill="#fbbf24">0.5 λ</text>
+
+      <!-- Element 3 (Long Az Baseline) -->
+      <circle cx="160" cy="120" r="14" fill="#581c87" stroke="#c084fc" stroke-width="1.5"/>
+      <text x="160" y="124" class="tag" fill="#fff">ANT 3</text>
+      <line x1="109" y1="120" x2="146" y2="120" stroke="#38bdf8" stroke-width="1.5"/>
+      <text x="127" y="114" class="tag" fill="#38bdf8">4.0 λ</text>
+
+      <!-- Element 4 (Orthogonal Elevation Baseline) -->
+      <circle cx="50" cy="55" r="14" fill="#581c87" stroke="#c084fc" stroke-width="1.5"/>
+      <text x="50" y="59" class="tag" fill="#fff">ANT 4</text>
+      <line x1="50" y1="106" x2="50" y2="69" stroke="#34d399" stroke-width="1.5"/>
+      <text x="65" y="88" class="tag" fill="#34d399">4.0 λ (El)</text>
+    </g>
+
+    <!-- Bottom Bar -->
+    <rect x="15" y="235" width="510" height="70" rx="6" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+    <text x="25" y="255" class="diag-label">MULTI-BASELINE PHASE INTERFEROMETRY (PDOA):</text>
+    <text x="25" y="275" class="box-sub">• ΔΦ_short resolves 2π phase ambiguity across ±90° FOV without cycle slips</text>
+    <text x="25" y="290" class="box-sub">• ΔΦ_long delivers high-precision AOA measurement: σ_θ = (λ / 2π d cos θ) * σ_ΔΦ &lt;= 0.08° (1.4 mrad)</text>
+  </g>
+
+  <!-- Footer -->
+  <g transform="translate(40, 810)">
+    <text x="0" y="15" class="subtitle" fill="#64748b">LEO SIGINT System Engineering Baseline | Milestone 2 Deliverable: FEAT-02-05 | File: antenna_deployment_mechanisms.svg</text>
+    <text x="1120" y="15" class="subtitle" fill="#64748b" text-anchor="end">REV 1.0 (VERIFIED)</text>
+  </g>
+</svg>

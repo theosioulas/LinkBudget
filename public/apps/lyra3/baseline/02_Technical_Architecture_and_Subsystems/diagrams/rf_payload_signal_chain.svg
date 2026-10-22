@@ -1,0 +1,318 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 850" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="rfBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#090d16"/>
+      <stop offset="50%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#030712"/>
+    </linearGradient>
+
+    <!-- Card Gradients -->
+    <linearGradient id="rfCardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1f2937"/>
+      <stop offset="100%" stop-color="#111827"/>
+    </linearGradient>
+
+    <!-- Filters -->
+    <filter id="rfGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="rfShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+
+    <!-- Markers -->
+    <marker id="rfArrCyan" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8"/>
+    </marker>
+    <marker id="rfArrPurple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#c084fc"/>
+    </marker>
+    <marker id="rfArrGold" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#fbbf24"/>
+    </marker>
+  </defs>
+
+  <style>
+    .title { font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-weight: 700; fill: #f8fafc; font-size: 20px; letter-spacing: 0.5px; }
+    .subtitle { font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; fill: #94a3b8; }
+    .box-title { font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-weight: 600; font-size: 12px; fill: #f1f5f9; }
+    .box-sub { font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 9.5px; fill: #94a3b8; }
+    .box-value { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; fill: #fbbf24; }
+    .box-metric { font-family: 'JetBrains Mono', monospace; font-size: 9.5px; fill: #38bdf8; }
+    .tag { font-family: 'JetBrains Mono', monospace; font-size: 8.5px; font-weight: 600; text-anchor: middle; }
+    .stage-hdr { font-family: 'SF Pro Display', monospace; font-weight: 700; font-size: 11px; fill: #93c5fd; text-anchor: middle; }
+  </style>
+
+  <!-- Background -->
+  <rect width="1200" height="850" fill="url(#rfBgGrad)"/>
+
+  <!-- Subtle Grid -->
+  <g opacity="0.05" stroke="#94a3b8" stroke-width="0.5">
+    <path d="M 0,100 L 1200,100 M 0,200 L 1200,200 M 0,300 L 1200,300 M 0,400 L 1200,400 M 0,500 L 1200,500 M 0,600 L 1200,600 M 0,700 L 1200,700 M 0,800 L 1200,800"/>
+    <path d="M 100,0 L 100,850 M 200,0 L 200,850 M 300,0 L 300,850 M 400,0 L 400,850 M 500,0 L 500,850 M 600,0 L 600,850 M 700,0 L 700,850 M 800,0 L 800,850 M 900,0 L 900,850 M 1000,0 L 1000,850 M 1100,0 L 1100,850"/>
+  </g>
+
+  <!-- Header -->
+  <g transform="translate(40, 35)">
+    <rect x="-10" y="-12" width="1140" height="60" rx="8" fill="#1e293b" fill-opacity="0.6" stroke="#334155" stroke-width="1"/>
+    <text x="15" y="18" class="title">LEO SIGINT SATELLITE: WIDEBAND RF PAYLOAD SIGNAL CHAIN (300 MHz – 12 GHz)</text>
+    <text x="15" y="36" class="subtitle">Multi-Octave Front-End | 5.2 GSPS Direct RF Digitization | 128-Ch PFB Channelizer | Real-Time PDW Extraction (&gt; 1,600:1 Compression)</text>
+    <rect x="940" y="-3" width="170" height="40" rx="6" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
+    <text x="1025" y="14" class="tag" fill="#38bdf8">IBW: 1.0 GHz / CHANNEL</text>
+    <text x="1025" y="28" class="tag" fill="#fbbf24">RAW: 83.2G -&gt; PDW: 51.2M</text>
+  </g>
+
+  <!-- STAGE 1: ANTENNA INTERFACE (Left Column: x=40..170) -->
+  <g transform="translate(40, 115)">
+    <rect x="0" y="0" width="130" height="670" rx="8" fill="url(#rfCardGrad)" stroke="#38bdf8" stroke-width="1.2" filter="url(#rfShadow)"/>
+    <rect x="10" y="10" width="110" height="25" rx="4" fill="#0284c7" fill-opacity="0.2"/>
+    <text x="65" y="26" class="stage-hdr">1. ANTENNAS</text>
+
+    <!-- Antenna 1: UHF Helix -->
+    <rect x="10" y="45" width="110" height="110" rx="5" fill="#0f172a" stroke="#0284c7" stroke-width="1"/>
+    <text x="18" y="65" class="box-title">UHF Helix</text>
+    <text x="18" y="80" class="box-sub">300 – 1000 MHz</text>
+    <text x="18" y="95" class="box-sub">Axial Mode RHCP</text>
+    <text x="18" y="112" class="box-value">Gain: 11.5–13 dBi</text>
+    <text x="18" y="128" class="box-metric">Deployable Spring</text>
+
+    <!-- Antenna 2: LPDA Boom -->
+    <rect x="10" y="165" width="110" height="110" rx="5" fill="#0f172a" stroke="#0284c7" stroke-width="1"/>
+    <text x="18" y="185" class="box-title">LPDA Boom</text>
+    <text x="18" y="200" class="box-sub">400 MHz – 3 GHz</text>
+    <text x="18" y="215" class="box-sub">Dual Orthogonal</text>
+    <text x="18" y="232" class="box-value">Gain: 7.5–9.2 dBi</text>
+    <text x="18" y="248" class="box-metric">1.2m Folding Boom</text>
+
+    <!-- Antenna 3: Sinuous Spiral -->
+    <rect x="10" y="285" width="110" height="110" rx="5" fill="#0f172a" stroke="#0284c7" stroke-width="1"/>
+    <text x="18" y="305" class="box-title">Spiral Array</text>
+    <text x="18" y="320" class="box-sub">2.0 – 12.0 GHz</text>
+    <text x="18" y="335" class="box-sub">4-Element Sinuous</text>
+    <text x="18" y="352" class="box-value">Gain: 5.0–7.5 dBi</text>
+    <text x="18" y="368" class="box-metric">AOA Phase Array</text>
+
+    <!-- Antenna 4: 1.8m Parabolic Mesh -->
+    <rect x="10" y="405" width="110" height="115" rx="5" fill="#0f172a" stroke="#0284c7" stroke-width="1"/>
+    <text x="18" y="425" class="box-title">1.8m Mesh Dish</text>
+    <text x="18" y="440" class="box-sub">4.0 – 12.0 GHz</text>
+    <text x="18" y="455" class="box-sub">C/X Dual-Feed Horn</text>
+    <text x="18" y="472" class="box-value">Gain: 32.5–38 dBi</text>
+    <text x="18" y="488" class="box-metric">Beam: 1.4°–0.8°</text>
+
+    <!-- Calibration Generator -->
+    <rect x="10" y="530" width="110" height="125" rx="5" fill="#0f172a" stroke="#f59e0b" stroke-width="1"/>
+    <text x="18" y="550" class="box-title" fill="#fbbf24">CAL Comb Source</text>
+    <text x="18" y="565" class="box-sub">Noise Diode + Comb</text>
+    <text x="18" y="580" class="box-sub">100 MHz Markers</text>
+    <text x="18" y="597" class="box-value">ENR: 28.5 dB</text>
+    <text x="18" y="615" class="box-metric">Phase Ref Calibration</text>
+  </g>
+
+  <!-- STAGE 2: RFFE CONDITIONING (Limiters, Attenuator, Preselection) (x=195..385) -->
+  <g transform="translate(195, 115)">
+    <rect x="0" y="0" width="190" height="670" rx="8" fill="url(#rfCardGrad)" stroke="#06b6d4" stroke-width="1.2" filter="url(#rfShadow)"/>
+    <rect x="10" y="10" width="170" height="25" rx="4" fill="#0891b2" fill-opacity="0.2"/>
+    <text x="95" y="26" class="stage-hdr">2. FRONT-END RFFE</text>
+
+    <!-- PIN Limiters -->
+    <rect x="10" y="45" width="170" height="90" rx="5" fill="#0f172a" stroke="#0891b2" stroke-width="1"/>
+    <text x="20" y="65" class="box-title">GaAs PIN Diode Limiters</text>
+    <text x="20" y="80" class="box-sub">• Clamps Input &gt; +10 dBm</text>
+    <text x="20" y="95" class="box-sub">• Max Output: +12 dBm Flat</text>
+    <text x="20" y="112" class="box-value">Survives: +30 dBm CW</text>
+    <text x="20" y="127" class="box-metric">Recovery Time: &lt; 15 ns</text>
+
+    <!-- Step Attenuators -->
+    <rect x="10" y="145" width="170" height="90" rx="5" fill="#0f172a" stroke="#0891b2" stroke-width="1"/>
+    <text x="20" y="165" class="box-title">Digital Step Attenuator</text>
+    <text x="20" y="180" class="box-sub">• pSemi PE43711 (6-bit)</text>
+    <text x="20" y="195" class="box-sub">• Range: 0 to 31.5 dB</text>
+    <text x="20" y="212" class="box-value">Step Size: 0.5 dB Monotonic</text>
+    <text x="20" y="227" class="box-metric">IIP3: &gt; +55 dBm</text>
+
+    <!-- Switched Filter Banks -->
+    <rect x="10" y="245" width="170" height="210" rx="5" fill="#0f172a" stroke="#06b6d4" stroke-width="1.5"/>
+    <text x="20" y="265" class="box-title" fill="#67e8f9">5-Band Switched BPF Bank</text>
+    <text x="20" y="282" class="box-sub">• Low-Loss Absorptive SP5T</text>
+    <text x="20" y="302" class="box-value">CH1: UHF (0.3 – 1.0 GHz)</text>
+    <text x="20" y="322" class="box-value">CH2: L-Band (1.0 – 2.0 GHz)</text>
+    <text x="20" y="342" class="box-value">CH3: S-Band (2.0 – 4.0 GHz)</text>
+    <text x="20" y="362" class="box-value">CH4: C-Band (4.0 – 8.0 GHz)</text>
+    <text x="20" y="382" class="box-value">CH5: X-Band (8.0 – 12.0 GHz)</text>
+    <text x="20" y="405" class="box-sub">• Rejection: &gt; 60–70 dB Out-Band</text>
+    <text x="20" y="420" class="box-sub">• Insertion Loss: 0.85 – 1.4 dB</text>
+    <text x="20" y="440" class="box-metric">Eliminates Harmonic Aliasing</text>
+
+    <!-- Ultra-Low Noise Amplifiers -->
+    <rect x="10" y="465" width="170" height="190" rx="5" fill="#0f172a" stroke="#06b6d4" stroke-width="1.5"/>
+    <text x="20" y="485" class="box-title" fill="#67e8f9">GaN/GaAs Low Noise Amps</text>
+    <text x="20" y="505" class="box-sub">UHF/L: NF = 1.1 dB | G = 24 dB</text>
+    <text x="20" y="522" class="box-sub">S-Band: NF = 1.3 dB | G = 25 dB</text>
+    <text x="20" y="539" class="box-sub">C-Band: NF = 1.6 dB | G = 26 dB</text>
+    <text x="20" y="556" class="box-sub">X-Band: NF = 1.8 dB | G = 26.5 dB</text>
+    <text x="20" y="580" class="box-value">OIP3: &gt; +32 to +34 dBm</text>
+    <text x="20" y="598" class="box-value">P1dB: +12 to +16 dBm</text>
+    <text x="20" y="620" class="box-metric">Cascaded NF (Sys): 2.4–3.7 dB</text>
+    <text x="20" y="638" class="box-sub">Power: 32.0W Total (5 channels)</text>
+  </g>
+
+  <!-- Connect Antennas to RFFE -->
+  <path d="M 170,220 L 195,220" fill="none" stroke="#38bdf8" stroke-width="2" marker-end="url(#rfArrCyan)"/>
+  <path d="M 170,460 L 195,460" fill="none" stroke="#38bdf8" stroke-width="2" marker-end="url(#rfArrCyan)"/>
+
+  <!-- STAGE 3: DOWNCONVERSION & DIRECT RF ADCS (x=410..580) -->
+  <g transform="translate(410, 115)">
+    <rect x="0" y="0" width="170" height="670" rx="8" fill="url(#rfCardGrad)" stroke="#818cf8" stroke-width="1.2" filter="url(#rfShadow)"/>
+    <rect x="10" y="10" width="150" height="25" rx="4" fill="#4338ca" fill-opacity="0.2"/>
+    <text x="85" y="26" class="stage-hdr">3. DIGITIZATION</text>
+
+    <!-- Block Downconverter (C/X Band Only) -->
+    <rect x="10" y="45" width="150" height="150" rx="5" fill="#0f172a" stroke="#6366f1" stroke-width="1"/>
+    <text x="18" y="65" class="box-title" fill="#a5b4fc">C/X Downconversion</text>
+    <text x="18" y="82" class="box-sub">Image-Reject Sub-Harmonic</text>
+    <text x="18" y="98" class="box-sub">DRO LO: 6.0 GHz Fixed</text>
+    <text x="18" y="114" class="box-sub">Phase Noise: &lt; -115 dBc/Hz</text>
+    <text x="18" y="134" class="box-value">RF: 8–12G -&gt; IF: 2–6 GHz</text>
+    <text x="18" y="152" class="box-metric">Image Rejection: &gt; 35 dB</text>
+    <text x="18" y="172" class="box-sub">Direct Pass for UHF/L/S</text>
+
+    <!-- Direct RF ADCs Box -->
+    <rect x="10" y="210" width="150" height="240" rx="5" fill="#0f172a" stroke="#818cf8" stroke-width="1.5"/>
+    <text x="18" y="232" class="box-title" fill="#c7d2fe">Direct RF ADCs</text>
+    <text x="18" y="250" class="box-sub">Dual TI ADC12DJ5200RF</text>
+    <text x="18" y="266" class="box-sub">or Teledyne EV12AQ600</text>
+    <text x="18" y="286" class="box-value">Sample Rate: 5.2 GSPS</text>
+    <text x="18" y="304" class="box-value">Resolution: 12-bit</text>
+    <text x="18" y="322" class="box-value">ENOB: 9.2 bits @ 2.5 GHz</text>
+    <text x="18" y="340" class="box-value">ENOB: 8.6 bits @ 6.0 GHz</text>
+    <text x="18" y="360" class="box-metric">SFDR: 68.5 dBc</text>
+    <text x="18" y="378" class="box-metric">SNR: 56.8 dBFS</text>
+    <text x="18" y="396" class="box-metric">Input BW: 8.0 GHz</text>
+    <text x="18" y="416" class="box-sub">Raw Ingestion: 83.2 Gbps</text>
+    <text x="18" y="432" class="box-sub">Power: 52.0 W (4 channels)</text>
+
+    <!-- JESD204C Interface -->
+    <rect x="10" y="465" width="150" height="190" rx="5" fill="#0f172a" stroke="#a855f7" stroke-width="1"/>
+    <text x="18" y="487" class="box-title" fill="#e9d5ff">JESD204C SerDes Bus</text>
+    <text x="18" y="505" class="box-sub">• 16 SerDes Data Lanes</text>
+    <text x="18" y="522" class="box-sub">• Line Rate: 24.75 Gbps</text>
+    <text x="18" y="539" class="box-sub">• 64b/66b Encoding</text>
+    <text x="18" y="560" class="box-value">Capacity: 396 Gbps</text>
+    <text x="18" y="580" class="box-metric">Subclass 1 Deterministic</text>
+    <text x="18" y="598" class="box-metric">Locked to 10 MHz Reference</text>
+    <text x="18" y="618" class="box-sub">Routes directly to RFSoC</text>
+    <text x="18" y="635" class="box-sub">GTH Transceiver Quad</text>
+  </g>
+
+  <!-- Connect RFFE to Digitizer -->
+  <path d="M 385,340 L 410,340" fill="none" stroke="#06b6d4" stroke-width="2" marker-end="url(#rfArrCyan)"/>
+
+  <!-- STAGE 4: FPGA CHANNELIZATION & REAL-TIME PDW EXTRACTOR (x=605..885) -->
+  <g transform="translate(605, 115)">
+    <rect x="0" y="0" width="280" height="670" rx="8" fill="url(#rfCardGrad)" stroke="#a855f7" stroke-width="1.5" filter="url(#rfShadow)"/>
+    <rect x="15" y="10" width="250" height="25" rx="4" fill="#6b21a8" fill-opacity="0.2"/>
+    <text x="140" y="26" class="stage-hdr">4. SDR FPGA &amp; REAL-TIME PDW ENGINE</text>
+
+    <!-- RFSoC Core -->
+    <rect x="15" y="45" width="250" height="75" rx="5" fill="#0f172a" stroke="#9333ea" stroke-width="1"/>
+    <text x="25" y="65" class="box-title" fill="#e9d5ff">AMD/Xilinx Zynq UltraScale+ RFSoC</text>
+    <text x="25" y="82" class="box-sub">Part: XCZU29DR / XQRKU060 Space-Grade</text>
+    <text x="25" y="98" class="box-value">Power: 95.0 W | DSP Slices: 384 Used</text>
+
+    <!-- 128-Channel PFB -->
+    <rect x="15" y="130" width="250" height="135" rx="5" fill="#0f172a" stroke="#a855f7" stroke-width="1.5"/>
+    <text x="25" y="152" class="box-title" fill="#f3e8ff">128-Channel Polyphase Filter Bank (PFB)</text>
+    <text x="25" y="170" class="box-sub">• Input IBW: 1.0 GHz Instantaneous Bandwidth</text>
+    <text x="25" y="186" class="box-sub">• 128 Uniform Bins: 15.625 MHz Channel Width</text>
+    <text x="25" y="202" class="box-sub">• Prototype FIR: L = 1024 taps (K=8 per branch)</text>
+    <text x="25" y="222" class="box-value">Stopband Rejection: &gt; 82.5 dB</text>
+    <text x="25" y="242" class="box-metric">50% Decimation Overlap (D = 64)</text>
+
+    <!-- CFAR Energy Detection -->
+    <rect x="15" y="275" width="250" height="105" rx="5" fill="#0f172a" stroke="#a855f7" stroke-width="1"/>
+    <text x="25" y="295" class="box-title" fill="#f3e8ff">Dual Adaptive CFAR Detectors</text>
+    <text x="25" y="312" class="box-sub">• CA-CFAR: Cell-Averaging for isolated pulses</text>
+    <text x="25" y="328" class="box-sub">• OS-CFAR: Order-Statistic (k=0.75*2N) dense battle</text>
+    <text x="25" y="348" class="box-value">P_d &gt;= 0.999 @ P_fa = 10^-6</text>
+    <text x="25" y="365" class="box-metric">Dynamic Thresholding Tracks Noise</text>
+
+    <!-- Real-Time PDW Extractor Box -->
+    <rect x="15" y="390" width="250" height="265" rx="5" fill="#0f172a" stroke="#c084fc" stroke-width="1.5"/>
+    <text x="25" y="412" class="box-title" fill="#fae8ff">Real-Time 64-Byte PDW Extractor</text>
+    <text x="25" y="432" class="box-value">1. TOA (64-bit) : &lt; 1.25 ns Precision</text>
+    <text x="25" y="448" class="box-sub">   Parabolic interpolation on leading -6 dB edge</text>
+    <text x="25" y="468" class="box-value">2. PW (32-bit)  : 50 ns to 500 µs (2.5 ns res)</text>
+    <text x="25" y="484" class="box-sub">   -3 dB and -6 dB envelope duration</text>
+    <text x="25" y="504" class="box-value">3. Carrier Freq : &lt; 25 kHz Accuracy</text>
+    <text x="25" y="520" class="box-sub">   2048-pt FFT with Quinn parabolic peak interpolation</text>
+    <text x="25" y="540" class="box-value">4. Pulse Ampl   : -110 to +20 dBm (0.5 dB res)</text>
+    <text x="25" y="560" class="box-value">5. AOA Az/El    : 4-Channel PDOA Phase Difference</text>
+    <text x="25" y="576" class="box-sub">   Interferometric phase baseline evaluation</text>
+    <text x="25" y="596" class="box-value">6. MOP Profiler : Chirp Slope &amp; Barker Code</text>
+    <text x="25" y="618" class="box-metric">Rate: 100,000 pulses/sec -&gt; 51.2 Mbps Stream</text>
+    <text x="25" y="636" class="box-metric">Locked to GPS Disciplined Rubidium Clock</text>
+  </g>
+
+  <!-- Connect Digitizer to FPGA -->
+  <path d="M 580,560 L 605,560" fill="none" stroke="#818cf8" stroke-width="2" marker-end="url(#rfArrPurple)"/>
+
+  <!-- STAGE 5: EDGE AI & DOWNLINK/STORAGE GATEWAYS (x=910..1160) -->
+  <g transform="translate(910, 115)">
+    <rect x="0" y="0" width="250" height="670" rx="8" fill="url(#rfCardGrad)" stroke="#10b981" stroke-width="1.2" filter="url(#rfShadow)"/>
+    <rect x="10" y="10" width="230" height="25" rx="4" fill="#065f46" fill-opacity="0.2"/>
+    <text x="125" y="26" class="stage-hdr">5. EDGE AI &amp; COMMS GATEWAY</text>
+
+    <!-- Jetson Orin NX -->
+    <rect x="10" y="45" width="230" height="200" rx="5" fill="#0f172a" stroke="#059669" stroke-width="1.5"/>
+    <text x="20" y="67" class="box-title" fill="#6ee7b7">Space Jetson Orin NX Edge AI</text>
+    <text x="20" y="85" class="box-sub">• 8-Core ARM Cortex-A78AE</text>
+    <text x="20" y="101" class="box-sub">• 1024-Core Ampere GPU (32 Tensors)</text>
+    <text x="20" y="117" class="box-sub">• 100 TOPS AI Compute (INT8)</text>
+    <text x="20" y="137" class="box-value">Multi-Dim PRI De-interleaving</text>
+    <text x="20" y="155" class="box-value">Agile Frequency Hop Tracking</text>
+    <text x="20" y="173" class="box-value">TensorRT Threat DNN Classifier</text>
+    <text x="20" y="193" class="box-metric">Matches &gt; 2,000 EOB Radar Signatures</text>
+    <text x="20" y="211" class="box-metric">Classification Latency: &lt; 50 ms</text>
+    <text x="20" y="230" class="box-sub">Power: 65.0 W | 16 GB LPDDR5</text>
+
+    <!-- Compression Metric Box -->
+    <rect x="10" y="255" width="230" height="110" rx="5" fill="#064e3b" stroke="#10b981" stroke-width="1"/>
+    <text x="20" y="277" class="box-title" fill="#a7f3d0">MASSIVE DATA COMPRESSION</text>
+    <text x="20" y="297" class="box-sub">Raw Ingestion : 83,200 Mbps (83.2 Gbps)</text>
+    <text x="20" y="315" class="box-value" fill="#fbbf24">PDW Output   : 51.2 Mbps Stream</text>
+    <text x="20" y="337" class="box-metric" fill="#fcd34d">Compression Ratio: 1,625 : 1</text>
+    <text x="20" y="353" class="box-sub">Enables Continuous Downlink Without Loss</text>
+
+    <!-- Downlink Gateway (300 Mbps) -->
+    <rect x="10" y="375" width="230" height="135" rx="5" fill="#0f172a" stroke="#3b82f6" stroke-width="1"/>
+    <text x="20" y="397" class="box-title" fill="#93c5fd">High-Rate X-Band Downlink</text>
+    <text x="20" y="415" class="box-sub">• 8.20 GHz EESS Band</text>
+    <text x="20" y="431" class="box-sub">• 10W GaN SSPA | 4x4 Phased Patch</text>
+    <text x="20" y="447" class="box-sub">• DVB-S2X QPSK Rate 3/4 LDPC</text>
+    <text x="20" y="469" class="box-value">Downlink Rate: 300.0 Mbps</text>
+    <text x="20" y="489" class="box-metric">Link Margin: +14.45 dB (to 5.4m dish)</text>
+
+    <!-- Optical ISL Gateway -->
+    <rect x="10" y="520" width="230" height="135" rx="5" fill="#0f172a" stroke="#06b6d4" stroke-width="1"/>
+    <text x="20" y="542" class="box-title" fill="#67e8f9">Optical Laser Crosslink (ISL)</text>
+    <text x="20" y="560" class="box-sub">• 1550 nm EDFA Laser (200 mW)</text>
+    <text x="20" y="576" class="box-sub">• 80 mm Fine Steering Mirror Head</text>
+    <text x="20" y="596" class="box-value">Crosslink Rate: 1.0 to 10.0 Gbps</text>
+    <text x="20" y="616" class="box-value">Clock Sync (DOWTT): &lt; 85 ps</text>
+    <text x="20" y="636" class="box-metric">Real-Time Cluster TDOA Geolocation</text>
+  </g>
+
+  <!-- Connect FPGA to AI -->
+  <path d="M 885,210 L 910,210" fill="none" stroke="#a855f7" stroke-width="2" marker-end="url(#rfArrPurple)"/>
+  <path d="M 885,440 L 910,440" fill="none" stroke="#3b82f6" stroke-width="2" marker-end="url(#rfArrCyan)"/>
+  <path d="M 885,580 L 910,580" fill="none" stroke="#06b6d4" stroke-width="2" marker-end="url(#rfArrCyan)"/>
+
+  <!-- Footer -->
+  <g transform="translate(40, 810)">
+    <text x="0" y="15" class="subtitle" fill="#64748b">LEO SIGINT System Engineering Baseline | Milestone 2 Deliverable: FEAT-02-04 | File: rf_payload_signal_chain.svg</text>
+    <text x="1120" y="15" class="subtitle" fill="#64748b" text-anchor="end">REV 1.0 (VERIFIED)</text>
+  </g>
+</svg>

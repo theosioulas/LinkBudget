@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operators &amp; programmes — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .bandbar { display: block; width: 220px; height: 20px; }
+  td.bands { min-width: 220px; }
+  .bandbar rect.seg { rx: 2; }
+  .bandbar rect.assumed { opacity: 0.45; }
+  .bandbar rect.nd { fill: none; stroke: var(--ink-faint); stroke-dasharray: 3 2; }
+  .bandbar line.tick { stroke: var(--line-strong); }
+  .bandbar text { font-family: var(--font-ui); font-size: 8px; fill: var(--ink-3); }
+  #opTable td { font-size: 0.82rem; }
+  #opTable .status-bad { color: var(--critical); font-weight: 600; }
+  #opTable .status-ok { color: var(--ok); font-weight: 600; }
+  .profile { border-top: 1px solid var(--line); padding-top: 0.6rem; }
+  .profile .facts { font-family: var(--font-ui); font-size: 0.84rem; color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin: 0.3rem 0 0.6rem; }
+  .profile .facts b { color: var(--ink); font-weight: 600; }
+  .axis-legend { font-family: var(--font-ui); font-size: 0.78rem; color: var(--ink-3); display: flex; gap: 1rem; flex-wrap: wrap; margin: 0.4rem 0 0.8rem; align-items: center; }
+  .axis-legend i { display: inline-block; width: 22px; height: 10px; border-radius: 2px; vertical-align: -1px; margin-right: 4px; }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>01 Research &amp; landscape</b> · Operators &amp; programmes</div>
+    <h1>Operators and programmes</h1>
+    <p class="lead">Thirteen systems have flown or are flying space-based passive RF payloads that matter to TALOS: four commercial operators with a product, three that stalled or were absorbed, two prime-built demonstrators, one Greek IOD and four national programmes. This page puts them side by side on satellites, mass, bands, geolocation method, funding and status, then profiles each with the facts and dates from the research, and closes with the two numbers that frame the commercial case: HawkEye 360's revenue curve and how much capital each operator spent per satellite.</p>
+    <div class="meta"><span>Data: OPERATORS_TABLE (operators_table.js)</span><span>Sources: research note 01, with 04 and 05 where cited</span><span>Status 21 Oct 2026</span></div>
+  </header>
+
+  <h2>Comparison table</h2>
+  <p>Click a column header to sort. Satellite counts and mass classes are given a numeric sort key (the representative value in the cell); band coverage is drawn on a logarithmic axis from 30 MHz to 18 GHz and coloured by band. Where an operator does not disclose its coverage, the bar is a dashed outline; where the research text implies a band without stating edges (for example "X-band marine radar"), the segment is drawn lighter and marked as assumed in the tooltip.</p>
+  <div class="axis-legend"><span><i style="background:var(--band-uhf)"></i>VHF/UHF</span><span><i style="background:var(--band-l)"></i>L</span><span><i style="background:var(--band-s)"></i>S</span><span><i style="background:var(--band-c)"></i>C</span><span><i style="background:var(--band-x)"></i>X</span><span><i style="background:var(--band-ku)"></i>Ku+</span><span><i style="background:var(--band-s);opacity:.45"></i>assumed from text</span><span><i style="border:1px dashed var(--ink-faint)"></i>not disclosed</span></div>
+  <div class="table-wrap"><table id="opTable">
+    <thead><tr><th data-sort="str">Operator</th><th data-sort="str">Country</th><th data-sort="num">Sats on orbit (Oct 2026)</th><th data-sort="num">Mass class</th><th>Bands (0.03–18 GHz, log)</th><th data-sort="str">Geolocation</th><th>Claimed accuracy</th><th>Products</th><th>Funding / revenue</th><th data-sort="str">Status</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+  <p class="muted" style="font-family:var(--font-ui);font-size:0.8rem">n/d = not disclosed. Sort keys for satellites and mass are the representative values in the research table (e.g. ">30" → 30, "multi-tonne" → 5,000 kg est.). Source: research note 01 §5<sup class="ref" data-r="R1-7"></sup>.</p>
+
+  <h2>Commercial operators</h2>
+
+  <h3 id="hawkeye" class="profile">HawkEye 360 (USA) — the reference case</h3>
+  <div class="facts"><span><b>Founded</b> Sept 2015, Herndon/Chantilly VA</span><span><b>IPO</b> NYSE: HAWK, 7 May 2026, ~$2.4 B valuation</span><span><b>Fleet</b> >30 satellites, Clusters 1–15</span><span><b>Orbit</b> 400–600 km, SSO + 40–46°</span><span><b>Revisit</b> <45 min global (claimed)</span></div>
+  <p>HawkEye 360 describes itself as the first commercial space-based SIGINT provider and is, by every measurable criterion, the market. It raised ~$416 M gross at IPO (later $478.4 M gross with the over-allotment)<sup class="ref" data-r="R1-1"></sup><sup class="ref" data-r="R1-2"></sup>, on top of roughly $378 M of pre-IPO equity (Series B $70 M 2019, C $55 M 2021, D $145 M 2021, D-1 $68 M 2023) and a ~$150 M Series E in Dec 2025 plus $23 M in Mar 2026<sup class="ref" data-r="R1-4"></sup><sup class="ref" data-r="R1-20"></sup>. The constellation is built from clusters of three formation-flying satellites: Pathfinder (Cluster 1) in Dec 2018 on 13.4 kg UTIAS-SFL NEMO-15 buses with water electrothermal propulsion (Isp ≈ 182 s, ΔV ≈ 96 m/s) holding a 125 km along-track target with 5 km (1σ) control, Block 2 "Hawks" of ~30 kg on the SFL DEFIANT bus from Cluster 2 (Jan 2021), and Block 3 "Kestrel" (8U, Kestrel-0A flown June 2025) which the company says captures ~80 % of signals at ~75 % lower cost<sup class="ref" data-r="R1-6"></sup><sup class="ref" data-r="R1-8"></sup><sup class="ref" data-r="R1-9"></sup>. Cluster 15 launched on 20 Oct 2026 (Bandwagon-5, mid-inclination) and Cluster 16 is next; the two are the first built around a committed-capacity customer<sup class="ref" data-r="R1-5"></sup>.</p>
+  <p>The payload lineage is instructive for TALOS. Pathfinder flew three AD9361 transceivers and a Zynq 7045, tuning 70 MHz–6 GHz with 56 MHz instantaneous bandwidth plus an LNB to ~18 GHz, feeding dipole, patch, button and horn antennas; the prospectus now states 30 MHz–18 GHz coverage<sup class="ref" data-r="R1-6"></sup><sup class="ref" data-r="R1-10"></sup>. From Clusters 8–9 the company flies Xiphos Q8/Q8J processors (Zynq UltraScale+) on 24 satellites and has announced the Q8RF RFSoC card<sup class="ref" data-r="R2-x84"></sup>. Geolocation is TOA/FOA measured on orbit, TDOA/FDOA solved on the ground, delivered as 95 % confidence ellipses; no numeric accuracy is public, and the ~500 m to few-km figures that circulate are unverified<sup class="ref" data-r="R1-6"></sup>. Cluster 2 fixed what Pathfinder lacked: up to 10× collection capacity, wider frequency coverage, redundancy, more on-board compute and a dedicated GNSS antenna for interference monitoring<sup class="ref" data-r="R1-11"></sup>. Later clusters added onboard processing (Cluster 14) and multi-signal simultaneous collection with faster downlink (Cluster 15)<sup class="ref" data-r="R1-5"></sup>.</p>
+  <p>Government anchoring made the business. The sequence was an NRO integration study (2019), an NRO SCE RF study in Sept 2022 (~$300 K base, one of six awardees), an NGA RF Emitter Data contract of up to $10 M (2021), a 23-month SCE extension in Dec 2025 focused on EUCOM, and in Aug 2026 the NRO Commercial RF Capability Augmentation (CRFCA) operational contract with "no contract-value cap" — the first commercial RF provider to move from studies to operational augmentation<sup class="ref" data-r="R1-12"></sup><sup class="ref" data-r="R1-13"></sup><sup class="ref" data-r="R1-14"></sup><sup class="ref" data-r="R1-15"></sup>. The NRO was 39 % of 2025 revenue (24 % in 2024) and the top three customers 66 %<sup class="ref" data-r="R1-20"></sup>. Internationally: a >$100 M five-year "strategic international partner" deal with dedicated clusters (Dec 2025), a European MoD EW programme worth up to $75 M (Mar 2026), India FMS approval of $131 M with SeaVision (May 2025), ~$18 M in the Middle East, $36 M across >10 nations in Q3-2026, Japan at 16 % of 2025 revenue, a Leonardo MoU for a sovereign European RF layer through Italian ground stations and a first EU subsidiary in Luxembourg (Sept 2026)<sup class="ref" data-r="R1-16"></sup><sup class="ref" data-r="R1-17"></sup><sup class="ref" data-r="R1-18"></sup><sup class="ref" data-r="R1-19"></sup>. Revenue went from $30.5 M (2022) to $117.7 M (2025) with a first net income of $2.7 M; Q2-2026 revenue was $49.8 M (+87 %), FY-2026 guidance $215–220 M, backlog $292 M and cash $503 M<sup class="ref" data-r="R1-2"></sup><sup class="ref" data-r="R1-10"></sup>. Acquisitions: Maxar RF Solutions / Aurora Insight (Dec 2023), Innovative Signal Analysis (Dec 2025)<sup class="ref" data-r="R1-37"></sup>.</p>
+
+  <h3 id="unseenlabs" class="profile">Unseenlabs (France) — single-satellite geolocation, now at 150 kg</h3>
+  <div class="facts"><span><b>Founded</b> 2015, Rennes</span><span><b>Fleet</b> 25 BRO satellites (23 Gen-1, 2 Gen-2)</span><span><b>Raised</b> €7.5 M (2018), €20 M (2021), €85 M (Feb 2024)</span><span><b>Staff</b> ~150 (2026)</span><span><b>Target</b> €100 M revenue by 2029</span></div>
+  <p>Unseenlabs took the opposite architecture to HawkEye: each BRO (Breizh Reconnaissance Orbiter) geolocates on its own with a proprietary "monosatellite" method, in essence single-platform Doppler/FOA and AOA-type processing that the company does not disclose, with a claimed accuracy "to the nearest kilometre" for maritime emitters — a company claim without independent verification<sup class="ref" data-r="R1-22"></sup>. Gen-1 satellites are 6U/8U GomSpace CubeSats of ~15 kg at 500–550 km, mostly SSO with one at 45°; BRO-1 flew in Aug 2019 and the 25th satellite (BRO-32) on 1 Oct 2026 (Transporter-18)<sup class="ref" data-r="R1-21"></sup>. Gen-2 began with BRO-31 on Transporter-17 (July 2026): a ~150 kg microsatellite on U-Space and GomSpace platforms with the payload built in Brittany, roughly ten times the Gen-1 mass, covering L, S, C, X and Ku up to 12 GHz, up to 1 M km² per pass and extending from maritime to land and space emitters<sup class="ref" data-r="R1-23"></sup><sup class="ref" data-r="R1-24"></sup><sup class="ref" data-r="R1-25"></sup>. The company targets ~20 satellites, possibly 30–40 if demand justifies, and its published manufacturing contracts are small: €2.9 M (May 2024), €5.3 M (Dec 2024), €5.5 M (Apr 2026), €2.2 M to GomSpace for two more CubeSats in 2027<sup class="ref" data-r="R1-25"></sup>. It is a Copernicus Contributing Mission (2025) and claims a >10 % margin<sup class="ref" data-r="R1-26"></sup>.</p>
+  <p>On 17 Sept 2026 the DGA announced CASSIOPÉE, the sovereign core of France's CELESTE programme replacing CERES by 2032, with Airbus as prime on the S250 platform and Unseenlabs as co-contractor supplying the payload, mission planning and on-board/ground processing; value and satellite count are undisclosed<sup class="ref" data-r="R1-27"></sup>. For TALOS this is the most direct precedent: a start-up that began with 15 kg CubeSats moved to 150 kg for multi-band coverage and was then embedded in a national programme. Its reported bus-only unit contracts (~€5 M) also anchor the low end of the TALOS recurring-cost range (research note 05 §1).</p>
+
+  <h3 id="kleos" class="profile">Kleos Space (Luxembourg / Australia) — the failure case</h3>
+  <div class="facts"><span><b>Founded</b> 2017; ASX listing Aug 2018 (€6.96 M)</span><span><b>Fleet</b> 16 × 6U launched 2020–23 in four 4-sat clusters</span><span><b>2022</b> €272 K revenue vs €11.3 M loss</span><span><b>Bankruptcy petition</b> 26 Jul 2023</span></div>
+  <p>Kleos sold RF "reconnaissance data-as-a-service" (LOCATE products) from clusters of four CubeSats using multilateration across up to six antenna pairs<sup class="ref" data-r="R1-28"></sup><sup class="ref" data-r="R1-29"></sup>. Its missions were Scouting KSM1 (Nov 2020, PSLV), Vigilance KSF1 (Jun 2021, SSO ~500 km), Patrol KSF2 (Apr 2022, ISISPACE-built) and Observer KSF3 (Jan 2023, VHF + X-band); an A$12.6 M raise in Sept 2021 funded the fourth cluster<sup class="ref" data-r="R1-30"></sup>. Vigilance was not fully commissioned until Feb 2023, twenty months after launch; KSM1 suffered technical issues in 2022 and was being deorbited; in 2023 the company warned that its 5-year-design satellites would likely last ~18 months<sup class="ref" data-r="R1-32"></sup>. Trading was suspended on 3 May 2023, a June 2023 convertible note failed, the sole lender (Pure Asset Management) called its loans and a bankruptcy petition was announced on 26 July 2023, paused on 28 Aug pending interest in the assets; no acquirer was publicly confirmed<sup class="ref" data-r="R1-31"></sup>. Kleos was also one of the six NRO SCE RF study awardees in Sept 2022 — a government study contract did not save it<sup class="ref" data-r="R1-13"></sup>. The full causal analysis is in <a href="lessons_learned.html#kleos">Lessons learned</a>.</p>
+
+  <h3 id="spire" class="profile">Spire Global (USA / Luxembourg) — multi-mission fleet pivoting to defence RF</h3>
+  <div class="facts"><span><b>Fleet</b> multi-purpose LEMUR CubeSats (AIS/ADS-B/radio occultation)</span><span><b>RFGL</b> satellite pairs; six new pairings Q1 2026</span><span><b>2026 guidance</b> $75–85 M revenue, loss-making</span></div>
+  <p>Spire sold most of its maritime business in 2025 ($21 M of 2025 revenue) and is growing RF geolocation (RFGL) as a defence line: an AFRL $14 M cluster contract for moving-object detection, five US and three international RFGL orders in Q1 2026, and satellite pairs rather than triplets<sup class="ref" data-r="R1-33"></sup><sup class="ref" data-r="R1-34"></sup>. In Mar 2026 it demonstrated single-satellite RFGL on S- and X-band using a satellite launched on Bandwagon-4 (late 2025) co-funded by Luxembourg through ESA's LuxIMPULSE; coverage is now VHF, UHF, GNSS L-band, S and X, with no accuracy disclosed<sup class="ref" data-r="R1-35"></sup>. Spire is one of the NRO's three current commercial RF providers with HawkEye 360 and Umbra<sup class="ref" data-r="R1-12"></sup>. Q1-2026 revenue was $15.8 M (ex-maritime +13 %), cash $49.5 M plus $70 M raised in Apr 2026<sup class="ref" data-r="R1-34"></sup>. Its July 2025 RF service also transcribes and translates unencrypted VHF/UHF/L-band voice — a content product that TALOS deliberately does not offer commercially (see <a href="market_regulatory.html#legal">legal basis</a>)<sup class="ref" data-r="R4-9"></sup>.</p>
+
+  <h3 id="aurora" class="profile">Aurora Insight (USA) → Maxar → HawkEye 360</h3>
+  <p>A spectrum-mapping (not geolocation) start-up with two scanning satellites, Charlie (Jan 2021, ~360 km) and Delta (Jun 2023). Maxar invested in Feb 2022 and acquired it in Jan 2023; HawkEye 360 bought the "RF Solutions" unit from Maxar in Dec 2023 and still operates the two satellites<sup class="ref" data-r="R1-36"></sup><sup class="ref" data-r="R1-37"></sup>. The lesson is that pure spectrum-occupancy mapping did not sustain an independent company and became a feature inside a geolocation operator; TALOS treats spectrum occupancy as a day-one by-product and calibration source, not a business.</p>
+
+  <h3 id="horizon" class="profile">Horizon Technologies (UK) — Amber</h3>
+  <p>A 6U "Amber" CubeSat on an AAC Clyde Space bus carrying SIGINT heritage from the airborne FlyingFish/BlackFish satellite-phone intercept products. Amber-1 (IOD-3) was lost on Virgin Orbit's failed UK launch in Jan 2023 (widely reported; not confirmed on Horizon's own site). The UK Space Agency funded Amber-2 with £1.2 M (CDR passed Oct 2024, "mid-2025" launch) and Amber-3 was due late 2025, but no launch is confirmed on the company's news feed as of Oct 2026; an "AmberPersistent" ground variant collects L/S/X. Customers were framed around Royal Navy / JMSC maritime domain awareness. Status: effectively stalled<sup class="ref" data-r="R1-38"></sup><sup class="ref" data-r="R1-39"></sup><sup class="ref" data-r="R1-40"></sup>.</p>
+
+  <h3 id="aerospacelab" class="profile">Aerospacelab (Belgium) — RF trio on its own bus</h3>
+  <p>Primarily a bus manufacturer (Series B €40 M in 2022; a "megafactory" sized for up to 500 satellites a year; reported in Sept 2026 to build 264 IRIS² LEO satellites for ~€2.4 B), Aerospacelab launched a trio of RF-sensing satellites in Mar 2024 flying a HawkEye-style triangular formation and published a 2025 white paper claiming geolocation of ground-based radar emitters, without accuracy figures<sup class="ref" data-r="R1-7"></sup><sup class="ref" data-r="R1-41"></sup><sup class="ref" data-r="R1-42"></sup>. For TALOS it is relevant as a European supplier able to deliver an RF-capable 100–150 kg bus with in-house X-band radios (Versatile Satellite Platform, see <a href="suppliers.html#cat-A">supplier catalogue A</a>) and as proof that a European integrator can fly a formation-geolocation demo.</p>
+
+  <h3 id="azalea" class="profile">BAE Systems Azalea (UK) — the closest public analogue</h3>
+  <div class="facts"><span><b>Launch</b> 28 Nov 2025, Transporter-15</span><span><b>Cluster</b> 3 × ~150 kg RF + 1 ICEYE SAR</span><span><b>Orbit</b> ~560 km</span><span><b>Funding</b> self-funded (n/d)</span></div>
+  <p>Azalea pairs three ~150 kg RF satellites with an ICEYE X-band SAR satellite in one cluster, carries ultra-wideband RF sensors and an on-board AI "Enhanced SDR" that is re-programmable in orbit, and fuses RF with SAR on board; the concept dates from 2022, the cluster was self-funded by the prime and customer trials run through 2026<sup class="ref" data-r="R1-43"></sup>. It is the nearest public analogue to a 150 kg-class RF cluster and the proof that a European prime will fund one without a government launch customer. Bands, accuracy and the digitiser are not disclosed.</p>
+
+  <h3 id="others" class="profile">Newer and adjacent entrants (2023–2026)</h3>
+  <ul>
+    <li><b>Umbra (USA)</b>: SAR operator, NRO RF study awardee 2022 and listed as a current NRO RF provider; RF payload undisclosed<sup class="ref" data-r="R1-12"></sup>. <b>PredaSAR / Terran Orbital</b>: NRO study awardee 2022; no RF constellation materialised; acquired by Lockheed Martin 2024<sup class="ref" data-r="R1-13"></sup>.</li>
+    <li><b>Reflex Aerospace (Germany)</b>: €50 M Series A (2026), buses with SIGINT payload options for sovereign constellations<sup class="ref" data-r="R1-44"></sup>.</li>
+    <li><b>EDF SIGMA (France/Bulgaria/Estonia)</b>: €5.8 M EU-funded SME project (M3 Systems, EnduroSat, Latitude, Skudo) to demonstrate space-based detection and localisation of GNSS jamming and spoofing<sup class="ref" data-r="R1-46"></sup>.</li>
+    <li><b>US Army</b> Sept 2026 awards of ~$196 M for terrestrial and aerial RF sensing (Heaviside MOTH, Research Innovations Dragonfly) show the budget line exists, though not space-based<sup class="ref" data-r="R1-19"></sup>.</li>
+    <li>Searches for independent space-based RF-geolocation start-ups in Israel, India, Japan, Korea and Australia found no verified commercial operator as of Oct 2026 (India's PierSight is SAR + AIS; Israel's Rafael nanosat swarm is EO/SAR with SIGINT only speculated)<sup class="ref" data-r="R1-44"></sup><sup class="ref" data-r="R1-47"></sup>.</li>
+  </ul>
+
+  <h2>Greece</h2>
+  <h3 id="phasma" class="profile">PHASMA (Libre Space Foundation / Hellenic Space Center)</h3>
+  <p>Two 3U CubeSats, LAMARR and DIRAC, launched on 28 Nov 2025 under ESA's Greek CubeSat programme for a €2 M RF-spectrum monitoring and interference-localisation in-orbit demonstration, flying as a close-proximity pair<sup class="ref" data-r="R1-45"></sup>. The €130 M Greek National Small Satellite Programme (ESA-managed, RRF-funded) is otherwise EO-only — 2 ICEYE X-band SAR (~120 kg, Nov 2025), 4 OroraTech thermal 8U (May 2026), 7 Open Cosmos optical ~100 kg (Hyperion GR1 first, Jul 2026) — with AIS/VDES receivers but no SIGINT<sup class="ref" data-r="R1-58"></sup><sup class="ref" data-r="R1-59"></sup>. Hellas Space 2.0 (€350 M, Aug 2026) names VHR optical, thermal and data integration but not RF<sup class="ref" data-r="R4-24"></sup>. Open Cosmos Aegean manufactures in Pallini, HAI's HAITF at Schimatari can test a 150 kg satellite, and KSAT operates a ground site at Nemea: the industrial precursors exist, the RF line does not. PHASMA's team and the Greek universities with GNTS heritage (AUTh, NTUA, DUTH) are the obvious domestic partners for the TALOS DF-array and radiation-test campaigns.</p>
+
+  <h2>Government and national programmes</h2>
+  <h3 id="nro" class="profile">United States — NRO, NGA, Space Force</h3>
+  <p>The NRO's Strategic Commercial Enhancements programme awarded RF BAA studies in Sept 2022 to six firms (Aurora Insight, HawkEye 360, Kleos, PredaSAR, Spire, Umbra) at ~$300 K base each with 24-month options, exercised options for four in 2023, extended HawkEye by 23 months in Dec 2025, issued an RFP in July 2025 for a Commercial Solutions Opening with a rolling five-year window across EO/SAR/RF/HSI/LIDAR, and in Aug 2026 awarded the uncapped CRFCA operational contract — about four years from study to operational buy<sup class="ref" data-r="R1-12"></sup><sup class="ref" data-r="R1-13"></sup><sup class="ref" data-r="R1-14"></sup>. The NGA buys analytics rather than collections (RF Emitter Data up to $10 M in 2021; Luno A/B with a $490 M combined ceiling)<sup class="ref" data-r="R1-15"></sup><sup class="ref" data-r="R4-15"></sup>. No public US Space Force or SDA commercial RF-geolocation buy was found; AFRL gave Spire $14 M and USSF a SBIR to ISA (now part of HawkEye) for signal-processing latency; the NRO's own proliferated architecture is classified<sup class="ref" data-r="R1-33"></sup>.</p>
+
+  <h3 id="yaogan" class="profile">China — Yaogan ELINT triplets</h3>
+  <p>JianBing-8 / Yaogan-9, -16, -17, -20 and -25 (2010–2014) are triplets at ~1,100 km and 63° in close formation (tens of km apart), assessed as NOSS-like naval ELINT; the US NOSS analogue covered ~555 MHz–10 GHz with 2–3 km geolocation accuracy per open sources<sup class="ref" data-r="R1-48"></sup><sup class="ref" data-r="R1-49"></sup>. Yaogan-31 (2018–2021) added four triplets at 63.4° in a lead/trailer/outlier geometry; Yaogan-30 (2017–2021) put 5–6 triplets at ~600 km and 35° but phased 120° apart in-plane, a high-revisit design rather than a TDOA formation; Yaogan-40 01A/B/C (Sept 2023) flies a triangular formation at ~790–850 km, 86°, likely the Yaogan-31 successor; GEO SIGINT of the Qianshao-3 class is assessed at 250 MHz–4 GHz<sup class="ref" data-r="R1-49"></sup><sup class="ref" data-r="R1-50"></sup>. Two design points carry over: three-satellite close formations at ~1,000 km for wide-area ELINT, and separately low-inclination planes to concentrate revisit on a region — exactly the logic behind the TALOS 53° choice.</p>
+
+  <h3 id="liana" class="profile">Russia — Liana (Lotos-S1, Pion-NKS)</h3>
+  <p>Eight Lotos-S1 (14F145) general-SIGINT satellites launched 2014 – Dec 2024 with a ninth planned for 2026, at ~900 km and 67.15° on a TsSKB-Progress bus with a KB Arsenal payload; one Pion-NKS (14F139, Kosmos 2550, Jun 2021) at ~450 km and 67° combining ELINT with an active radar for naval targeting, where imagery suggests only one radar antenna deployed<sup class="ref" data-r="R1-51"></sup><sup class="ref" data-r="R1-52"></sup>. Russia relies on single large satellites, not formations, at a slow cadence.</p>
+
+  <h3 id="ceres" class="profile">France — CERES → CELESTE / CASSIOPÉE</h3>
+  <div class="facts"><span><b>Launch</b> 16 Nov 2021, Vega VV20</span><span><b>Satellites</b> 3 × 516 kg (446 kg per another source)</span><span><b>Orbit</b> ~670 km, 75°</span><span><b>Cost</b> €450 M programme, 10-year life</span></div>
+  <p>CERES flies three satellites in a triangular formation (two in-plane, one offset) built by Airbus (prime and payload) on Thales Alenia Space EliteBus platforms, managed by CNES for the DGA, geolocating radar and telecom emitters by TDOA triangulation; it was operational over Ukraine by spring 2022<sup class="ref" data-r="R1-53"></sup><sup class="ref" data-r="R1-54"></sup>. Predecessors were ESSAIM (2004, 4 microsats) and ELISA (2011, 4 × ~130 kg, deorbited 2021) — the French programme has therefore already been through a ~130 kg generation. CASSIOPÉE (DGA, Sept 2026) is the successor: Airbus prime on the S250 platform (CO3D heritage) with the Unseenlabs payload and processing, in service by 2032, count and value undisclosed<sup class="ref" data-r="R1-27"></sup>. At €450 M for three satellites, CERES bounds the high end of what a sovereign 3-satellite SIGINT system costs; the TALOS cluster scenario (€40–65 M) is an order of magnitude below it because it buys a commercial ESPA-class bus and accepts COTS-based electronics with a 3–5 year life.</p>
+
+  <h3 id="eu" class="profile">European Union, ESA and EDA</h3>
+  <p>IISS (2026) costs a European ISR package with four ELINT/SIGINT satellites at ~$200 M each ($800 M), or eight ($1.6 B) under full autonomy, and names SIGINT and RF mapping as the most constrained European gap relative to the US<sup class="ref" data-r="R1-55"></sup>. No dedicated EDF/PESCO SIGINT constellation project is public. Adjacent efforts: EDF SIGMA (€5.8 M, space GNSS-interference monitoring), EDA VLEO-DEF (€15.65 M, 17 partners including GomSpace Luxembourg, Thales Alenia, Airbus and SENER; a VLEO ISR satellite concept over 36 months from Mar 2026), the proposed EU Space Act (2025) and IRIS² (264 LEO satellites to Aerospacelab, €2.4 B, Sept 2026)<sup class="ref" data-r="R1-46"></sup><sup class="ref" data-r="R1-56"></sup><sup class="ref" data-r="R1-42"></sup>. EUSPA's RFI on space-based GNSS RFI monitoring services (deadline 27 Feb 2025) is the most concrete European demand signal (see <a href="market_regulatory.html">Market &amp; regulation</a>)<sup class="ref" data-r="R4-16"></sup>. Luxembourg has become the de-facto hub for commercial RF: home of Kleos, Spire's European HQ and LuxIMPULSE-funded RFGL satellite, and HawkEye 360's first EU subsidiary<sup class="ref" data-r="R1-35"></sup><sup class="ref" data-r="R1-18"></sup>.</p>
+
+  <h3 id="germany" class="profile">Germany — SPOCK-2</h3>
+  <p>Germany has no dedicated SIGINT satellite today. SPOCK-2, a ~1,000-satellite reconnaissance constellation including EO and SIGINT sensors with a 2030 target inside a €35 B space fund, is in competition between Helsing/OHB ("KIRK") and Rheinmetall-ICEYE; a Rheinmetall–OHB joint venture was formed in 2026 for SATCOMBw<sup class="ref" data-r="R1-57"></sup>. Italy has no national SIGINT satellite and Leonardo positions itself as integrator of HawkEye 360 data<sup class="ref" data-r="R1-17"></sup>; the UK has Azalea and the stalled Amber, with no sovereign constellation buy announced<sup class="ref" data-r="R1-43"></sup><sup class="ref" data-r="R1-40"></sup>.</p>
+
+  <h3 id="emisat" class="profile">India — EMISAT, and others</h3>
+  <p>EMISAT launched on 1 Apr 2019 (PSLV-C45): a 436 kg IMS-2 bus at ~748 km SSO (98.4°) carrying DRDO's "Kautilya" ELINT payload for radar detection and characterisation; a GEO ELINT follow-on has been floated in unverified press, and the Indian Navy is also a HawkEye 360 MDA customer<sup class="ref" data-r="R1-60"></sup>. Israel flies Ofek EO plus a Rafael ~100 kg nanosat swarm at 350–380 km with SIGINT payloads speculated only; the Technion/IAI Adelis-SAMSON mission (2021) demonstrated 3-nanosat formation geolocation academically<sup class="ref" data-r="R1-47"></sup>. Japan has no national SIGINT satellite and is HawkEye's largest non-US market (16 %)<sup class="ref" data-r="R1-20"></sup>; South Korea's 425 Project (5 SAR/EO) is to be followed by ~60 small/micro reconnaissance satellites by 2030 without specified SIGINT content<sup class="ref" data-r="R1-61"></sup>; no Turkish ELINT satellite was found in open sources.</p>
+
+  <h2>Primes and integrators with smallsat SIGINT heritage</h2>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Prime / integrator</th><th>Country</th><th>Relevant space SIGINT heritage</th><th>Relevance to TALOS</th></tr></thead>
+    <tbody>
+      <tr><td>Airbus Defence &amp; Space</td><td>FR/DE</td><td>CERES prime and payload; CASSIOPÉE prime on S250; VLEO-DEF partner — the only European prime with two generations of operational space SIGINT<sup class="ref" data-r="R1-53"></sup><sup class="ref" data-r="R1-27"></sup></td><td>Benchmark; unlikely supplier (national programme priority)</td></tr>
+      <tr><td>Thales Alenia Space</td><td>FR/IT</td><td>CERES platforms and mission chain; VLEO-DEF; ELINT heritage via Thales<sup class="ref" data-r="R1-56"></sup></td><td>Possible platform/mission-chain partner at institutional cost</td></tr>
+      <tr><td>BAE Systems</td><td>UK</td><td>Azalea 3 × 150 kg RF + SAR cluster, Nov 2025<sup class="ref" data-r="R1-43"></sup></td><td>Closest analogue; competitor for UK/NATO sales</td></tr>
+      <tr><td>Leonardo</td><td>IT</td><td>Integrator of HawkEye 360 data (MoU Sept 2026); no own RF payload disclosed<sup class="ref" data-r="R1-17"></sup></td><td>Channel competitor in Southern Europe</td></tr>
+      <tr><td>L3Harris, Northrop Grumman, Lockheed Martin, RTX</td><td>US</td><td>Classified national SIGINT payload heritage; Lockheed invested in HawkEye (Series D-1); none sells a commercial smallsat SIGINT payload<sup class="ref" data-r="R1-4"></sup></td><td>ITAR; not candidates</td></tr>
+      <tr><td>OHB / Rheinmetall / ICEYE / Hensoldt</td><td>DE</td><td>SPOCK-2 competitors (KIRK consortium; Rheinmetall-ICEYE); Hensoldt airborne Pegasus SIGINT, no space product<sup class="ref" data-r="R1-57"></sup></td><td>OHB-LuxSpace Triton-X bus is a TALOS candidate</td></tr>
+      <tr><td>IAI/ELTA, Elbit, Saab, Indra</td><td>IL/SE/ES</td><td>ELINT sensor heritage (IAI/ELTA with Technion nanosats); Elbit comms nanosats only; Saab/Indra airborne/naval ESM, no space SIGINT product found</td><td>Possible ESM-know-how partners; no product</td></tr>
+      <tr><td>Kongsberg NanoAvionics, GomSpace, U-Space, Open Cosmos, SFL Missions, AAC Clyde Space, EnduroSat, ISISPACE, Aerospacelab</td><td>LT/NO, DK/LU, FR, UK/GR, CA, UK/SE, BG, NL, BE</td><td>Bus/AIT suppliers with RF-mission heritage: GomSpace → BRO; SFL → Hawks; ISISPACE/BST → Kleos; EnduroSat → SIGMA; AAC → Amber; U-Space/GomSpace → BRO Gen-2<sup class="ref" data-r="R1-22"></sup><sup class="ref" data-r="R1-8"></sup><sup class="ref" data-r="R1-30"></sup></td><td>Bus shortlist; see <a href="suppliers.html">Supplier catalogue</a></td></tr>
+    </tbody></table></div>
+
+  <h2>The revenue curve and the capital per satellite</h2>
+  <div class="grid c2">
+    <div class="card"><div id="revChart"></div><p class="muted" style="font-family:var(--font-ui);font-size:0.78rem;margin:0.4rem 0 0">2023 not disclosed in the sources used; 2024 is derived from the prospectus statement that 2025 grew +74 % (est.); 2026 is the midpoint of the $215–220 M guidance<sup class="ref" data-r="R1-2"></sup><sup class="ref" data-r="R1-10"></sup><sup class="ref" data-r="R4-2"></sup>.</p></div>
+    <div class="card"><div id="capChart"></div><p class="muted" style="font-family:var(--font-ui);font-size:0.78rem;margin:0.4rem 0 0">Capital raised or programme budget per satellite launched, in M€ at ~€1 = $1.12 / A$1.65 (approx.). HawkEye includes the IPO; Kleos lifetime capital is an unverified aggregate; CERES is a programme budget, not a raise<sup class="ref" data-r="R5-6"></sup><sup class="ref" data-r="R5-11"></sup><sup class="ref" data-r="R5-2"></sup><sup class="ref" data-r="R1-53"></sup>.</p></div>
+  </div>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Operator / programme</th><th>Capital raised or budget</th><th>Satellites fielded</th><th>Implied capital per satellite</th><th>Comment</th></tr></thead>
+    <tbody id="compTable"></tbody></table></div>
+  <p>Two readings. The commercial operators converge on roughly €5–10 M of total capital per satellite fielded, whatever the satellite's mass, because the money goes into ground segment, software, people and the years before revenue rather than into hardware. The sovereign programme (CERES) spends ten to twenty times that per satellite for radiation-hard, decade-life spacecraft. TALOS's scenario costs (€18–35 M for one demonstrator, €40–65 M for the 3-satellite cluster, €110–170 M for twelve) sit inside the commercial band: €13–22 M per satellite at the cluster stage, falling to €9–14 M at twelve<sup class="ref" data-r="R5-26"></sup>. The <a href="lessons_learned.html">lessons-learned page</a> draws out what distinguished the companies that survived on that money from the one that did not.</p>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/operators_table.js"></script>
+<script src="../assets/data/programmatics.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  function cleanTitle(t){ return t.replace(/\s*[:—-]?\s*https?:\/\/.*$/,'').replace(/[:;\s]+$/,''); }
+  function wireRefs(){
+    const seen=[]; document.querySelectorAll('sup.ref[data-r]').forEach(s=>{ const id=s.dataset.r; const ok=REFERENCES.some(r=>r.id===id); if(!ok) console.warn('missing reference id', id); s.innerHTML=`<a href="#ref-${id}">[${id}]</a>`; if(ok&&!seen.includes(id)) seen.push(id); });
+    const ol=document.getElementById('refs'); seen.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${cleanTitle(r.title)} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); });
+  }
+
+  // ---- band coverage per operator (MHz). stated = edges given in the research; assumed = band named, edges inferred; null = not disclosed
+  const BANDS={
+    'HawkEye 360':[{lo:30,hi:18000,src:'stated: 30 MHz–18 GHz (prospectus)'}],
+    'Unseenlabs':[{lo:1000,hi:12000,src:'stated: Gen-2 L/S/C/X to 12 GHz'},{lo:12000,hi:18000,src:'Ku (Gen-2, upper edge n/d)',as:1},{lo:156,hi:162,src:'Gen-1 maritime VHF comms (assumed)',as:1}],
+    'Kleos Space':[{lo:155,hi:165,src:'stated: VHF 155–165 MHz'},{lo:8000,hi:12000,src:'X-band (Observer), edges assumed',as:1}],
+    'Spire Global':[{lo:118,hi:174,src:'VHF (assumed aero/marine)',as:1},{lo:300,hi:1000,src:'UHF (assumed)',as:1},{lo:1160,hi:1610,src:'GNSS L-band (stated)'},{lo:2000,hi:4000,src:'S-band (assumed edges)',as:1},{lo:8000,hi:12000,src:'X-band (assumed edges)',as:1}],
+    'Aurora Insight':null,
+    'Horizon Technologies':[{lo:1525,hi:1660,src:'L-band satphone (assumed)',as:1},{lo:2000,hi:4000,src:'S-band (assumed)',as:1},{lo:9300,hi:9500,src:'X-band nav radar (assumed)',as:1}],
+    'Aerospacelab':null,
+    'BAE Systems Azalea':null,
+    'PHASMA (Libre Space/HSC)':null,
+    'CERES (DGA)':null,
+    'Yaogan ELINT':[{lo:555,hi:10000,src:'NOSS analogue 555 MHz–10 GHz (assumed)',as:1}],
+    'Liana':null,
+    'EMISAT':[{lo:2000,hi:12000,src:'radar ELINT S–X (assumed)',as:1}],
+  };
+  const SATS={'HawkEye 360':30,'Unseenlabs':25,'Kleos Space':0,'Spire Global':0,'Aurora Insight':2,'Horizon Technologies':0,'Aerospacelab':3,'BAE Systems Azalea':3,'PHASMA (Libre Space/HSC)':2,'CERES (DGA)':3,'Yaogan ELINT':36,'Liana':9,'EMISAT':1};
+  const MASS={'HawkEye 360':30,'Unseenlabs':150,'Kleos Space':8,'Spire Global':10,'Aurora Insight':10,'Horizon Technologies':10,'Aerospacelab':50,'BAE Systems Azalea':150,'PHASMA (Libre Space/HSC)':4,'CERES (DGA)':516,'Yaogan ELINT':1500,'Liana':5000,'EMISAT':436};
+  const bandOf=f=>f<1000?'uhf':f<2000?'l':f<4000?'s':f<8000?'c':f<12000?'x':'ku';
+  const edges=[30,1000,2000,4000,8000,12000,18000];
+  function bandBar(name){
+    const W=220,H=20,x=d3.scaleLog().domain([30,18000]).range([2,W-2]);
+    let s=`<svg class="bandbar" viewBox="0 0 ${W} ${H}">`;
+    [100,1000,10000].forEach(t=>{ s+=`<line class="tick" x1="${x(t)}" x2="${x(t)}" y1="11" y2="13"/>`; });
+    const segs=BANDS[name];
+    if(!segs){ s+=`<rect class="nd" x="${x(30)}" y="2" width="${x(18000)-x(30)}" height="9"/><text x="${W/2}" y="9.5" text-anchor="middle">not disclosed</text>`; }
+    else segs.forEach(sg=>{ // split by band edges so colour follows the band
+      for(let i=0;i<edges.length-1;i++){ const a=Math.max(sg.lo,edges[i]), b=Math.min(sg.hi,edges[i+1]); if(b<=a) continue; const bw=Math.max(1.5,x(b)-x(a)); s+=`<rect class="seg${sg.as?' assumed':''}" x="${x(a)}" y="2" width="${bw}" height="9" fill="var(--band-${bandOf(a)})"><title>${name}: ${a>=1000?(a/1000)+' GHz':a+' MHz'} – ${b>=1000?(b/1000)+' GHz':b+' MHz'} — ${sg.src}</title></rect>`; }
+    });
+    s+=`<text x="${x(100)}" y="20" text-anchor="middle">0.1</text><text x="${x(1000)}" y="20" text-anchor="middle">1</text><text x="${x(10000)}" y="20" text-anchor="middle">10 GHz</text></svg>`;
+    return s;
+  }
+  const md=t=>String(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+  const tb=document.querySelector('#opTable tbody');
+  OPERATORS_TABLE.forEach(o=>{
+    const tr=document.createElement('tr');
+    const st=o.status; const cls=/Bankrupt|Stalled/.test(st)?'status-bad':/Operational/.test(st)?'status-ok':'';
+    tr.innerHTML=`<td><b>${o.operator}</b></td><td>${o.country}</td><td data-v="${SATS[o.operator]??0}">${md(o.sats_on_orbit)}</td><td data-v="${MASS[o.operator]??0}">${md(o.mass_class)}</td><td class="bands">${bandBar(o.operator)}<div class="muted" style="font-size:0.72rem">${md(o.bands)}</div></td><td>${md(o.geolocation_method)}</td><td>${md(o.claimed_accuracy)}</td><td>${md(o.products)}</td><td>${md(o['funding_/_revenue'])}</td><td class="${cls}">${md(st)}</td>`;
+    tb.append(tr);
+  });
+
+  // ---- comparator table
+  document.getElementById('compTable').innerHTML=COMPARATORS.map(c=>`<tr><td><b>${c.name}</b></td><td>${c.raised}</td><td>${c.sats}</td><td>${c.perSat}</td><td>${c.note}</td></tr>`).join('');
+
+  // ---- charts
+  const rev=[{label:'2022',value:30.5,note:'prospectus'},{label:'2024 (derived, est.)',value:+(117.7/1.74).toFixed(1),note:'117.7 / 1.74'},{label:'2025',value:117.7,note:'prospectus; first net income $2.7 M'},{label:'2026 guidance (mid)',value:217.5,note:'$215–220 M'}];
+  Charts.bar(document.getElementById('revChart'),{title:'HawkEye 360 revenue, $M',data:rev,unit:'$M',horizontal:false,height:260});
+  const cap=[{label:'HawkEye 360 (~48 sats launched, est.)',value:Math.round(987/1.12/48),note:'≈$987 M total incl. IPO ÷ ~48 launched incl. Pathfinders, Kestrel, Aurora sats (est.)'},{label:'Unseenlabs (25 sats)',value:Math.round(120/25),note:'~€120 M raised ÷ 25'},{label:'Kleos Space (16 sats)',value:Math.round(70/1.65/16),note:'~A$70 M lifetime (unverified) ÷ 16'},{label:'CERES (3 sats)',value:150,note:'€450 M programme ÷ 3'},{label:'TALOS cluster (3 sats, est.)',value:Math.round((BASELINE.cost.cluster3[0]+BASELINE.cost.cluster3[1])/2/3),note:'€40–65 M cumulative ÷ 3',color:U.css('--accent-2')},{label:'TALOS constellation (12, est.)',value:Math.round((BASELINE.cost.constellation12[0]+BASELINE.cost.constellation12[1])/2/12),note:'€110–170 M cumulative ÷ 12',color:U.css('--accent-2')}];
+  Charts.bar(document.getElementById('capChart'),{title:'Capital per satellite fielded, M€ (approx.)',data:cap,unit:'M€',horizontal:true,height:260});
+  wireRefs();
+})();
+</script>
+</body>
+</html>

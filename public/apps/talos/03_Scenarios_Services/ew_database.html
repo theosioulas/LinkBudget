@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EW database — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .small { font-family: var(--font-ui); font-size: 0.82rem; color: var(--ink-2); }
+  pre.rec { font-size: 0.76rem; line-height: 1.45; max-height: 520px; }
+  pre.code { font-size: 0.8rem; }
+  .lib td:first-child { white-space: nowrap; font-weight: 600; }
+  .readout .v.txt { font-size: 0.95rem; }
+  .gov li { margin-bottom: 0.35rem; }
+  svg .ent { fill: var(--surface); stroke: var(--line-strong); }
+  svg .ent-h { fill: var(--accent-soft); stroke: var(--accent); }
+  svg .ent-c { fill: color-mix(in srgb, var(--critical) 12%, var(--surface)); stroke: var(--critical); }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>03 Scenarios &amp; services</b> · EW database &amp; signature catalogue</div>
+    <h1>EW database &amp; signature catalogue</h1>
+    <p class="lead">The catalogue is the product; detections are its raw material. This page sets out what national EW libraries contain and why a commercial catalogue sits one level above them, then specifies the TALOS data model (seven entities, rendered as an entity-relationship diagram), the maturity levels and their transition rules, the de-confliction and change-detection logic, the pattern-of-life analytics, the classified annex, the one-way flow into national libraries, example records, export formats and governance.</p>
+    <div class="meta"><span>Sources: research notes 03, 04</span><span>Demo: <a href="../04_Service_Demo/index.html">operations console catalogue</a></span></div>
+  </header>
+
+  <h2>What national EW libraries contain</h2>
+  <p>The US Electronic Warfare Integrated Reprogramming Database (EWIRDB), managed by DIA, is "the primary DoD-approved source for technical parametric and performance data" on non-communications emitters. It merges NSA's KILTING national technical ELINT parametric database, multi-source scientific and technical assessments of foreign emitters, and US emitter data from the service EW support agencies; fourteen offices at ten organisations contribute and updates were historically released quarterly <sup class="ref"><a href="#ref-R4-28">[R4-28]</a></sup>. NATO maintains the analogous NATO Emitter Database (NEDB, also referred to as the EW database, EWDB) fed by nations (general knowledge). These libraries are what RWR/ESM mission libraries are built from: a radar warning receiver that says "SA-20 Big Bird" is reading a record whose lineage goes back to KILTING.</p>
+  <div class="table-wrap"><table class="lib">
+    <thead><tr><th>Concept</th><th>Content</th><th>Relevance to TALOS</th></tr></thead>
+    <tbody>
+      <tr><td>ELNOT / ENOT</td><td>ELINT notation: a short code uniquely identifying a non-communications emitter type (radar) or a communications emitter type; the join key between a collection and the library (general knowledge)</td><td>Never stored in the unclassified core; mapped in the classified annex only</td></tr>
+      <tr><td>Parametric data (radar)</td><td>RF centre and agility set, bandwidth; PRI value and stagger/jitter pattern; pulse width; scan type and period; antenna beamwidths; polarisation; intra-pulse modulation (chirp slope, phase codes); power; mode-dependent variations</td><td>The TALOS radar path measures all of these from sidelobes (PDW → deinterleaving → PRI analysis, research 03 §5.2); they populate the signal-class and emitter-instance entities</td></tr>
+      <tr><td>Parametric data (comms)</td><td>Channelisation, modulation, burst structure, hopping pattern, network ID fields</td><td>Externals only; network identity fields are out of scope for the commercial line</td></tr>
+      <tr><td>Platform association</td><td>Which ships, aircraft, SAM systems and vehicles carry the emitter; used to build threat mission libraries for reprogramming <sup class="ref"><a href="#ref-R4-28">[R4-28]</a></sup></td><td>Generic platform class in the core (e.g. "destroyer-class surveillance radar"); specific unit association in the annex</td></tr>
+      <tr><td>Mode libraries</td><td>Mode-dependent parameter sets (search, track, guidance) with transition cues</td><td>Mode change is a first-class event in the TALOS change-detection logic</td></tr>
+      <tr><td>Confidence / source grading</td><td>Source reliability and information credibility grading; validation status</td><td>Mirrored by the maturity levels below, with an audit trail per transition</td></tr>
+    </tbody></table></div>
+
+  <h2>What a commercial space-RF catalogue contains</h2>
+  <p>HawkEye 360 describes a "growing unclassified emitter database" built from years of unclassified collection, with "over one billion data points" used to train and validate algorithms <sup class="ref"><a href="#ref-R4-1">[R4-1]</a></sup><sup class="ref"><a href="#ref-R4-2">[R4-2]</a></sup>. Its signal-of-interest library lists signal <em>classes</em> — GMRS/FRS push-to-talk, VHF marine, EPIRB, cellular, satphone, X-band radar, Ku VSAT, GNSS jammers <sup class="ref"><a href="#ref-R4-30">[R4-30]</a></sup>. The commercial catalogue therefore sits one level above the national library: it is a library of signal classes and of geolocated emitter instances with history, not a validated parametric ELINT database with ELNOTs and unit associations. That is exactly what makes it exportable and unclassified, and it is the design principle of the TALOS core.</p>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Layer</th><th>National library (EWIRDB / NEDB)</th><th>Commercial catalogue (HawkEye SOI library)</th><th>TALOS catalogue</th></tr></thead>
+    <tbody>
+      <tr><td>Unit of record</td><td>Emitter type (ELNOT) with validated parametric sets and modes</td><td>Signal class + geolocated detections with history</td><td>Signal class + emitter <em>instance</em> with position history, parametric drift, platform association and maturity; tracks and pattern-of-life on top</td></tr>
+      <tr><td>Classification</td><td>Classified</td><td>Unclassified</td><td>Unclassified core + classified annex (ELNOT mapping, national unit association)</td></tr>
+      <tr><td>Update cadence</td><td>Quarterly releases (historic) <sup class="ref"><a href="#ref-R4-28">[R4-28]</a></sup></td><td>Continuous</td><td>Continuous for L1–L3; weekly baselines for L4; quarterly export packages to national libraries</td></tr>
+      <tr><td>Consumers</td><td>RWR/ESM reprogramming, analysts</td><td>Subscribers via API/dashboard</td><td>Subscribers (core), national/NATO libraries (one-way export), the satellite itself (uploaded SOI list)</td></tr>
+      <tr><td>Validation</td><td>Multi-source S&amp;T assessment</td><td>Algorithmic + analyst</td><td>Maturity ladder with explicit evidence requirements per transition and audit log</td></tr>
+    </tbody></table></div>
+
+  <h2>The TALOS data model</h2>
+  <p>Seven entities, one per processing level plus the two that span levels. Keys and the most important fields are shown; every entity carries <code>created_at</code>, <code>updated_at</code>, <code>classification</code>, <code>release_caveat</code> and <code>audit_ref</code>. The model follows the synthesis in the use-case research (04 §5.3) and the field lists that Kleos (frequency, time, lat/lon/ECEF, confidence ellipse) and HawkEye (frequency, bandwidth, modulation hints, duty cycle, confidence-bounded location) publish for their products <sup class="ref"><a href="#ref-R4-8">[R4-8]</a></sup><sup class="ref"><a href="#ref-R4-29">[R4-29]</a></sup>.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 1000 560" role="img" aria-label="Entity-relationship diagram of the TALOS catalogue">
+      <defs><marker id="crow" viewBox="0 0 12 12" refX="11" refY="6" markerWidth="10" markerHeight="10" orient="auto"><path d="M0,6 L11,0 M0,6 L11,12 M0,6 L11,6" fill="none" stroke="var(--ink-3)" stroke-width="1.2"/></marker></defs>
+      <!-- Signal class -->
+      <g><rect x="20" y="30" width="230" height="150" rx="6" class="ent"/><rect x="20" y="30" width="230" height="24" rx="6" class="ent-h"/><text x="30" y="47" class="lbl" font-weight="600">SignalClass</text>
+        <text x="30" y="72" class="lbl xs">class_id (PK) · name · group</text><text x="30" y="86" class="lbl xs">band · f_min/f_max · bw_typ</text><text x="30" y="100" class="lbl xs">modulation_family · burst_stats</text><text x="30" y="114" class="lbl xs">duty_cycle · pri_family · scan_family</text><text x="30" y="128" class="lbl xs">detection_recipe (path, bins, CFAR)</text><text x="30" y="142" class="lbl xs">confidence_thresholds · typ_eirp_dbm</text><text x="30" y="156" class="lbl xs">detectability_verdict · sources[]</text><text x="30" y="170" class="lbl xs" fill="var(--critical)">annex: elnot_enot_map (classified)</text></g>
+      <!-- Detection -->
+      <g><rect x="20" y="220" width="230" height="150" rx="6" class="ent"/><rect x="20" y="220" width="230" height="24" rx="6" class="ent-h"/><text x="30" y="237" class="lbl" font-weight="600">Detection  (L1)</text>
+        <text x="30" y="262" class="lbl xs">det_id (PK) · class_id (FK) · t_start/t_end</text><text x="30" y="276" class="lbl xs">sat_ids[] · deck_id · aoi_id</text><text x="30" y="290" class="lbl xs">f_centre_hz · bw_hz · snr_db · power_dbm</text><text x="30" y="304" class="lbl xs">pdw_set | burst_descriptor · aoa_deg ± σ</text><text x="30" y="318" class="lbl xs">mod_class · symbol_rate · hop_stats</text><text x="30" y="332" class="lbl xs">iq_snapshot_ref (object store, SigMF)</text><text x="30" y="346" class="lbl xs">library_match_score · onboard_flag</text><text x="30" y="360" class="lbl xs">footprint_geom (satellite view polygon)</text></g>
+      <!-- Geolocation -->
+      <g><rect x="300" y="220" width="230" height="150" rx="6" class="ent"/><rect x="300" y="220" width="230" height="24" rx="6" class="ent-h"/><text x="310" y="237" class="lbl" font-weight="600">Geolocation  (L2)</text>
+        <text x="310" y="262" class="lbl xs">geo_id (PK) · det_ids[] (FK)</text><text x="310" y="276" class="lbl xs">lat · lon · alt · ecef[3]</text><text x="310" y="290" class="lbl xs">ellipse: semi_major_m · semi_minor_m · θ_deg</text><text x="310" y="304" class="lbl xs">cep_m · prob (0.95) · gdop</text><text x="310" y="318" class="lbl xs">method: TDOA | FDOA | TDOA+FDOA | AOA |</text><text x="310" y="332" class="lbl xs">    DOPPLER_FIT | MULTIPASS</text><text x="310" y="346" class="lbl xs">terrain_adjusted · mirror_resolved</text><text x="310" y="360" class="lbl xs">sat_states[] · residuals · solver_version</text></g>
+      <!-- Emitter instance -->
+      <g><rect x="580" y="30" width="250" height="180" rx="6" class="ent"/><rect x="580" y="30" width="250" height="24" rx="6" class="ent-h"/><text x="590" y="47" class="lbl" font-weight="600">EmitterInstance  (L3 — the catalogue)</text>
+        <text x="590" y="72" class="lbl xs">emitter_id (PK) · class_id (FK)</text><text x="590" y="86" class="lbl xs">maturity: CANDIDATE…ARCHIVED</text><text x="590" y="100" class="lbl xs">best_position + ellipse · position_history[]</text><text x="590" y="114" class="lbl xs">parametric_set (current) · drift_history[]</text><text x="590" y="128" class="lbl xs">first_seen · last_seen · n_obs · n_passes</text><text x="590" y="142" class="lbl xs">platform_assoc: mmsi | icao24 | site_id | class</text><text x="590" y="156" class="lbl xs">mobility: fixed | relocatable | mobile</text><text x="590" y="170" class="lbl xs">dormant_since · modes[] · aliases[]</text><text x="590" y="184" class="lbl xs">confirmation_evidence[] (SAR, AIS, ground truth)</text><text x="590" y="198" class="lbl xs" fill="var(--critical)">annex: elnot · unit_assoc · national_notes</text></g>
+      <!-- Track -->
+      <g><rect x="580" y="250" width="200" height="120" rx="6" class="ent"/><rect x="580" y="250" width="200" height="24" rx="6" class="ent-h"/><text x="590" y="267" class="lbl" font-weight="600">Track  (L3)</text>
+        <text x="590" y="292" class="lbl xs">track_id (PK) · emitter_id (FK)</text><text x="590" y="306" class="lbl xs">points[]: geo_id, t, state (x, v, cov)</text><text x="590" y="320" class="lbl xs">kinematic_model · gap_policy</text><text x="590" y="334" class="lbl xs">stanag4676_export_id</text><text x="590" y="348" class="lbl xs">status: active | coasted | closed</text></g>
+      <!-- Pattern of life -->
+      <g><rect x="300" y="410" width="250" height="130" rx="6" class="ent"/><rect x="300" y="410" width="250" height="24" rx="6" class="ent-h"/><text x="310" y="427" class="lbl" font-weight="600">PatternOfLife  (L4)</text>
+        <text x="310" y="452" class="lbl xs">pol_id (PK) · aoi_id · class_id · cell_id (H3)</text><text x="310" y="466" class="lbl xs">hour_of_week[168]: mean, sd, n (rolling 8 wk)</text><text x="310" y="480" class="lbl xs">typ_dwell · co_occurrence{class→score}</text><text x="310" y="494" class="lbl xs">observation_opportunities (passes with coverage)</text><text x="310" y="508" class="lbl xs">baseline_version · quiet_flag</text><text x="310" y="522" class="lbl xs">emitter_ids[] contributing</text></g>
+      <!-- Alert -->
+      <g><rect x="600" y="410" width="250" height="130" rx="6" class="ent"/><rect x="600" y="410" width="250" height="24" rx="6" class="ent-h"/><text x="610" y="427" class="lbl" font-weight="600">Alert  (L4)</text>
+        <text x="610" y="452" class="lbl xs">alert_id (PK) · rule_id | model_id · severity</text><text x="610" y="466" class="lbl xs">trigger_evidence: det_ids[], geo_ids[], z, streak</text><text x="610" y="480" class="lbl xs">emitter_id (FK, optional) · pol_id (FK)</text><text x="610" y="494" class="lbl xs">customer_ids[] · release_caveat · hil_required</text><text x="610" y="508" class="lbl xs">delivered_via[] · acknowledged_by · outcome</text><text x="610" y="522" class="lbl xs">cue_requests[] (SAR/EO tasking ids)</text></g>
+      <!-- Customer / AOI (context) -->
+      <g><rect x="20" y="410" width="230" height="130" rx="6" class="ent" stroke-dasharray="4 3"/><rect x="20" y="410" width="230" height="24" rx="6" class="ent-h"/><text x="30" y="427" class="lbl" font-weight="600">Task / AOI (context)</text>
+        <text x="30" y="452" class="lbl xs">aoi_id · customer_id · polygon</text><text x="30" y="466" class="lbl xs">frequency_plan[] · priority · mode</text><text x="30" y="480" class="lbl xs">product_level · caveats · exclusivity</text><text x="30" y="494" class="lbl xs">deck_ids[] · predicted_cep · minutes_used</text><text x="30" y="508" class="lbl xs">alert_rules[] · delivery_endpoints[]</text></g>
+      <!-- relations -->
+      <line x1="135" y1="180" x2="135" y2="218" class="wire" marker-end="url(#crow)"/><text x="142" y="203" class="lbl xs">1 : n</text>
+      <line x1="250" y1="295" x2="298" y2="295" class="wire" marker-start="url(#crow)" marker-end="url(#crow)"/><text x="258" y="289" class="lbl xs">n : m</text>
+      <path d="M530,295 L560,295 L560,120 L578,120" class="wire" marker-end="url(#crow)"/><text x="536" y="289" class="lbl xs">n : 1</text>
+      <path d="M250,80 L578,80" class="wire" marker-start="url(#crow)"/><text x="400" y="74" class="lbl xs">class 1 : n instances</text>
+      <line x1="680" y1="210" x2="680" y2="248" class="wire" marker-end="url(#crow)"/><text x="687" y="233" class="lbl xs">1 : n tracks</text>
+      <path d="M135,370 L135,408" class="wire"/><text x="142" y="393" class="lbl xs">deck → detections</text>
+      <path d="M425,370 L425,408" class="wire" marker-end="url(#crow)"/><text x="432" y="393" class="lbl xs">aggregates into</text>
+      <path d="M550,470 L598,470" class="wire" marker-end="url(#crow)"/><text x="556" y="464" class="lbl xs">1 : n</text>
+      <path d="M830,120 L870,120 L870,470 L852,470" class="wire" marker-end="url(#crow)"/><text x="878" y="300" class="lbl xs">1 : n</text>
+      <path d="M250,470 L298,470" class="wire"/><text x="256" y="464" class="lbl xs">per AOI</text>
+      <text x="20" y="555" class="lbl xs" fill="var(--critical)">Red lines: fields that exist only in the classified annex, linked by the same primary key.</text>
+    </svg>
+    <figcaption>Entity-relationship view of the catalogue. A SignalClass describes what a type of signal looks like and how to detect it; Detections are what a satellite saw; Geolocations combine one or more detections into a position with an ellipse; EmitterInstances are the catalogue proper — a physical transmitter with history and maturity; Tracks order the geolocations of moving emitters; PatternOfLife holds the per-AOI baselines; Alerts carry the evidence that fired a rule. The classified annex attaches ELNOT and unit associations to the same keys without touching the core.</figcaption>
+  </figure>
+
+  <h2>Maturity levels</h2>
+  <p>Maturity is the catalogue's statement of how sure it is that an emitter instance exists, where it is and what it is. The five levels are adapted from EW-library practice (04 §5.3); the transition rules are explicit so that a government customer can audit why a record says what it says, and so that the alert engine can weight records by maturity.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 1000 300" role="img" aria-label="Maturity state diagram with transition rules">
+      <defs><marker id="sa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-2)"/></marker></defs>
+      <g id="states"></g>
+    </svg>
+    <figcaption>Maturity states and the evidence required for each transition. Forward transitions need evidence; backward transitions (dashed) are triggered by contradicting evidence or by dormancy; every transition writes an audit record with the evidence identifiers and the actor (algorithm or analyst).</figcaption>
+  </figure>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Transition</th><th>Rule</th><th>Actor</th></tr></thead>
+    <tbody>
+      <tr><td>(new) → Candidate</td><td>A detection does not gate to any existing instance (see de-confliction) and matches ≥1 signal class above the class's confidence threshold</td><td>Automatic</td></tr>
+      <tr><td>Candidate → Provisional</td><td>≥3 independent geolocations (different passes, or different satellites in a pass) consistent within their 95% ellipses, or for mobile emitters ≥3 track-consistent fixes; class unchanged</td><td>Automatic, analyst notified</td></tr>
+      <tr><td>Provisional → Confirmed</td><td>Corroboration by an independent source: SAR/EO detection inside the ellipse at a consistent time, AIS/ADS-B identity match, ground truth from the customer, or a known-site database</td><td>Analyst confirms</td></tr>
+      <tr><td>Confirmed → Characterised</td><td>Stable parametric set over ≥N observations (N per class, e.g. 10 for radars), modes catalogued, platform class assigned; eligible for the on-board SOI library and for export to national libraries</td><td>EW database manager</td></tr>
+      <tr><td>any → Dormant flag</td><td>Not observed on M consecutive observation opportunities (passes where the cell was collected in the right band); M per class (e.g. 20 for fixed radars, 5 for a jammer that was continuous)</td><td>Automatic</td></tr>
+      <tr><td>any → Archived</td><td>Dormant beyond the retention threshold, or merged into another instance (duplicate), or customer-requested retirement; archived records remain queryable with their audit trail</td><td>EW database manager</td></tr>
+      <tr><td>Provisional/Confirmed → Candidate (demote)</td><td>Parametric distance to a new detection exceeds the class tolerance and no mode explains it (possible different emitter at the same site), or geolocation inconsistency beyond 3σ on ≥2 passes</td><td>Automatic, analyst review</td></tr>
+    </tbody></table></div>
+
+  <h2>De-confliction and change detection</h2>
+  <p>Every new detection is gated against the catalogue before it can create a record. The logic below is the one the GOES hunt illustrates: a 1.9 s, 1.5 kHz emitter was isolated from co-channel neighbours by repeated collections, because its position and burst signature were consistent with each other and inconsistent with everything already known <sup class="ref"><a href="#ref-R4-31">[R4-31]</a></sup>. "Mode change" and "dormant" are events the alert engine subscribes to.</p>
+<pre class="code">function gate(detection d, geolocation g | null):
+    cands = catalogue.query(class = d.class_id,
+                            position within k·ellipse(g) if g else footprint(d),
+                            maturity ≠ ARCHIVED)
+    if g is null and d.aoa is null:                 # Stage 1, no fix yet
+        cands = cands.filter(e => parametric_distance(e, d) &lt; τ_class)
+    for e in cands ranked by score(e, d):
+        # score = w_pos · mahalanobis(g, e.best_position) + w_par · parametric_distance(e, d)
+        if mahalanobis(g, e.best_position) ≤ k and parametric_distance(e, d) ≤ τ_class:
+            attach(d, g, e); update_position(e, g); update_drift(e, d)
+            if drift(e) &gt; τ_mode and not explained_by(e.modes, d):
+                emit MODE_CHANGE(e, d)              # new PRI, PW, scan or frequency set
+                if e.maturity ≥ CONFIRMED: flag ANALYST_REVIEW
+            return e
+        if mahalanobis(g, e.best_position) ≤ k and parametric_distance(e, d) &gt; τ_split:
+            emit CO_LOCATED_CANDIDATE(e, d)         # a second emitter at the same site
+            break
+    e_new = create EmitterInstance(class = d.class_id, maturity = CANDIDATE, pos = g)
+    attach(d, g, e_new)
+    if quiet_baseline(aoi(d), d.class_id, cell(g)): emit NEW_EMITTER_IN_QUIET_AREA(e_new)
+    return e_new
+
+every observation_opportunity(aoi, band, pass):
+    for e in catalogue.instances(aoi, band, maturity ≥ PROVISIONAL):
+        if not observed(e, pass): e.miss_count += 1 else e.miss_count = 0
+        if e.miss_count ≥ M_class(e): emit DORMANT(e); e.dormant_since = pass.t
+        if e.dormant_since and observed(e, pass): emit REACTIVATED(e)  # jammer back on</pre>
+  <p class="small">Parametric distance is a per-class weighted norm over the fields that are stable for that class (for radars: frequency set, PRI family and values, pulse width, scan period; for comms: centre frequency, bandwidth, modulation class, burst length statistics). <code>k</code> is the gating scale on the error ellipse (typically 3); <code>τ_class</code>, <code>τ_mode</code> and <code>τ_split</code> are class tolerances learned in commissioning from calibration emitters. An observation opportunity is a pass during which the cell was actually collected in the relevant band, which is why the minutes ledger must be written back to the catalogue.</p>
+
+  <h2>Pattern-of-life and anomaly analytics</h2>
+  <p>Baselines are built per AOI, signal class, spatial cell and hour of week, and departures are flagged — a new radar on a previously quiet island, a GNSS jammer activating near a port, a surge in UHF push-to-talk in a training area — the way HawkEye 360 flagged jamming north of Chernobyl between November 2021 and February 2022 <sup class="ref"><a href="#ref-R4-6">[R4-6]</a></sup> and RF activity in the Galwan Valley in 2020 <sup class="ref"><a href="#ref-R4-14">[R4-14]</a></sup>. The detector is a z-score against a rolling quiet baseline with streak confirmation:</p>
+  <div style="overflow-x:auto">$$ z_{c,h} = \frac{x_{c,h} - \mu_{c,h}}{\max(\sigma_{c,h}, \sigma_{\min})} $$</div>
+  <p>with an alert raised when \( z_{c,h} \ge z_0 \) on \( k \) consecutive observation opportunities, where \(x_{c,h}\) is the activity measure in cell \(c\) at hour-of-week \(h\) (detection count, occupied bandwidth, or interference power), \(\mu\) and \(\sigma\) are the rolling eight-week baseline statistics computed only over passes that actually covered the cell, and \(\sigma_{\min}\) prevents a perfectly quiet cell from alarming on a single weak detection. The independent CYGNSS GNSS-interference study used this construction and reports detector reliability rising from 86% with one satellite to 100% with three, while explicitly deferring the false-alarm characterisation <sup class="ref"><a href="#ref-R4-17">[R4-17]</a></sup>; government customers will ask for both, so the calculator below shows what the threshold and the streak length do to the expected false-alert load under a Gaussian baseline — a lower bound on real false alarms, since real activity has heavier tails.</p>
+  <div class="panel"><h3>Anomaly detector settings <span class="tag">est.</span></h3>
+    <div class="controls grid c3">
+      <div class="ctl"><label>z threshold <output for="an-z">3.0</output></label><input type="range" id="an-z" min="1.5" max="5" step="0.1" value="3"></div>
+      <div class="ctl"><label>Streak length k <output for="an-k">2</output></label><input type="range" id="an-k" min="1" max="4" step="1" value="2"></div>
+      <div class="ctl"><label>Monitored cells × classes <output for="an-c">2000</output></label><input type="range" id="an-c" min="100" max="20000" step="100" value="2000"></div>
+      <div class="ctl"><label>Observation opportunities per cell per day <output for="an-o">4</output></label><input type="range" id="an-o" min="1" max="12" step="1" value="4"></div>
+      <div class="ctl"><label>True anomaly size <output for="an-d">4.0</output> σ</label><input type="range" id="an-d" min="1" max="8" step="0.5" value="4"></div>
+    </div>
+    <div class="readout">
+      <div><div class="k">Per-test false-alarm probability</div><div class="v" id="an-r1">—</div></div>
+      <div><div class="k">After streak confirmation</div><div class="v" id="an-r2">—</div></div>
+      <div><div class="k">Expected false alerts / day (fleet)</div><div class="v" id="an-r3">—</div></div>
+      <div><div class="k">Detection probability for the anomaly</div><div class="v" id="an-r4">—</div></div>
+      <div><div class="k">Time to confirm (streak × revisit)</div><div class="v txt" id="an-r5">—</div></div>
+    </div>
+    <p class="small">Gaussian tail for the false-alarm rate, independence between consecutive opportunities, and the anomaly modelled as a mean shift of the stated size; detection probability is the probability that all k opportunities exceed the threshold. Time to confirm assumes evenly spaced opportunities; at Stage 1 a cell is observed 2–7 times a day, so a two-pass streak confirms within about half a day, which is what the CYGNSS latency figures (3 h 46 min for one satellite, 48 min for seven) reflect.</p>
+  </div>
+
+  <h2 id="annex">Classified annex design</h2>
+  <p>EU buyers will expect classified handling and National Security Authority clearances <sup class="ref"><a href="#ref-R4-16">[R4-16]</a></sup>, and a Greek operator will need a legal basis and coordination with the Hellenic MoD and the National Intelligence Service for collection over foreign territory (04 §3.6). The annex is how the same catalogue serves both lines without ever moving classified fields into the exportable core.</p>
+  <div class="grid c2">
+    <div class="card"><h4 style="margin-top:0">Core (unclassified, exportable)</h4><ul>
+      <li>All seven entities with the fields in the ER diagram, minus the red lines</li>
+      <li>Platform association at class level only ("frigate-class S-band surveillance radar"), MMSI/ICAO24 when derived from public AIS/ADS-B</li>
+      <li>Parametric values at the resolution needed for the product (e.g. PRI to 0.1 µs), not at the full measurement resolution</li>
+      <li>Hosted in the EU sovereign cloud; NIS2 controls; EULA and export licence check on IQ and library exports</li>
+    </ul></div>
+    <div class="card"><h4 style="margin-top:0">Annex (classified, national)</h4><ul>
+      <li>Tables keyed by the same <code>class_id</code> and <code>emitter_id</code>: ELNOT/ENOT mapping, specific unit and site association, national assessments, full-resolution parametric exemplars and IQ pointers</li>
+      <li>Sovereign customer's tasking records and alert rules</li>
+      <li>Hosted in the accredited enclave (NATO SECRET / EU SECRET target); one-way import of core updates through a data diode; no reverse path</li>
+      <li>Edits by cleared staff only, four-eyes rule, audit-logged; the annex can be handed to the customer in full at contract end</li>
+    </ul></div>
+  </div>
+
+  <h2>Feeding national libraries</h2>
+  <p>Commercial geolocations and parametric observations can be contributed to NATO and national EW databases as low-classification source records; the reverse flow — library to commercial — is normally blocked (04 §5.3). The export is a packaged set of Characterised and Confirmed records in a 4559-compatible structure with source grading, delivered on a schedule or on request, and it never contains a national library's own content.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 1000 200" role="img" aria-label="One-way flow from the TALOS catalogue to national libraries">
+      <defs><marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker></defs>
+      <rect x="20" y="40" width="230" height="110" rx="6" class="box hi"/><text x="135" y="65" text-anchor="middle" class="lbl" font-weight="600">TALOS core catalogue</text><text x="135" y="85" text-anchor="middle" class="lbl s">unclassified · EU sovereign cloud</text><text x="135" y="101" text-anchor="middle" class="lbl s">Confirmed / Characterised records</text><text x="135" y="117" text-anchor="middle" class="lbl s">source grading · audit refs</text>
+      <rect x="310" y="40" width="190" height="110" rx="6" class="box"/><text x="405" y="65" text-anchor="middle" class="lbl" font-weight="600">Export packager</text><text x="405" y="85" text-anchor="middle" class="lbl s">4559/NSILI metadata</text><text x="405" y="101" text-anchor="middle" class="lbl s">4676 tracks · CSV/JSON</text><text x="405" y="117" text-anchor="middle" class="lbl s">caveat &amp; licence check</text>
+      <rect x="560" y="40" width="130" height="110" rx="6" class="box"/><text x="625" y="65" text-anchor="middle" class="lbl" font-weight="600">Data diode</text><text x="625" y="85" text-anchor="middle" class="lbl s">one-way transfer</text><text x="625" y="101" text-anchor="middle" class="lbl s">signed packages</text><text x="625" y="117" text-anchor="middle" class="lbl s">no return path</text>
+      <rect x="750" y="20" width="230" height="60" rx="6" class="box"/><text x="865" y="45" text-anchor="middle" class="lbl" font-weight="600">National EW database (HNDGS)</text><text x="865" y="63" text-anchor="middle" class="lbl s">+ TALOS classified annex</text>
+      <rect x="750" y="100" width="230" height="60" rx="6" class="box"/><text x="865" y="125" text-anchor="middle" class="lbl" font-weight="600">NATO NEDB / allied libraries</text><text x="865" y="143" text-anchor="middle" class="lbl s">via national contribution</text>
+      <line x1="250" y1="95" x2="308" y2="95" class="wire data" marker-end="url(#fa)"/>
+      <line x1="500" y1="95" x2="558" y2="95" class="wire data" marker-end="url(#fa)"/>
+      <path d="M690,95 L720,95 L720,50 L748,50" class="wire data" marker-end="url(#fa)"/>
+      <path d="M690,95 L720,95 L720,130 L748,130" class="wire data" marker-end="url(#fa)"/>
+      <path d="M865,160 L865,185 L135,185 L135,152" class="wire" stroke-dasharray="4 3" stroke="var(--critical)"/>
+      <text x="500" y="180" text-anchor="middle" class="lbl xs" fill="var(--critical)">no flow back: library content never enters the commercial catalogue</text>
+    </svg>
+    <figcaption>The one-way contribution flow. Records leave the core through a packager that applies caveats and licence checks, cross a data diode, and are ingested by the national library (which also holds the classified annex) and, by national decision, by allied libraries. The red dashed line marks the path that does not exist.</figcaption>
+  </figure>
+
+  <h2>Example records</h2>
+  <p>Four records as they would appear in the core catalogue API (JSON; coordinates and parameters are illustrative values consistent with the emitter classes in <code>EMITTERS</code>, not observations). Classification and caveat fields are present on every record; the annex fields are absent by construction.</p>
+  <div class="tabs">
+    <div class="tablist"><button data-tab="r1" aria-selected="true">Radar emitter instance</button><button data-tab="r2">GNSS jammer instance + alert</button><button data-tab="r3">Maritime radar track</button><button data-tab="r4">Signal class</button></div>
+    <div class="tabpanel" data-tab="r1"><pre class="rec">{
+  "entity": "EmitterInstance",
+  "emitter_id": "EMI-2031-004217",
+  "class_id": "SC-RADAR-NAVSURV-S",
+  "class_name": "Naval surveillance radar, S-band, pulse-compressed",
+  "maturity": "CHARACTERISED",
+  "classification": "UNCLASSIFIED",
+  "release_caveat": "COMMERCIAL-EULA",
+  "best_position": { "lat": 35.42, "lon": 33.61, "alt_m": 0,
+    "ellipse_95": { "semi_major_m": 310, "semi_minor_m": 140, "theta_deg": 72 }, "cep_m": 130,
+    "method": "TDOA+FDOA", "n_fixes": 14, "last_fix": "2031-03-18T22:47:12Z" },
+  "mobility": "mobile",
+  "platform_assoc": { "type": "class", "value": "frigate-class surveillance radar", "mmsi": null, "icao24": null },
+  "parametric_set": {
+    "rf": { "centre_mhz": [3285.0, 3312.5, 3340.0], "agility": "pulse-to-pulse, 3-value set", "bw_mhz": 4.8 },
+    "pri": { "family": "stagger", "values_us": [812.5, 905.0, 1010.0], "frame_us": 2727.5, "jitter_pct": 0.3 },
+    "pw_us": { "mean": 51.0, "sd": 0.4, "intra_pulse": "LFM, slope +0.094 MHz/us" },
+    "scan": { "type": "circular", "period_s": 4.02, "rpm": 14.9, "beamwidth_az_deg_est": 1.6 },
+    "polarisation": "H", "sidelobe_eirp_dbm_est": 101, "duty_cycle_pct": 2.1
+  },
+  "modes": [
+    { "mode_id": "M1", "label": "search", "pri_family": "stagger", "scan_period_s": 4.0 },
+    { "mode_id": "M2", "label": "sector/track", "pri_family": "constant", "pri_us": 405.0, "scan_period_s": null, "first_seen": "2031-02-11T06:12:40Z" }
+  ],
+  "drift_history": [ { "t": "2031-02-11T06:12:40Z", "event": "MODE_CHANGE", "from": "M1", "to": "M2", "det_id": "DET-2031-0391122" } ],
+  "first_seen": "2030-11-03T14:28:09Z", "last_seen": "2031-03-18T22:47:12Z", "n_obs": 61, "n_passes": 38,
+  "confirmation_evidence": [ { "type": "SAR", "provider": "ICEYE-HELLAS", "t": "2031-01-20T04:51:00Z", "inside_ellipse": true },
+                              { "type": "AIS-GAP-CORRELATION", "t": "2031-01-20", "note": "no AIS target within ellipse" } ],
+  "dormant_since": null,
+  "audit_ref": "AUD-2031-03-18-00912",
+  "links": { "detections": "/v1/detections?emitter_id=EMI-2031-004217", "tracks": "/v1/tracks?emitter_id=EMI-2031-004217" }
+}</pre></div>
+    <div class="tabpanel" data-tab="r2"><pre class="rec">{
+  "entity": "EmitterInstance",
+  "emitter_id": "EMI-2031-005088",
+  "class_id": "SC-JAM-GNSS-L1-CHIRP",
+  "class_name": "GNSS jammer, L1/E1, linear chirp",
+  "maturity": "PROVISIONAL",
+  "classification": "UNCLASSIFIED",
+  "release_caveat": "COMMERCIAL-EULA",
+  "best_position": { "lat": 44.21, "lon": 29.63, "alt_m": 0,
+    "ellipse_95": { "semi_major_m": 2400, "semi_minor_m": 900, "theta_deg": 15 }, "cep_m": 1050,
+    "method": "TDOA+FDOA", "n_fixes": 3, "terrain_adjusted": true, "last_fix": "2031-03-18T21:07:40Z" },
+  "mobility": "relocatable",
+  "parametric_set": {
+    "rf": { "centre_mhz": 1575.4, "sweep_span_mhz": 18.0, "sweep_period_us": 9.1, "shape": "sawtooth" },
+    "power": { "eirp_dbm_lower_bound": 58, "note": "lower bound from received power and geolocation; antenna pattern unknown" },
+    "duty_cycle_pct": 100, "spoofing_component": false
+  },
+  "activity": { "first_seen": "2031-03-17T19:26:03Z", "on_intervals": [ ["2031-03-17T19:26:03Z", "2031-03-18T00:41:00Z"], ["2031-03-18T14:25:10Z", null] ] },
+  "pattern_of_life_ref": "POL-BSW-JAM-L1-h3_852a1073fffffff",
+  "alert": {
+    "entity": "Alert", "alert_id": "ALR-2031-03-18-0226", "rule_id": "RULE-JAMMER-ACTIVE-IN-AOI",
+    "severity": "HIGH", "z": 6.8, "streak": 2, "baseline_version": "2031-W11",
+    "trigger_evidence": { "det_ids": ["DET-2031-0402210", "DET-2031-0402377", "DET-2031-0402391"], "geo_ids": ["GEO-2031-071155"] },
+    "customer_ids": ["CUST-EUSPA-RFI-A", "CUST-MARITIME-PLATFORM-02"], "hil_required": false,
+    "delivered_via": ["api", "email"], "delivered_at": "2031-03-18T22:31:05Z",
+    "cue_requests": []
+  },
+  "audit_ref": "AUD-2031-03-18-00977"
+}</pre></div>
+    <div class="tabpanel" data-tab="r3"><pre class="rec">{
+  "entity": "Track",
+  "track_id": "TRK-2031-01193",
+  "emitter_id": "EMI-2031-004890",
+  "class_id": "SC-RADAR-MARNAV-X",
+  "class_name": "Maritime navigation radar, X-band, magnetron",
+  "status": "active",
+  "classification": "UNCLASSIFIED",
+  "release_caveat": "COMMERCIAL-EULA",
+  "kinematic_model": "constant-velocity, sea-surface constraint",
+  "gap_policy": "coast up to 6 h at last velocity; close after 24 h",
+  "platform_assoc": { "type": "unmatched", "mmsi": null, "ais_candidates_within_ellipse": 0, "dark_vessel_flag": true },
+  "parametric_signature": { "centre_mhz": 9410, "pw_us": 0.25, "prf_hz": 1500, "rpm": 24, "note": "magnetron pulse, no intra-pulse modulation" },
+  "points": [
+    { "geo_id": "GEO-2031-070811", "t": "2031-03-18T14:27:51Z", "lat": 33.84, "lon": 20.12, "cep_m": 620, "method": "TDOA" },
+    { "geo_id": "GEO-2031-070992", "t": "2031-03-18T16:06:10Z", "lat": 33.96, "lon": 20.41, "cep_m": 540, "method": "TDOA+FDOA" },
+    { "geo_id": "GEO-2031-071140", "t": "2031-03-18T22:46:30Z", "lat": 34.48, "lon": 21.62, "cep_m": 480, "method": "TDOA+FDOA" }
+  ],
+  "state": { "t": "2031-03-18T22:46:30Z", "lat": 34.48, "lon": 21.62, "cog_deg": 61, "sog_kn": 8.9,
+             "cov_m2": [[2.3e5, 4.1e4], [4.1e4, 1.6e5]] },
+  "stanag4676": { "export_id": "4676-2031-01193", "track_number": 1193, "classification": "UNCLASSIFIED", "identity": "UNKNOWN" },
+  "cue_requests": [ { "type": "SAR", "provider": "ICEYE-HELLAS", "requested_at": "2031-03-18T23:20:00Z", "search_box_km": [37, 22], "status": "accepted", "planned_t": "2031-03-19T04:10:00Z" } ],
+  "audit_ref": "AUD-2031-03-18-01004"
+}</pre></div>
+    <div class="tabpanel" data-tab="r4"><pre class="rec">{
+  "entity": "SignalClass",
+  "class_id": "SC-COMMS-UHF-SATCOM-MANPACK",
+  "name": "UHF SATCOM manpack terminal uplink",
+  "group": "satcom",
+  "band": "UHF", "f_min_mhz": 292, "f_max_mhz": 318, "bw_typ_hz": 25000, "bw_range_hz": [5000, 25000],
+  "modulation_family": ["FSK", "PSK"], "access": "DAMA, bursty",
+  "burst_stats": { "typ_len_s": [0.5, 30], "duty": "bursty" },
+  "typ_eirp_dbm": 52, "eirp_range_dbm": [48, 57],
+  "detectability_verdict": "yes",
+  "detection_recipe": { "path": "tuner", "channel_bw_hz": 25000, "pfb_bins": 4096, "cfar": "order-statistic, P_fa 1e-6", "min_snr_db": 10,
+                        "snapshot": { "rate_sps": 50000, "len_ms": 100, "trigger": "SOI or novelty" } },
+  "geolocation_recipe": { "stage1": "DOPPLER_FIT over ≥20 s or AOA", "stage2": "TDOA+FDOA (frequency-stable; FDOA credited)" },
+  "confidence_thresholds": { "candidate": 0.6, "provisional_min_fixes": 3, "characterised_min_obs": 15 },
+  "parametric_distance_weights": { "centre_mhz": 1.0, "bw_hz": 0.5, "mod_class": 2.0, "burst_len": 0.3 },
+  "mode_tolerance": { "centre_khz": 5, "bw_pct": 20 },
+  "dormancy_opportunities": 10,
+  "sources": ["R3 §1.1 (SATCOM uplink terminals)", "R4-30 (HawkEye SOI library: satphones, PTT)"],
+  "classification": "UNCLASSIFIED",
+  "annex_available": true
+}</pre></div>
+  </div>
+
+  <h2>Export formats</h2>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Export</th><th>Content</th><th>Format</th><th>Line</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Catalogue API</td><td>EmitterInstance, SignalClass, Geolocation, Detection (paged, filtered by AOI, class, maturity, time)</td><td>JSON (REST), OGC API Features for geometries</td><td>Core</td><td>Default for subscribers and the demo console</td></tr>
+      <tr><td>Track export</td><td>Tracks of moving emitters with identity/classification fields</td><td>STANAG 4676</td><td>Core and annex</td><td>For NATO and national COPs (SitaWare-class)</td></tr>
+      <tr><td>Library package</td><td>Confirmed/Characterised instances and classes with source grading</td><td>STANAG 4559/NSILI metadata + JSON/CSV payload, signed</td><td>Core → national library</td><td>One-way, scheduled or on request</td></tr>
+      <tr><td>On-board SOI library</td><td>Classes and selected instances (frequency sets, PRI families, positions) for on-board matching and alert flags</td><td>Compact binary table, versioned, signed</td><td>Core (+ annex entries for the sovereign customer, encrypted)</td><td>Uploaded via the Athens S-band station</td></tr>
+      <tr><td>GeoJSON layers</td><td>Geolocations with ellipse polygons; activity cells; alerts</td><td>GeoJSON</td><td>Core</td><td>GIS ingestion, dashboards</td></tr>
+      <tr><td>GMTI-style dots</td><td>Moving-emitter detections for 4607-only consumers</td><td>STANAG 4607</td><td>Core</td><td>Optional</td></tr>
+      <tr><td>Reports</td><td>Analyst assessments, pattern-of-life summaries</td><td>PDF/HTML with classification banners</td><td>Core and annex</td><td>Template-driven</td></tr>
+      <tr><td>IQ exemplars</td><td>Snapshots attached to Characterised records</td><td>SigMF</td><td>Tasking tier / annex</td><td>Export-licence check per delivery</td></tr>
+    </tbody></table></div>
+
+  <h2>Governance</h2>
+  <ul class="gov">
+    <li><strong>Audit log.</strong> Every create/update/transition/export on every entity writes an immutable audit record (actor, algorithm version or analyst id, evidence ids, before/after hash). Government customers expect to audit why a record says what it says; the maturity rules make that question answerable.</li>
+    <li><strong>Release caveats.</strong> Each record carries a caveat (COMMERCIAL-EULA, CUSTOMER-EXCLUSIVE-&lt;id&gt;, GOV-ONLY, NATIONAL) that the API enforces per customer; exclusive tasking results are invisible to other subscribers until the exclusivity window expires.</li>
+    <li><strong>Classification banners.</strong> Every view, export and report shows the classification of its most sensitive record; the core cannot render annex fields because it does not hold them.</li>
+    <li><strong>Retention.</strong> Detections and snapshots: 24 months online, archive thereafter; instances: indefinite with archive state; customer-exclusive data: per contract.</li>
+    <li><strong>Data protection.</strong> Where a communications emitter could be tied to an individual (satphone, PMR), the core stores activity statistics and class-level records, not persistent per-device identifiers; the GDPR analysis in the legal gate (G0) defines the limits.</li>
+    <li><strong>Versioning.</strong> Baselines, solver versions, classifier versions and SOI library uploads are versioned and referenced from the records they affect, so a re-processing can be reproduced.</li>
+    <li><strong>Quality metrics.</strong> Per class: detection probability and false-alarm rate from calibration campaigns (a KPI customers ask for and nobody publishes), geolocation residual statistics against known sites, maturity-transition counts per month.</li>
+  </ul>
+  <p>See the <a href="../04_Service_Demo/index.html">operations console demo</a> for the catalogue browser, maturity filters and the alert view built on this model, and the <a href="collection_planning.html">collection planning page</a> for where each entity is produced in the pipeline.</p>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/emitters.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  // ---------- maturity state diagram ----------
+  (function states() {
+    const svg = d3.select('svg[aria-label^="Maturity"]'); const g = svg.select('#states');
+    const S = [['Candidate', 'single pass, one class match'], ['Provisional', '≥3 consistent fixes'], ['Confirmed', 'independent corroboration'], ['Characterised', 'stable parametrics, platform class'], ['Archived', 'dormant / merged / retired']];
+    const w = 160, x0 = 30, dx = 195, y = 110;
+    S.forEach((s, i) => {
+      const x = x0 + i * dx;
+      g.append('rect').attr('x', x).attr('y', y).attr('width', w).attr('height', 56).attr('rx', 28).attr('class', i === 3 ? 'box hi' : 'box');
+      g.append('text').attr('x', x + w / 2).attr('y', y + 24).attr('text-anchor', 'middle').attr('class', 'lbl').attr('font-weight', 600).text(s[0]);
+      g.append('text').attr('x', x + w / 2).attr('y', y + 42).attr('text-anchor', 'middle').attr('class', 'lbl xs').text(s[1]);
+      if (i < 4) g.append('line').attr('x1', x + w).attr('x2', x + dx - 2).attr('y1', y + 28).attr('y2', y + 28).attr('class', 'wire').attr('marker-end', 'url(#sa)');
+    });
+    const lbl = (i, t, dy) => g.append('text').attr('x', x0 + i * dx + w + (dx - w) / 2).attr('y', y + dy).attr('text-anchor', 'middle').attr('class', 'lbl xs').text(t);
+    lbl(0, '3 fixes within', 8); lbl(0, 'ellipses', 20);
+    lbl(1, 'SAR / AIS /', 8); lbl(1, 'ground truth', 20);
+    lbl(2, 'N stable obs,', 8); lbl(2, 'modes catalogued', 20);
+    lbl(3, 'retention or', 8); lbl(3, 'merge', 20);
+    // entry
+    g.append('circle').attr('cx', 12).attr('cy', y + 28).attr('r', 5).attr('fill', 'var(--ink-2)');
+    g.append('line').attr('x1', 17).attr('x2', x0 - 2).attr('y1', y + 28).attr('y2', y + 28).attr('class', 'wire').attr('marker-end', 'url(#sa)');
+    g.append('text').attr('x', 10).attr('y', y - 10).attr('class', 'lbl xs').text('new detection, no gate match');
+    // demotions (dashed, below)
+    const back = (from, to, t, dy) => { const xa = x0 + from * dx + w / 2, xb = x0 + to * dx + w / 2; g.append('path').attr('d', `M${xa},${y + 56} L${xa},${y + 56 + dy} L${xb},${y + 56 + dy} L${xb},${y + 58}`).attr('class', 'wire').attr('stroke-dasharray', '4 3').attr('marker-end', 'url(#sa)'); g.append('text').attr('x', (xa + xb) / 2).attr('y', y + 56 + dy - 4).attr('text-anchor', 'middle').attr('class', 'lbl xs').text(t); };
+    back(1, 0, 'inconsistent fix > 3σ on ≥2 passes, or parametric split', 30);
+    back(2, 0, 'contradicting corroboration (demote, analyst)', 56);
+    // dormant to archived (top)
+    const top = (from, to, t, dy) => { const xa = x0 + from * dx + w / 2, xb = x0 + to * dx + w / 2; g.append('path').attr('d', `M${xa},${y} L${xa},${y - dy} L${xb},${y - dy} L${xb},${y - 2}`).attr('class', 'wire').attr('stroke-dasharray', '4 3').attr('marker-end', 'url(#sa)'); g.append('text').attr('x', (xa + xb) / 2).attr('y', y - dy - 4).attr('text-anchor', 'middle').attr('class', 'lbl xs').text(t); };
+    top(1, 4, 'dormant M opportunities → flag; beyond retention → Archived (any level)', 40);
+    top(3, 4, 'merge duplicates', 18);
+    g.append('text').attr('x', 30).attr('y', 290).attr('class', 'lbl xs').text('Every transition: audit record {actor, evidence ids, before/after}; Characterised records are eligible for the on-board SOI library and for national-library export.');
+  })();
+
+  // ---------- anomaly calculator ----------
+  function Phi(z) { // standard normal CDF
+    const t = 1 / (1 + 0.2316419 * Math.abs(z)); const d = 0.3989423 * Math.exp(-z * z / 2);
+    const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return z > 0 ? 1 - p : p;
+  }
+  function an() {
+    const z = +document.getElementById('an-z').value, k = +document.getElementById('an-k').value, c = +document.getElementById('an-c').value, o = +document.getElementById('an-o').value, d = +document.getElementById('an-d').value;
+    const pfa = 1 - Phi(z), pk = Math.pow(pfa, k), fa = c * o * pk, pd = Math.pow(1 - Phi(z - d), k);
+    document.getElementById('an-r1').textContent = pfa.toExponential(2);
+    document.getElementById('an-r2').textContent = pk.toExponential(2);
+    const el = document.getElementById('an-r3'); el.textContent = fa >= 10 ? fa.toFixed(0) : fa.toFixed(2); el.className = 'v ' + (fa > 20 ? 'bad' : fa > 3 ? 'warn' : 'good');
+    const e4 = document.getElementById('an-r4'); e4.textContent = (pd * 100).toFixed(1) + ' %'; e4.className = 'v ' + (pd < 0.5 ? 'bad' : pd < 0.85 ? 'warn' : 'good');
+    document.getElementById('an-r5').textContent = (k * 24 / o).toFixed(1) + ' h at ' + o + ' opportunities/day';
+  }
+  ['an-z', 'an-k', 'an-c', 'an-o', 'an-d'].forEach(id => bindRange(id, an, v => id === 'an-z' || id === 'an-d' ? (+v).toFixed(1) : v));
+  an();
+
+  function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  renderRefs(['R4-1','R4-2','R4-6','R4-8','R4-14','R4-16','R4-17','R4-28','R4-29','R4-30','R4-31']);
+})();
+</script>
+</body>
+</html>

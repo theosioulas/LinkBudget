@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to use this study — TALOS study</title>
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>Overview</b> · How to use this study</div>
+    <h1>How to use, change and extend this study</h1>
+    <p class="lead">The study is a self-contained web application: open <code>index.html</code> from the Drive folder in any modern browser — no server, no internet connection needed. Everything, including the maps, orbit propagation and geolocation maths, runs locally. This page explains the conventions, where the numbers live, and how an engineer changes them.</p>
+  </header>
+
+  <h2>Folder structure</h2>
+  <pre>SIGINT Satellite/
+├── index.html                      study hub
+├── executive_summary.html
+├── how_to_use.html
+├── 01_Research_Landscape/          state of the art, operators, suppliers, market & regulation, lessons, references
+├── 02_Technical_Understanding/     architecture, payload explorer, emitters, antennas, RF chain, processing,
+│                                   geolocation, bus, budgets, environment, risks, roadmap & cost
+├── 03_Scenarios_Services/          CONOPS, use cases, single vs constellation, coverage & TDOA/FDOA simulators,
+│                                   collection planning, products & pricing, EW database
+├── 04_Service_Demo/                operations console (demo), ground segment, software architecture
+├── 05_Orbit_Study/                 answer finder (how many satellites), constellation templates, choosing the orbit
+├── research/                       the five research notes (Markdown) the pages are built from
+└── assets/
+    ├── css/app.css                 design system (light / dark)
+    ├── js/app.js                   navigation shell, TOC, tabs, tables, tooltips
+    ├── js/orbit.js                 orbit propagation, coverage, passes, TDOA/FDOA geometry, RF helpers
+    ├── js/geo.js                   offline world map (d3-geo on canvas)
+    ├── js/charts.js                chart helpers
+    ├── js/vendor/                  d3 v7, KaTeX (local copies)
+    └── data/                       baseline.js, components.js, emitters.js, risks.js, programmatics.js,
+                                    suppliers.js, operators_table.js, references.js, orbit_study.js (pre-computed
+                                    template performance; regenerate with tools/orbit_study.js), world.js</pre>
+
+  <h2>Conventions</h2>
+  <ul>
+    <li><b>Sources.</b> Claims carry markers like <sup class="ref"><a href="01_Research_Landscape/references.html">[R3-2]</a></sup>: R1–R5 are the five research notes, the number is the source entry inside that note. Every page ends with its sources; the full list is in <a href="01_Research_Landscape/references.html">References</a>. All web sources were checked on 21 October 2026.</li>
+    <li><b>Estimates.</b> Anything marked <span class="tag">est.</span> or "(est.)" is an engineering estimate derived in the study, not a measured or published value. Vendor claims are called claims.</li>
+    <li><b>Baseline.</b> "TALOS-1" is the study's baseline satellite (issue 0.3). Where a page quotes a baseline number it reads it from <code>assets/data/baseline.js</code> or <code>components.js</code>, so the component list, the budgets page, the explorer and the simulators agree by construction.</li>
+    <li><b>Bands.</b> UHF, L, S, C and X always use the same five colours throughout the study, in diagrams, charts and chips: <span class="band-chip uhf">UHF</span> <span class="band-chip l">L</span> <span class="band-chip s">S</span> <span class="band-chip c">C</span> <span class="band-chip x">X</span>.</li>
+    <li><b>Theme and print.</b> The sidebar buttons switch light/dark and print the current page (navigation is hidden in print). The demo console is dark by design.</li>
+  </ul>
+
+  <h2 id="engine">Changing the numbers</h2>
+  <p>Open the data files in any text editor; they are plain JavaScript objects with comments. Reload the page and every calculator, table and simulator that depends on the value follows.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Want to change…</th><th>Edit</th><th>What updates</th></tr></thead>
+    <tbody>
+      <tr><td>Orbit altitude / inclination, stages, cluster spacing, ground stations</td><td><code>assets/data/baseline.js</code></td><td>Simulator defaults, pass tables, budgets, CONOPS pass examples, demo console</td></tr>
+      <tr><td>A unit's mass, power, TRL, suppliers, interfaces, risks</td><td><code>assets/data/components.js</code></td><td>Payload explorer (geometry positions are in the explorer page itself), budgets, bus and RF pages</td></tr>
+      <tr><td>Emitter EIRP, bandwidth, frequency, verdict</td><td><code>assets/data/emitters.js</code></td><td>Link-budget calculator, emitter tables, hub ribbon, geolocation simulator presets, demo data classes</td></tr>
+      <tr><td>Risk scores and mitigations</td><td><code>assets/data/risks.js</code></td><td>Risk register, heat map, component risk tags</td></tr>
+      <tr><td>Cost ranges, phases, gates, products, customers, KPIs</td><td><code>assets/data/programmatics.js</code></td><td>Roadmap &amp; cost, products &amp; services, use cases, market page</td></tr>
+      <tr><td>Supplier catalogue rows</td><td><code>assets/data/suppliers.js</code> (generated from <code>research/02_suppliers_catalogue.md</code>)</td><td>Supplier catalogue page</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Reusing the engine in your own tools</h2>
+  <p><code>assets/js/orbit.js</code> is dependency-free and exposes <code>ORB</code>: circular-orbit propagation with J2 secular drift, ECI/ECEF/geodetic conversions, look angles, footprint geometry, Walker and cluster generators, pass prediction, revisit grids, eclipse fraction, Doppler, and the TDOA/FDOA Jacobians, covariance and error-ellipse maths used by the simulators, plus <code>ORB.RF</code> for free-space loss, noise, sensitivity, aperture gain and the Stein-form timing/frequency accuracy bounds. It is deliberately simple (no drag, no higher-order gravity, Earth-surface constraint for geolocation) so that it can be read and checked; for mission analysis of record use STK, GMAT or Orekit and compare. <code>geo.js</code> draws the maps from the bundled Natural Earth country polygons so the application needs no tiles or network.</p>
+  <p>The demo console generates its emitters, detections and passes deterministically at load time from a seeded random generator tied to real pass geometry; it is a user-interface prototype, not a data product. The <a href="04_Service_Demo/software_architecture.html">software architecture</a> page describes the real pipeline it stands in for.</p>
+
+  <h2>Extending the study</h2>
+  <ul>
+    <li>New pages: copy an existing page, keep the script block order (data → engine → <code>app.js</code> last) and add the page to <code>SITEMAP</code> in <code>app.js</code> so it appears in the navigation.</li>
+    <li>New diagrams: inline SVG using the classes in <code>app.css</code> (<code>.box</code>, <code>.wire.rf</code>, <code>.lbl</code> …) keeps them theme-aware.</li>
+    <li>Charts: <code>Charts.bar / line / stack / range</code> in <code>charts.js</code> follow the study's data-viz rules (one axis, fixed colour order, legends, table fallback).</li>
+    <li>Research notes: the Markdown files in <code>research/</code> are the evidence base; update them first, then the data files, then the pages.</li>
+  </ul>
+
+  <h2>Known limits of issue 0.3</h2>
+  <ul>
+    <li>Prices are indicative ranges from public sources and marked unverified where the research could not confirm them; the next step is RFIs to the shortlisted suppliers.</li>
+    <li>Component masses and powers are allocations, not vendor data, reconciled to the research ranges.</li>
+    <li>The orbit engine ignores drag and uses a min-elevation cone for the footprint; revisit figures are therefore slightly optimistic at low elevation.</li>
+    <li>Regulatory statements reference the laws and their status as of the research date; a legal opinion is a Phase A deliverable.</li>
+  </ul>
+</div>
+<script src="assets/js/app.js" data-root="./"></script>
+</body>
+</html>

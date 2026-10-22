@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geolocation theory — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .eqnote { font-family: var(--font-ui); font-size: 0.82rem; color: var(--ink-3); margin-top: -0.4rem; }
+  .mini { font-family: var(--font-ui); font-size: 0.8rem; color: var(--ink-2); }
+  .geo-legend { display:flex; gap:1rem; flex-wrap:wrap; font-family: var(--font-ui); font-size:.78rem; color:var(--ink-2); margin:.4rem 0 0; }
+  .geo-legend i { display:inline-block; width:18px; height:0; border-top:2px solid var(--c); vertical-align:middle; margin-right:.35rem; }
+  .geo-legend i.dash { border-top-style:dashed; }
+  .stage-grid .kpi .v { font-size: 1.25rem; }
+  td.wrapcell { max-width: 28ch; white-space: normal; }
+  .refmark { font-size: .72em; }
+  .katex-display { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+  #dop-chart-wrap svg text[style*="font-weight: 600"], #c-chart-wrap svg text[style*="font-weight: 600"] { display: none; }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>02 Technical understanding</b> · Geolocation</div>
+    <h1>Geolocation theory</h1>
+    <p class="lead">How a passive receiver in low Earth orbit turns a few hundred milliseconds of someone else's signal into a position on the ground — first with one satellite (angle, Doppler, repeated passes), then with the TALOS cluster (TDOA/FDOA). The bottom line: a single TALOS-1 delivers 5–20 km fixes per pass and 1–5 km on fixed emitters after several passes; three satellites 150 km apart deliver 0.3–3 km on narrowband comms and 100–500 m on radars, and the budget is dominated by thermal noise and geometry, not by the 20 ns clock.</p>
+    <div class="meta"><span id="meta-baseline">Baseline: TALOS-1</span><span>Sources: research notes 03 §3.4, §6, §9</span><span>Interactive: Doppler pass, accuracy calculator, TDOA/FDOA geometry</span></div>
+  </header>
+
+  <div class="grid c4 stage-grid" id="kpis"></div>
+
+  <h2>Why geolocation is the product</h2>
+  <p>Detection alone — "a 3 GHz radar is on somewhere in this 2,000 km footprint" — has limited value. The products customers pay for (<a href="../03_Scenarios_Services/products_services.html">L2 geolocations, L3 catalogue, L4 analytics</a>) all hang off a position with a confidence ellipse: a jammer <em>here</em>, a frigate's radar <em>on this track</em>, a SAM battery <em>moved 40 km since Tuesday</em>. Everything in this chapter therefore ends in one number: the 95 % error ellipse (or CEP) the system can honestly promise for a given signal, geometry and stage of the constellation. The interactive geometry lives in the <a href="../03_Scenarios_Services/geolocation_sim.html">TDOA / FDOA simulator</a>; this page is the theory behind what that simulator computes.</p>
+  <p>Two families of method exist. <b>Single-satellite</b> methods exploit the satellite's own motion or an antenna array and are what TALOS-1 can do alone from 2030. <b>Multi-satellite</b> methods compare the same signal received at two or more satellites and are what the 3-satellite cluster adds from 2032. The physics is the same in both cases — range, range-rate and angle to an emitter encoded in time, frequency and phase — but the error budgets are very different.</p>
+
+  <h2>Single-satellite methods</h2>
+
+  <h3>(a) Angle of arrival by interferometry</h3>
+  <p>Two antenna elements separated by a baseline \(D\) receive the same wavefront with a phase difference that depends on the angle \(\theta\) from the array boresight:</p>
+  $$ \Delta\phi = \frac{2\pi D}{\lambda}\sin\theta, \qquad \sigma_\theta = \frac{\lambda\,\sigma_\phi}{2\pi D\cos\theta} $$
+  <p class="eqnote">\(\sigma_\phi\) is the residual phase error after calibration (radians); \(\sigma_\theta\) is the resulting bearing error.</p>
+  <p>Projected on the ground at slant range \(d\) and grazing elevation \(\varepsilon\) at the emitter, the cross-range error is \( \approx d\,\sigma_\theta \) and the along-line-of-sight error is \( \approx d\,\sigma_\theta / \sin\varepsilon \), so the error cell is an ellipse stretched away from the satellite<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>. The TALOS DF array is a 1.2 m cross-boom carrying four sinuous elements (baselines 0.6 / 0.85 / 1.2 m) covering 1–12 GHz; the table below applies the equations to it with the 5° residual phase budget from the payload engineering note.</p>
+  <div class="table-wrap"><table class="compact" id="aoa-table"><thead><tr><th>Frequency</th><th class="num">D/λ (1.2 m)</th><th class="num">σ<sub>θ</sub> (mrad)</th><th class="num">Ground error at nadir (530 km)</th><th class="num">Cross-range at 1,000 km</th><th class="num">Along-LOS at 1,000 km (ε ≈ 25°)</th><th>Ambiguous lobes ±90°</th></tr></thead><tbody></tbody></table></div>
+  <p>Three things follow. First, AOA is a kilometre-class method per snapshot and improves only as \(1/\sqrt{n}\) with \(n\) independent snapshots across a pass — twenty snapshots buy a factor 4–5<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>. Second, the array is useless if the spacecraft does not know where it is pointing: 1 mrad of attitude error is 1 km of ground error at 1,000 km, which is why TALOS carries two star trackers for 0.02° knowledge (0.35 mrad) where HawkEye's Pathfinders flew with 2.1° pointing<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup>. Third, the 5° phase budget is a <em>thermal and mechanical</em> requirement: 4 mm of path mismatch is 5° at 1 GHz, hence the ±2 °C front-end plate, matched cables and the injected calibration tone in the <a href="payload_explorer.html#cal">component model</a>. Phase wraps whenever \(D > \lambda/2\), so the long baseline alone is ambiguous; the array resolves this coarse-to-fine (short baseline for the unambiguous lobe, long baseline for precision) and by using three non-collinear baselines, the standard correlative-interferometer approach in ESM receivers.</p>
+
+  <h3>(b) Doppler / frequency of arrival over a pass</h3>
+  <p>A satellite at 7.3 km/s sees every ground emitter's carrier shifted by the projection of its velocity on the line of sight:</p>
+  $$ f_r(t) = f_0\left(1 - \frac{\mathbf{v}_{sat}(t)\cdot\hat{\mathbf{u}}(t)}{c}\right) + \delta f, \qquad \dot f \big|_{TCA} \approx -\frac{f_0}{c}\,\frac{v^2}{d} $$
+  <p class="eqnote">\(\hat{\mathbf u}\) is the unit vector satellite → emitter, \(\delta f\) the unknown emitter frequency offset, \(d\) the slant range at closest approach.</p>
+  <p>At 1 GHz the shift swings through ±25 kHz over a pass and changes fastest at the time of closest approach: about 385 Hz/s at 500 km range, 193 Hz/s at 1,000 km<sup class="ref"><a href="#ref-R3-13">[R3-13]</a></sup>. The curve's shape — how steep the zero crossing is and when it happens — encodes the emitter's along-track position (time of closest approach) and its cross-track distance (steepness: a far emitter sees a gentler S-curve). Fitting \(f_r(t)\) over 1–8 minutes with the unknowns (lat, lon, \(\delta f\)) and an Earth-surface constraint gives a fix; the chart below does exactly that for TALOS-1, propagating the baseline orbit and evaluating the geometric Doppler every 5 s.</p>
+
+  <div class="panel">
+    <h3>Doppler seen by TALOS-1 over one pass</h3>
+    <div class="controls">
+      <div class="ctl"><label>Cross-track offset A <output for="dop-off">150</output> km</label><input type="range" id="dop-off" min="0" max="900" step="10" value="150"></div>
+      <div class="ctl"><label>Cross-track offset B <output for="dop-off2">500</output> km</label><input type="range" id="dop-off2" min="0" max="900" step="10" value="500"></div>
+      <div class="ctl"><label>Carrier frequency <output for="dop-f">1000</output> MHz</label><input type="range" id="dop-f" min="300" max="10000" step="100" value="1000"></div>
+    </div>
+    <div id="dop-chart-wrap"><div id="dop-chart"></div></div>
+    <div class="geo-legend"><span><i style="--c:var(--s1)"></i>offset A, east of track</span><span><i class="dash" style="--c:var(--s3)"></i>offset A, west of track (mirror) — identical curve</span><span><i style="--c:var(--s2)"></i>offset B, east</span></div>
+    <div class="readout">
+      <div><div class="k">Pass geometry</div><div class="v" id="dop-geo">—</div></div>
+      <div><div class="k">Peak Doppler</div><div class="v" id="dop-max">—</div></div>
+      <div><div class="k">Doppler rate at TCA (offset A)</div><div class="v" id="dop-rate">—</div></div>
+      <div><div class="k">Slant range at TCA (A / B)</div><div class="v" id="dop-range">—</div></div>
+      <div><div class="k">Position sensitivity ≈ λ d / v</div><div class="v" id="dop-sens">—</div></div>
+    </div>
+    <p class="mini">Computed from <code>ORB.doppler</code> on the propagated baseline orbit (<span id="dop-orbit"></span>). The pass is the first northbound crossing of 38° N after the epoch; the emitter sits perpendicular to the ground track at the time of closest approach. Points below 5° elevation at the emitter are dropped. Hover the chart for values.</p>
+  </div>
+
+  <p>The chart shows the method's two limitations directly. The solid and dashed curves for offset A are identical: the Doppler history is symmetric about the ground track, so a single pass cannot tell east from west — the <b>mirror ambiguity</b>. It is broken by the antenna pattern (a directional antenna looking one way), by an AOA measurement, or by a second pass with different geometry. And the difference between offsets A and B is only in the slope through zero; the fit therefore needs the emitter to hold its frequency to roughly \(10^{-8}\)–\(10^{-9}\) over the observation. Crystal-controlled radios, radars and fixed terminals do; cheap VCO jammers and frequency-hopping nets do not, and for those the method degrades to "somewhere along the ground track at this time". Sensitivity: position error ≈ \(\lambda\,\sigma_f\,d/v\) × a geometry factor of 1–10 — at 1 GHz and 1,000 km, about 40 m per hertz of frequency error before the geometry factor. Published results bracket what is achievable: Clements et al. fixed a stationary S-band GNSS spoofer to <b>68 m</b> from a single 20 s Spire capture (6.7 km 95 % semi-major axis; simulated worst cases 2–24 km)<sup class="ref"><a href="#ref-R3-14">[R3-14]</a></sup>; FoA interference-localisation studies find satellite velocity error and emitter oscillator offset (≈ 50 Hz bound) to be the dominant terms<sup class="ref"><a href="#ref-R3-13">[R3-13]</a></sup>; Unseenlabs' whole Gen-1 product is single-satellite geolocation "to the nearest kilometre", almost certainly Doppler/multi-snapshot (inference)<sup class="ref"><a href="#ref-R3-6">[R3-6]</a></sup>.</p>
+
+  <h3>(c) Multi-pass triangulation</h3>
+  <p>Successive passes of one satellite are 95 minutes apart and the geometry rotates by 20–25° of longitude each time, so lines of bearing or Doppler fixes from several passes intersect at angles that make the solution well-conditioned. For a <em>stationary</em> emitter the error falls to the few-hundred-metre class over days — adequate for fixed radar sites, SATCOM terminals and permanent jammers, which is exactly the content of an EW order-of-battle database. For anything that moves between passes (ships at 10 m/s cover 57 km in 95 minutes) the method is useless, and that gap is the fundamental argument for the cluster. Multi-pass fusion is also what resolves the mirror ambiguity for free: the mirror image of pass 1 does not coincide with the mirror image of pass 2.</p>
+
+  <h3>(d) TDOA against a known reference</h3>
+  <p>If a cooperative or known emitter sits in the same footprint — an AIS base station, an ADS-B ground site, a calibration beacon the operator runs — the differential time of arrival between the reference and the target through the same receiver cancels the receiver's clock bias and most of its path delays. This is the single-satellite analogue of the gateway-reference scheme in the FoA literature<sup class="ref"><a href="#ref-R3-13">[R3-13]</a></sup>. For TALOS it is a <em>calibration</em> tool rather than a product: it is how the commissioning campaign measures the timestamp latency and phase offsets of each chain, and how the 20 ns inter-satellite budget is verified in orbit against ground truth (risk <a href="risks.html#T-03">T-03</a>).</p>
+
+  <h2>Multi-satellite methods: TDOA and FDOA</h2>
+  <p>Two or more satellites receiving the same burst add two new observables. The <b>time difference of arrival</b> fixes the difference of ranges to the two satellites; the <b>frequency difference of arrival</b> fixes the difference of range-rates. Each has its own surface of position, and the emitter is where those surfaces meet the Earth.</p>
+
+  <h3>TDOA hyperboloids</h3>
+  $$ \Delta\tau_{ij} = \frac{|\mathbf{x}-\mathbf{r}_i| - |\mathbf{x}-\mathbf{r}_j|}{c} + (b_i - b_j) $$
+  <p class="eqnote">\(\mathbf r_i\) satellite positions, \(\mathbf x\) emitter, \(b_i\) receiver clock biases.</p>
+  <p>Constant range difference is a hyperboloid of two sheets with the satellites at its foci; intersected with the Earth's surface it is a curve. Two satellites therefore give a <em>line</em> of position (ambiguous along it); three give a point plus its mirror; three or four with FDOA, or a fourth satellite, remove the ambiguity<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup><sup class="ref"><a href="#ref-R3-11">[R3-11]</a></sup>. The clock-bias term is why the 20 ns synchronisation matters: 1 ns is 30 cm of range difference, and a bias that is not common to both satellites maps directly into the fix.</p>
+
+  <h3>FDOA iso-Doppler surfaces</h3>
+  $$ \Delta f_{ij} = \frac{f_0}{c}\left(\dot r_i - \dot r_j\right), \qquad \dot r_i = \mathbf{v}_i\cdot\frac{\mathbf{x}-\mathbf{r}_i}{|\mathbf{x}-\mathbf{r}_i|} $$
+  <p>For two satellites 100 km apart along-track at 1,000 km range and 1 GHz the FDOA spans about 2.5 kHz across the footprint, a ground gradient of ≈ 2.5 mHz/m — or <b>≈ 400 m per hertz</b> of FDOA error<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>. The iso-Doppler contours run roughly perpendicular to the TDOA hyperbolae in the along-track direction, which is why FDOA is so valuable for a coplanar formation whose TDOA geometry alone is weak. The requirements it imposes are on frequency, not time: the two local oscillators must agree to ≪ 0.1 Hz at 1 GHz (\(10^{-10}\) relative) over the snapshot, which GNSS-disciplined OCXOs (\(10^{-11}\)–\(10^{-12}\) short-term) meet and free-running TCXOs do not; and the emitter itself must drift ≪ 0.1 Hz during the 100 ms snapshot (radars and fixed-frequency comms pass, frequency-hoppers fail).</p>
+
+  <figure class="diagram" id="fig-geom">
+    <svg viewBox="0 0 980 470" id="geom-svg" role="img" aria-label="TDOA hyperbola and FDOA iso-Doppler geometry for two satellites"></svg>
+    <figcaption><b>Lines of position on the ground for the TALOS cluster pair (two satellites 150 km apart along-track, 530 km altitude, 7.3 km/s).</b> Left: side view — the emitter E lies on the hyperboloid of constant range difference \(d_1 - d_2\) with the satellites at its foci. Right: plan view, 1,600 × 1,600 km of ground. Solid orange curves are TDOA hyperbolae spaced 50 µs apart; dashed teal curves are FDOA iso-Doppler contours spaced 500 Hz apart at 1 GHz — closed curves around the formation's midpoint, because the leading and trailing satellites see the largest range-rate difference for emitters directly between them. The curves cross at a steep angle near the formation's centre line and become nearly parallel far along-track, which is the geometric reason the error ellipse stretches along the ground track. The baseline's 150 km separation versus the ≈ 1,000 km range to the edge of the footprint is the GDOP ≈ d/L of the next section. Computed in-page from the geometry; not to scale in the side view.</figcaption>
+  </figure>
+
+  <h3>Hybrid TDOA/FDOA: the cross-ambiguity function</h3>
+  <p>In practice nobody measures TDOA and FDOA separately. The two time-stamped recordings are cross-correlated over a grid of trial delays and frequency offsets — the cross-ambiguity function (CAF) — and the peak gives both at once, with the peak's width in each axis giving the measurement uncertainties. Kleos' published pipeline is the clearest open description: time-align downlinked recordings, slice in time and frequency, compute pairwise CAFs, filter blind measurements, then solve by iterative non-linear least squares with a zero-altitude constraint and report a confidence ellipse<sup class="ref"><a href="#ref-R3-10">[R3-10]</a></sup>. HawkEye combines TDOA/FDOA across its three-satellite cluster with GNSS-disciplined clocks and an S-band inter-satellite link so that the CAF can run on orbit<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup><sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>. TALOS adopts the Kleos path for the first cluster (ground CAF on downlinked snapshots, which is why every snapshot carries GNSS time, PVT and raw observables) and the HawkEye path when the ISL is added.</p>
+
+  <h3>Thermal-noise accuracy (Stein form)</h3>
+  <p>How well the CAF peak can be located is set by the signal's bandwidth and duration and by the effective SNR of the pair. In the form HawkEye uses<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>:</p>
+  $$ \sigma_\tau \approx \frac{1}{\beta\sqrt{B\,T\,\gamma}}, \qquad \sigma_f \approx \frac{1}{T_e\sqrt{B\,T\,\gamma}} $$
+  $$ \beta = 2\pi B_{rms},\quad B_{rms}=B/\sqrt{12}\ \text{(rectangular spectrum)},\quad T_e = 2\pi T/\sqrt{12} $$
+  $$ \gamma = \frac{1}{1/\gamma_1 + 1/\gamma_2 + 1/(\gamma_1\gamma_2)} $$
+  <p class="eqnote">\(B\) noise/signal bandwidth (Hz), \(T\) integration time (s), \(\gamma_{1,2}\) the SNRs at the two satellites; \(BT\) is the time-bandwidth product. The Cramér-Rao bound for TDOA-only geolocation scales as \(1/(\eta\rho)\) with \(\eta = W_e^2/c^2\), improves as \(1/N\) with \(N\) satellites and grows roughly as \(h^2\) with altitude<sup class="ref"><a href="#ref-R3-12">[R3-12]</a></sup>.</p>
+  <p>The consequence is counter-intuitive for people used to radar: a weak but <em>wideband</em> signal is easier to locate than a strong narrowband one. A 25 kHz voice channel integrated for 100 ms at 10 dB SNR gives \(\sigma_\tau\) of the order of 100 ns (30–40 m of range difference); a single 1 µs radar pulse with 1 MHz bandwidth at 20 dB gives ≈ 55 ns, and a hundred such pulses coherently combined give ≈ 1.6 m<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>. The calculator below uses the implementation in <code>ORB.RF</code>, which carries a factor \(\sqrt{2}\) (two-sided noise) relative to the research note's worked examples; both are planning-grade.</p>
+
+  <div class="panel">
+    <h3>Thermal-noise accuracy and geometric dilution calculator</h3>
+    <div class="controls">
+      <div class="ctl"><label>Signal bandwidth B <output for="c-b">25 kHz</output></label><input type="range" id="c-b" min="3" max="8" step="0.05" value="4.398"></div>
+      <div class="ctl"><label>Integration time T <output for="c-t">100 ms</output></label><input type="range" id="c-t" min="-6" max="0.3" step="0.05" value="-1"></div>
+      <div class="ctl"><label>SNR per satellite <output for="c-snr">10</output> dB</label><input type="range" id="c-snr" min="-10" max="40" step="1" value="10"></div>
+      <div class="ctl"><label>Carrier f₀ <output for="c-f0">1000</output> MHz</label><input type="range" id="c-f0" min="300" max="10000" step="100" value="1000"></div>
+      <div class="ctl"><label>Range to emitter d <output for="c-d">1000</output> km</label><input type="range" id="c-d" min="530" max="2200" step="10" value="1000"></div>
+      <div class="ctl"><label>Baseline L <output for="c-l">150</output> km</label><input type="range" id="c-l" min="20" max="400" step="10" value="150"></div>
+      <div class="ctl"><label><span>Clock sync σ<sub>clk</sub></span> <output for="c-clk">20</output> ns</label><input type="range" id="c-clk" min="1" max="100" step="1" value="20"></div>
+    </div>
+    <div class="readout">
+      <div><div class="k">Time-bandwidth product BT</div><div class="v" id="o-bt">—</div></div>
+      <div><div class="k">Effective pair SNR γ</div><div class="v" id="o-g">—</div></div>
+      <div><div class="k">σ<sub>τ</sub> thermal</div><div class="v" id="o-st">—</div></div>
+      <div><div class="k">σ<sub>τ</sub> with clock (RSS)</div><div class="v" id="o-stc">—</div></div>
+      <div><div class="k">σ<sub>f</sub> thermal</div><div class="v" id="o-sf">—</div></div>
+      <div><div class="k">FDOA ground gradient</div><div class="v" id="o-grad">—</div></div>
+      <div><div class="k">GDOP ≈ d / L</div><div class="v" id="o-gdop">—</div></div>
+      <div><div class="k">TDOA-only ground error (1σ)</div><div class="v" id="o-tdoa">—</div></div>
+      <div><div class="k">FDOA-only ground error (1σ)</div><div class="v" id="o-fdoa">—</div></div>
+      <div><div class="k">Hybrid CEP (est.)</div><div class="v" id="o-cep">—</div></div>
+    </div>
+    <p class="mini">Thermal terms from <code>ORB.RF.sigmaTdoa / sigmaFdoa</code> (Stein form). The FDOA gradient is scaled from the reference case of 2.5 mHz/m at 1 GHz, L = 100 km, d = 1,000 km as \(\propto f_0 L/d^2\) (est.). Ground errors are σ × GDOP in the worst axis; the hybrid CEP takes the two single-method errors as the two axes of the ellipse (CEP ≈ 0.59 (σ<sub>a</sub> + σ<sub>b</sub>)). Ephemeris, propagation and emitter-motion terms are not included — see the budget table. The full Jacobian solution for arbitrary geometry is in the <a href="../03_Scenarios_Services/geolocation_sim.html">simulator</a>.</p>
+    <div id="c-chart-wrap"><div id="c-chart"></div></div>
+  </div>
+
+  <h3>Error budget</h3>
+  <p>Thermal noise is one of six terms. The table gives the range-difference error each contributes before geometric dilution; ground error is roughly GDOP times the root-sum-square of the column.</p>
+  <div class="table-wrap"><table class="compact"><thead><tr><th>Term</th><th>Typical value</th><th class="num">Range-difference error</th><th>Notes</th></tr></thead><tbody>
+    <tr><td>Thermal noise</td><td>Stein form above</td><td class="num">2–140 m</td><td class="wrapcell">Dominant for narrowband comms; negligible for wideband radars after pulse integration<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup></td></tr>
+    <tr><td>Clock synchronisation</td><td>5–20 ns GNSS-disciplined (HawkEye assumed 20 ns); CSAC holdover ADEV ≈ 3×10⁻¹⁰ at 1 s, ~10⁻¹¹ at 1,000 s <span class="tag">est.</span></td><td class="num">1.5–6 m</td><td class="wrapcell">1 ns = 0.3 m. Leiter & Gurfil: 20 ns → 0.2–3 km CRLB maps; 100 ns → 1–15 km with 3 satellites at 100 km spacing<sup class="ref"><a href="#ref-R3-11">[R3-11]</a></sup>. TALOS allocation: 20 ns (see <a href="budgets.html#timing">timing budget</a>)</td></tr>
+    <tr><td>Satellite position</td><td>1–10 m real-time GNSS</td><td class="num">1–10 m (× GDOP)</td><td class="wrapcell">Post-processed orbits 10–30 cm from the payload GNSS raw observables<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup></td></tr>
+    <tr><td>Satellite velocity (FDOA)</td><td>1 cm/s ≈ 20 ns-equivalent</td><td class="num">—</td><td class="wrapcell">Drives FDOA bias; 1 cm/s at 1 GHz is 0.03 Hz ≈ 13 m through the 400 m/Hz gradient<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup></td></tr>
+    <tr><td>Ionosphere / troposphere differential</td><td>metres at L-band, tens of metres at UHF <span class="tag">est.</span></td><td class="num">1–30 m</td><td class="wrapcell">Largely common-mode for a 150 km baseline; worst at low elevation and in UHF</td></tr>
+    <tr><td>Emitter motion during integration</td><td>Ship 10 m/s × 0.1 s = 1 m</td><td class="num">small</td><td class="wrapcell">Aircraft at 250 m/s need snapshots ≤ 10 ms, i.e. radar pulses rather than long comms integrations</td></tr>
+  </tbody></table></div>
+
+  <h3>Geometric dilution: GDOP ≈ d / L</h3>
+  <p>The hyperbolae and iso-Doppler contours in the figure above are only steep near the formation; far along-track they flatten and small measurement errors slide the intersection a long way. The order-of-magnitude rule is \( \text{ground error} \approx \text{GDOP} \times \sigma_d \) with \( \text{GDOP} \approx d/L \) for range \(d\) and baseline \(L\) — exactly, the covariance follows from the Jacobian \(H\) of the measurements with respect to emitter position, and the CEP from projecting the error ellipsoid onto the local tangent plane<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>. For d = 1,000 km and L = 100 km, GDOP ≈ 10: the 25 kHz comms case becomes ≈ 400 m and radars 20–160 m before clock, ephemeris and propagation terms. Error is worst along the formation's ground-track direction and best perpendicular to it<sup class="ref"><a href="#ref-R3-11">[R3-11]</a></sup>. The TALOS cluster's 150 km spacing (GDOP ≈ 3.5 at nadir, ≈ 7 at 1,000 km) is a deliberate middle: larger baselines reduce GDOP but shrink the common footprint and break co-visibility at low elevation.</p>
+
+  <h2>Formation flying</h2>
+  <p>The cluster must hold its geometry for years with minimal propellant and keep all members co-visible to the same emitters. The open precedents are consistent with each other and with the TALOS baseline (<span id="fmt-cluster"></span>):</p>
+  <div class="table-wrap"><table class="compact"><thead><tr><th>Formation</th><th>Geometry</th><th>Control / ΔV</th><th>Result</th></tr></thead><tbody>
+    <tr><td>HawkEye 360 clusters<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup><sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup></td><td class="wrapcell">Three spacecraft 125 km (later 250 km) along-track; middle spacecraft with 20 km peak-to-peak out-of-plane oscillation; near-circular J2-invariant orbits</td><td class="wrapcell">5 km (1σ) formation control; NCO formation ΔV ≈ 35/29/5 m/s of 100 m/s available over 3 years; 550–650 km preferred for drag vs disposal</td><td class="wrapcell">Operational TDOA/FDOA with on-orbit CAF via S-band ISL; no public CEP</td></tr>
+    <tr><td>Kleos Scouting Mission<sup class="ref"><a href="#ref-R3-10">[R3-10]</a></sup></td><td class="wrapcell">Diamond of four 6U in two planes offset ≈ 1° RAAN and ≈ 1° true anomaly (≈ 120 km)</td><td class="wrapcell">No propulsion; differential drag only</td><td class="wrapcell">0.32–32 km on a 4.2 W VHF beacon; best ellipse 4.5 × 0.26 km</td></tr>
+    <tr><td>Leiter & Gurfil (Technion)<sup class="ref"><a href="#ref-R3-11">[R3-11]</a></sup></td><td class="wrapcell">~100 km quasi-planar formation, GPS-PPS timing</td><td class="wrapcell">Simulation</td><td class="wrapcell">10 pulses → ≈ 1 km RMS with three satellites, 2 km with two</td></tr>
+    <tr><td><b>TALOS Stage 2 (baseline)</b></td><td class="wrapcell" id="fmt-talos">—</td><td class="wrapcell">FEEP propulsion; 60 m/s of the ≈235 m/s budget reserved for 3 years of formation keeping; differential GNSS for relative navigation (metres)</td><td class="wrapcell">Planning: 0.3–3 km comms, 100–500 m radars per cluster pass <span class="tag">est.</span></td></tr>
+  </tbody></table></div>
+  <p>The trade is simple to state: a larger baseline lowers GDOP (≈ d/L) but shrinks the common footprint and breaks co-visibility at low elevation; 50–250 km is the practical window for 500 km orbits. Relative navigation via differential GNSS at the metre level is sufficient; what must be shared between satellites (by ISL or through the ground) is PVT and clock state.</p>
+
+  <h2>Where to correlate: inter-satellite link versus ground</h2>
+  <div class="table-wrap"><table class="compact"><thead><tr><th></th><th>On-orbit (ISL, HawkEye-style)</th><th>Ground (Kleos-style)</th></tr></thead><tbody>
+    <tr><td>Data exchanged</td><td class="wrapcell">Snapshots or detection reports over S-band ISL (hundreds of kbit/s to a few Mbit/s)</td><td class="wrapcell">All snapshots downlinked from every satellite</td></tr>
+    <tr><td>Snapshot volume per emitter</td><td class="wrapcell">25 kHz × 100 ms ≈ 20 kB per satellite — trivially shared; 20 MHz × 10 ms radar ≈ 1 MB — feasible over a Mbit/s ISL for prioritised targets</td><td class="wrapcell">Same volumes × N satellites × all candidates; ≈ 30 GB/day in the TALOS data budget</td></tr>
+    <tr><td>Latency</td><td>Minutes (alerts)</td><td>One downlink cycle, 45–100 min or more</td></tr>
+    <tr><td>Complexity</td><td class="wrapcell">ISL hardware (2 kg, 8 W in the component model), on-board CAF, relative time transfer to ~5 ns</td><td class="wrapcell">Simpler spacecraft; more downlink; common-view GNSS for clock tie</td></tr>
+    <tr><td>Recommended phasing</td><td><b>Stage 3+</b> (constellation, tactical alerts)</td><td><b>Stage 2</b> (first cluster)</td></tr>
+  </tbody></table></div>
+  <div class="callout decision"><div class="t">Decision carried into the baseline</div><p>Downlink time-stamped snapshots with raw GNSS observables for ground CAF processing from the first cluster; add the S-band ISL and on-board CAF when minute-latency alerts are sold as a product. The payload GNSS receiver with raw observables (common-view time transfer) is therefore <em>core</em> in TALOS-1 even though the cluster is two years later: it is the item that makes Stage 2 possible without a redesign.</p></div>
+
+  <h2>Reported accuracies</h2>
+  <div class="table-wrap"><table class="compact"><thead><tr><th>System</th><th>Method</th><th>Reported accuracy</th><th>Conditions</th></tr></thead><tbody>
+    <tr><td>HawkEye 360<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup><sup class="ref"><a href="#ref-R3-3">[R3-3]</a></sup></td><td>3-sat TDOA/FDOA, ISL</td><td><b>No public numeric CEP</b>; marketing "few hundred metres to a few km"</td><td class="wrapcell">Products carry a 95 % confidence ellipse that depends on signal type, power, SNR and geometry</td></tr>
+    <tr><td>Kleos Space<sup class="ref"><a href="#ref-R3-10">[R3-10]</a></sup></td><td>4-sat ground CAF</td><td><b>0.32–32 km</b>; best ellipse 4.5 × 0.26 km</td><td class="wrapcell">Cape Verde test, 4.2 W VHF beacon at 145.175 MHz</td></tr>
+    <tr><td>Unseenlabs<sup class="ref"><a href="#ref-R3-6">[R3-6]</a></sup></td><td>Single satellite (proprietary)</td><td><b>"nearest kilometre"</b></td><td class="wrapcell">Maritime radars and transponders; method inferred as Doppler/multi-snapshot</td></tr>
+    <tr><td>Clements et al. / Spire<sup class="ref"><a href="#ref-R3-14">[R3-14]</a></sup></td><td>Single satellite, single pass Doppler</td><td><b>68 m</b> error; 6.7 km 95 % semi-major axis</td><td class="wrapcell">Stationary S-band GNSS spoofer, one 20 s capture; simulated worst cases 2–24 km</td></tr>
+    <tr><td>Leiter & Gurfil<sup class="ref"><a href="#ref-R3-11">[R3-11]</a></sup></td><td>Simulation, 3 sats, 100 km</td><td><b>0.2–3 km</b> CRLB with 20 ns clocks; 1 km RMS after 10 pulses</td><td class="wrapcell">Quasi-planar formation; degrades to 1–15 km at 100 ns</td></tr>
+  </tbody></table></div>
+  <p>A conservative planning figure for narrowband comms is therefore <b>1–5 km (95 %) per cluster pass, hundreds of metres for wideband radars</b>, improving with revisits (est.). The TALOS KPIs are set below that, by stage.</p>
+
+  <h2>Planning figures per constellation stage</h2>
+  <div class="grid c2" id="stages"></div>
+  <div class="callout warn"><div class="t">Sell the ellipse, not a number</div><p>Every product should carry its predicted 95 % ellipse computed from the actual pass geometry, signal bandwidth and SNR (the simulator does this with <code>ORB.geoAccuracy</code>). Promising a fixed CEP is how operators have lost credibility: the same cluster that fixes a 1 MHz radar to 200 m will place a 25 kHz push-to-talk radio at 3 km on a poor-geometry pass. Risk <a href="risks.html#T-07">T-07</a> is managed by this rule and by a calibration campaign against known emitters in commissioning.</p></div>
+
+  <h2>Design consequences for TALOS</h2>
+  <ul>
+    <li><b>Timing unit as a core item.</b> GNSS-disciplined OCXO ≤ 20 ns with CSAC holdover, hardware timestamp counter latched at the ADC, PPS fan-out to every digitiser, and raw GNSS observables logged with every snapshot. This is what makes Stage 2 TDOA and FDOA (\(10^{-11}\) frequency agreement) possible.</li>
+    <li><b>Star-tracker ADCS.</b> 0.02° attitude knowledge for the AOA product; otherwise the 1.2 m DF boom is dead mass.</li>
+    <li><b>Phase-stable DF chain.</b> ±2 °C plate, matched phase-stable harness, injected calibration tone — a 5° phase budget at 1 GHz is 4 mm of path.</li>
+    <li><b>Snapshots as the unit of product.</b> 20 kB comms / 1 MB radar snapshots with time, PVT and attitude, stored and downlinked for ground CAF; the ISL is a Stage 3 addition.</li>
+    <li><b>Formation keeping in the propulsion budget.</b> 60 m/s over three years for 150 km along-track, ±20 km cross-track, 5 km control — the same class of numbers HawkEye published.</li>
+    <li><b>Honest KPIs by stage.</b> 5–20 km single-pass and 1–5 km multi-pass for TALOS-1; 0.3–3 km comms and 100–500 m radars for the cluster.</li>
+  </ul>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/components.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  const B = BASELINE, C = 299792.458; // km/s
+  const $ = id => document.getElementById(id);
+  function renderRefs(ids){ const ol=$('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+
+  $('meta-baseline').textContent = 'Baseline: ' + B.version;
+
+  // ---- KPIs
+  const st = B.constellation.stages;
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="v">${st[0].cep.split(';')[0]}</div><div class="l">Stage 1 single pass (${st[0].sats} sat, ${st[0].year})</div><div class="d">${st[0].cep.split(';')[1] || ''}</div></div>
+    <div class="kpi"><div class="v">${st[1].cep.split(',')[0]}</div><div class="l">Stage 2 cluster, comms (${st[1].year})</div><div class="d">${st[1].cep.split(',')[1] || ''}</div></div>
+    <div class="kpi"><div class="v">${B.payload.timing.syncNs} ns<small>≈ ${(B.payload.timing.syncNs*0.3).toFixed(0)} m</small></div><div class="l">Inter-satellite time sync allocation</div><div class="d">GNSS-disciplined OCXO + CSAC holdover; 1 ns = 30 cm</div></div>
+    <div class="kpi"><div class="v">400 m/Hz</div><div class="l">FDOA ground gradient</div><div class="d">1 GHz, L = 100 km, d = 1,000 km — why narrowband emitters still locate well</div></div>`;
+
+  // ---- AOA table (D = 1.2 m, sigma_phi = 5 deg)
+  (function(){
+    const D = 1.2, sphi = 5 * Math.PI/180, tb = $('aoa-table').tBodies[0];
+    const rows = [300, 1000, 3000, 10000].map(f => {
+      const lam = ORB.RF.wavelength(f), sth = lam * sphi / (2*Math.PI*D); // rad at boresight
+      const dNad = B.orbit.altKm, d1 = 1000, eps = 25*Math.PI/180;
+      const lobes = Math.max(1, Math.round(2*D/lam));
+      return `<tr><td><span class="band-chip ${U.bandOf(f)}">${f>=1000? (f/1000)+' GHz' : f+' MHz'}</span></td><td class="num">${(D/lam).toFixed(1)}</td><td class="num">${(sth*1e3).toFixed(1)}</td><td class="num">${(dNad*sth).toFixed(1)} km</td><td class="num">${(d1*sth).toFixed(1)} km</td><td class="num">${(d1*sth/Math.sin(eps)).toFixed(1)} km</td><td>${lobes <= 1 ? 'unambiguous' : '≈ '+lobes}</td></tr>`;
+    });
+    tb.innerHTML = rows.join('');
+  })();
+
+  // ---- Doppler pass chart
+  const epoch = new Date('2030-06-21T00:00:00Z');
+  const orb = ORB.makeOrbit({ alt: B.orbit.altKm, inc: B.orbit.incDeg, raan: 0, ta: 0, epoch, name: B.satName });
+  $('dop-orbit').textContent = `${B.orbit.altKm} km, ${B.orbit.incDeg}°, period ${(ORB.period(orb.a)/60).toFixed(1)} min`;
+  // find first northbound crossing of 38 N
+  let tca = null, prev = null;
+  for (let t = 0; t < 7000; t += 5) { const s = ORB.stateEcef(orb, new Date(epoch.getTime() + t*1000)); if (prev && prev.lat < 38 && s.lat >= 38) { tca = { t, s }; break; } prev = s; }
+  const sNext = ORB.stateEcef(orb, new Date(epoch.getTime() + (tca.t+5)*1000));
+  const brg = Math.atan2((sNext.lon - tca.s.lon) * Math.cos(tca.s.lat*ORB.D2R), (sNext.lat - tca.s.lat)) * ORB.R2D;
+  $('dop-geo').innerHTML = `TCA over ${tca.s.lat.toFixed(1)}° N, ${tca.s.lon.toFixed(1)}° E<small>, heading ${((brg+360)%360).toFixed(0)}°</small>`;
+  function dopSeries(offKm, side, f0Hz) {
+    const [lon, lat] = ORB.destination(tca.s.lat, tca.s.lon, brg + 90*side, offKm);
+    const pts = []; let rangeTca = Infinity;
+    for (let t = tca.t - 360; t <= tca.t + 360; t += 5) {
+      const s = ORB.stateEcef(orb, new Date(epoch.getTime() + t*1000));
+      const vis = ORB.visibleFrom(lat, lon, s.r, 5);
+      const d = ORB.V.norm(ORB.V.sub(s.r, ORB.geodeticToEcef(lat, lon, 0))); if (d < rangeTca) rangeTca = d;
+      pts.push([t - tca.t, vis ? ORB.doppler(lat, lon, s, f0Hz)/1e3 : NaN]);
+    }
+    return { pts, rangeTca };
+  }
+  function drawDoppler() {
+    const a = +$('dop-off').value, b = +$('dop-off2').value, f0 = +$('dop-f').value * 1e6;
+    const A = dopSeries(a, 1, f0), Am = dopSeries(a, -1, f0), Bs = dopSeries(b, 1, f0);
+    const wrap = $('dop-chart-wrap'); wrap.innerHTML = '<div id="dop-chart"></div>';
+    Charts.line($('dop-chart'), { title: `Received frequency shift at ${(f0/1e6).toFixed(0)} MHz vs time from closest approach`, xLabel: 'time from TCA (s)', yLabel: 'Doppler shift (kHz)', height: 300,
+      series: [ { name: `A = ${a} km east`, color: U.css('--s1'), points: A.pts }, { name: `A mirror (west)`, color: U.css('--s3'), dash: '6 5', points: Am.pts }, { name: `B = ${b} km east`, color: U.css('--s2'), points: Bs.pts } ],
+      hlines: [{ y: 0, label: 'f₀' }], format: v => v.toFixed(2), xFormat: v => v.toFixed(0) + ' s' });
+    const vmax = Math.max(...A.pts.filter(p => isFinite(p[1])).map(p => Math.abs(p[1])));
+    $('dop-max').innerHTML = `±${vmax.toFixed(1)} kHz`;
+    // Doppler rate at TCA from the series slope around 0
+    const i0 = A.pts.findIndex(p => p[0] === 0); const rate = (A.pts[i0+1][1] - A.pts[i0-1][1]) * 1e3 / 10;
+    const v = ORB.V.norm(tca.s.v);
+    $('dop-rate').innerHTML = `${Math.abs(rate).toFixed(0)} Hz/s <small>(f₀v²/cd ≈ ${(f0/ (C*1e3) * (v*1e3)**2 / (A.rangeTca*1e3)).toFixed(0)})</small>`;
+    $('dop-range').innerHTML = `${A.rangeTca.toFixed(0)} / ${Bs.rangeTca.toFixed(0)} km`;
+    const lam = C*1e3 / f0; $('dop-sens').innerHTML = `${(lam * A.rangeTca*1e3 / (v*1e3)).toFixed(0)} m/Hz <small>× geometry factor 1–10</small>`;
+  }
+  ['dop-off','dop-off2'].forEach(id => bindRange(id, drawDoppler, v => v));
+  bindRange('dop-f', drawDoppler, v => v);
+
+  // ---- geometry SVG: side view + plan view with TDOA / FDOA contours
+  (function(){
+    const svg = d3.select('#geom-svg'); const h = B.orbit.altKm, L = B.constellation.cluster.alongTrackKm, v = ORB.velocity(ORB.RE + h);
+    // side view (left, 0..300)
+    const g = svg.append('g');
+    const sx = x => 150 + x*0.4, sy = y => 390 - y*0.5; // x km along-track in [-350,350], y altitude
+    // ground
+    g.append('path').attr('class','axis-line').attr('fill','none').attr('d', `M20 390 Q150 372 280 390`);
+    g.append('text').attr('class','lbl xs').attr('x',150).attr('y',408).attr('text-anchor','middle').text('ground');
+    const s1 = [sx(-L/2), sy(h)], s2 = [sx(L/2), sy(h)], E = [sx(-210), 388];
+    // hyperbola sheet sketch (dashed) through E with foci s1,s2 — draw numerically in the side plane
+    const dd = Math.hypot(E[0]-s1[0],E[1]-s1[1]) - Math.hypot(E[0]-s2[0],E[1]-s2[1]);
+    const pts = [];
+    for (let yy = 395; yy >= 120; yy -= 4) { // find x where range difference = dd
+      let lo = 0, hi = 300; for (let k=0;k<40;k++){ const mid=(lo+hi)/2; const f=Math.hypot(mid-s1[0],yy-s1[1]) - Math.hypot(mid-s2[0],yy-s2[1]); if (f < dd) lo = mid; else hi = mid; } pts.push([lo,yy]); }
+    g.append('path').attr('class','wire rf').attr('stroke-dasharray','5 4').attr('d', d3.line()(pts));
+    g.append('text').attr('class','lbl xs').attr('x', 150).attr('y', 60).attr('text-anchor','middle').text('dashed: hyperboloid sheet d₁ − d₂ = const');
+    [[s1,'S₁'],[s2,'S₂']].forEach(([p,n]) => { g.append('rect').attr('class','box hi').attr('x',p[0]-9).attr('y',p[1]-6).attr('width',18).attr('height',12).attr('rx',2); g.append('text').attr('class','lbl s').attr('x',p[0]).attr('y',p[1]-11).attr('text-anchor','middle').text(n); });
+    g.append('path').attr('class','wire data').attr('d', `M${s1[0]+14} ${s1[1]} L${s2[0]-14} ${s2[1]}`).attr('marker-end','url(#arr)');
+    g.append('text').attr('class','lbl xs').attr('x',(s1[0]+s2[0])/2).attr('y',s1[1]-26).attr('text-anchor','middle').text(`L = ${L} km, v = ${v.toFixed(1)} km/s`);
+    g.append('line').attr('class','wire').attr('x1',E[0]).attr('y1',E[1]).attr('x2',s1[0]).attr('y2',s1[1]);
+    g.append('line').attr('class','wire').attr('x1',E[0]).attr('y1',E[1]).attr('x2',s2[0]).attr('y2',s2[1]);
+    g.append('circle').attr('cx',E[0]).attr('cy',E[1]).attr('r',4).attr('fill','var(--accent-2)');
+    g.append('text').attr('class','lbl s').attr('x',E[0]-6).attr('y',E[1]-8).attr('text-anchor','end').text('E (emitter)');
+    g.append('text').attr('class','lbl xs').attr('x',(E[0]+s1[0])/2-28).attr('y',(E[1]+s1[1])/2).text('d₁');
+    g.append('text').attr('class','lbl xs').attr('x',(E[0]+s2[0])/2+8).attr('y',(E[1]+s2[1])/2+8).text('d₂');
+    g.append('text').attr('class','lbl xs').attr('x',262).attr('y',sy(h)+28).attr('text-anchor','end').text(`h = ${h} km`);
+    g.append('text').attr('class','lbl').attr('x',150).attr('y',28).attr('text-anchor','middle').text('Side view');
+    g.append('text').attr('class','lbl xs').attr('x',150).attr('y',44).attr('text-anchor','middle').text('Δτ = (d₁ − d₂)/c ;  Δf = f₀(ṙ₁ − ṙ₂)/c');
+    svg.append('defs').html('<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="var(--accent)"/></marker>');
+
+    // plan view (right)
+    const px0 = 330, py0 = 30, PW = 620, PH = 420, span = 800; // km half-span
+    const X = x => px0 + (x + span) / (2*span) * PW, Y = y => py0 + (span - y) / (2*span) * PH;
+    const p = svg.append('g');
+    p.append('rect').attr('x',px0).attr('y',py0).attr('width',PW).attr('height',PH).attr('class','box').attr('fill','var(--surface)');
+    for (let k=-800;k<=800;k+=200){ p.append('line').attr('class','grid-line').attr('x1',X(k)).attr('x2',X(k)).attr('y1',py0).attr('y2',py0+PH); p.append('line').attr('class','grid-line').attr('y1',Y(k)).attr('y2',Y(k)).attr('x1',px0).attr('x2',px0+PW); }
+    // grid of residuals (flat-Earth local model)
+    const n = 81, T = new Float64Array(n*n), F = new Float64Array(n*n), f0 = 1e9;
+    const sats = [{ r:[-L/2,0,h], v:[v,0,0] }, { r:[L/2,0,h], v:[v,0,0] }];
+    for (let r=0;r<n;r++) for (let c=0;c<n;c++){ const x = -span + 2*span*c/(n-1), y = span - 2*span*r/(n-1);
+      const d = sats.map(s => Math.hypot(x-s.r[0], y-s.r[1], -s.r[2]));
+      const rr = sats.map((s,i) => (s.v[0]*(x-s.r[0]) + s.v[1]*(y-s.r[1]) + 0)/d[i]); // range-rate of emitter relative to sat (km/s): d/dt|p-r| = -v·(p-r)/d... sign irrelevant for contours
+      T[r*n+c] = (d[0]-d[1])/C*1e6; F[r*n+c] = (rr[0]-rr[1])*f0/C; }
+    const tLevels = d3.range(-450, 451, 50), fLevels = d3.range(0, 8001, 500);
+    const geo = d3.geoPath().projection(d3.geoTransform({ point(x, y) { this.stream.point(px0 + x/(n-1)*PW, py0 + y/(n-1)*PH); } }));
+    const ct = d3.contours().size([n,n]).thresholds(tLevels)(T), cf = d3.contours().size([n,n]).thresholds(fLevels)(F);
+    p.append('g').selectAll('path').data(cf).join('path').attr('d', geo).attr('fill','none').attr('stroke','var(--band-s)').attr('stroke-width',1).attr('stroke-dasharray','4 3').attr('opacity',.9);
+    p.append('g').selectAll('path').data(ct).join('path').attr('d', geo).attr('fill','none').attr('stroke','var(--accent-2)').attr('stroke-width',1.3).attr('opacity',.95);
+    // sats sub-points & footprint reference circle
+    const fr = ORB.footprintRadiusKm(h, 5);
+    p.append('circle').attr('cx',X(0)).attr('cy',Y(0)).attr('r', fr/(2*span)*PW).attr('fill','none').attr('stroke','var(--ink-faint)').attr('stroke-dasharray','2 4');
+    p.append('text').attr('class','lbl xs').attr('x',X(0)+4).attr('y',Y(-fr*0.72)).text('5° footprint edge');
+    [[-L/2,'S₁'],[L/2,'S₂']].forEach(([x,nm]) => { p.append('rect').attr('class','box hi').attr('x',X(x)-7).attr('y',Y(0)-5).attr('width',14).attr('height',10).attr('rx',2); p.append('text').attr('class','lbl s').attr('x',X(x)).attr('y',Y(0)-9).attr('text-anchor','middle').text(nm); });
+    p.append('line').attr('class','wire data').attr('x1',X(L/2)+10).attr('y1',Y(0)).attr('x2',X(L/2)+60).attr('y2',Y(0)).attr('marker-end','url(#arr)');
+    p.append('text').attr('class','lbl xs').attr('x',X(L/2)+62).attr('y',Y(0)+4).text('velocity (along-track)');
+    // emitter example
+    const ex = -300, ey = 350; p.append('circle').attr('cx',X(ex)).attr('cy',Y(ey)).attr('r',4).attr('fill','var(--accent-2)'); p.append('text').attr('class','lbl s').attr('x',X(ex)+7).attr('y',Y(ey)-6).text('E');
+    p.append('text').attr('class','lbl').attr('x',px0+PW/2).attr('y',py0-10).attr('text-anchor','middle').text('Plan view — lines of position on the ground');
+    p.append('text').attr('class','lbl xs').attr('x',px0+PW/2).attr('y',py0+PH+14).attr('text-anchor','middle').text('along-track (km), ticks every 200 km; cross-track vertical');
+    p.append('text').attr('class','lbl xs').attr('x',px0+6).attr('y',py0+PH-6).attr('fill','var(--accent-2)').text('TDOA hyperbolae, 50 µs steps');
+    p.append('text').attr('class','lbl xs').attr('x',px0+6).attr('y',py0+PH-18).attr('fill','var(--band-s)').text('FDOA iso-Doppler, 500 Hz steps at 1 GHz');
+  })();
+
+  // ---- accuracy calculator
+  function calc() {
+    const Bw = Math.pow(10, +$('c-b').value), T = Math.pow(10, +$('c-t').value), snr = +$('c-snr').value, f0 = +$('c-f0').value*1e6, d = +$('c-d').value, L = +$('c-l').value, clk = +$('c-clk').value*1e-9;
+    const g1 = U.lin(snr), gam = 1/(1/g1 + 1/g1 + 1/(g1*g1));
+    const st = ORB.RF.sigmaTdoa(Bw, T, gam), sf = ORB.RF.sigmaFdoa(Bw, T, gam);
+    const stc = Math.hypot(st, clk);
+    const grad = 2.5e-3 * (f0/1e9) * (L/100) * Math.pow(1000/d, 2); // Hz per m
+    const gdop = d / L;
+    const eT = stc * C*1e3 * gdop, eF = sf / grad * gdop;
+    const cep = 0.59 * (eT + eF);
+    const fm = m => m >= 1000 ? (m/1000).toFixed(2) + ' km' : m.toFixed(0) + ' m';
+    $('o-bt').textContent = Bw*T >= 10 ? Math.round(Bw*T).toLocaleString('en') : (Bw*T).toPrecision(2);
+    $('o-g').textContent = U.dB(gam).toFixed(1) + ' dB';
+    $('o-st').innerHTML = `${U.si(st, 's', 1)} <small>= ${fm(st*C*1e3)}</small>`;
+    $('o-stc').innerHTML = `${U.si(stc, 's', 1)} <small>= ${fm(stc*C*1e3)}</small>`;
+    $('o-sf').innerHTML = `${U.si(sf, 'Hz', 2)} <small>= ${fm(sf/grad)}</small>`;
+    $('o-grad').innerHTML = `${(grad*1e3).toFixed(2)} mHz/m <small>(${(1/grad).toFixed(0)} m/Hz)</small>`;
+    $('o-gdop').textContent = gdop.toFixed(1);
+    $('o-tdoa').textContent = fm(eT); $('o-fdoa').textContent = fm(eF);
+    const cepEl = $('o-cep'); cepEl.textContent = fm(cep); cepEl.className = 'v ' + (cep < 1000 ? 'good' : cep < 5000 ? 'warn' : 'bad');
+    // chart: TDOA / FDOA ground error vs bandwidth at this T, SNR
+    const wrap = $('c-chart-wrap'); wrap.innerHTML = '<div id="c-chart"></div>';
+    const xs = d3.range(3, 8.01, 0.1).map(e => Math.pow(10, e));
+    Charts.line($('c-chart'), { title: `Ground error (1σ, worst axis) vs signal bandwidth — T = ${U.si(T,'s',0)}, SNR ${snr} dB, GDOP ${gdop.toFixed(1)}`, xLabel: 'bandwidth (Hz)', yLabel: 'ground error (m)', xLog: true, yLog: true, height: 260,
+      series: [ { name: 'TDOA incl. clock', points: xs.map(b => [b, Math.hypot(ORB.RF.sigmaTdoa(b, T, gam), clk)*C*1e3*gdop]) }, { name: 'FDOA', points: xs.map(b => [b, ORB.RF.sigmaFdoa(b, T, gam)/grad*gdop]) }, { name: 'clock floor (TDOA)', dash: '4 3', points: xs.map(b => [b, clk*C*1e3*gdop]) } ],
+      bands: [ { x0: 1e4, x1: 5e4, color: 'var(--band-uhf)', label: 'voice / PTT' }, { x0: 1e6, x1: 5e6, color: 'var(--band-l)', label: 'Link-16 pulse' }, { x0: 1e7, x1: 1e8, color: 'var(--band-s)', label: 'radar' } ],
+      format: v => v >= 1000 ? (v/1000).toFixed(1)+' km' : v.toFixed(0)+' m', xFormat: v => U.si(v,'Hz',0) });
+  }
+  bindRange('c-b', calc, v => U.si(Math.pow(10,v),'Hz',0));
+  bindRange('c-t', calc, v => U.si(Math.pow(10,v),'s',0));
+  ['c-snr','c-f0','c-d','c-l','c-clk'].forEach(id => bindRange(id, calc, v => v));
+
+  // ---- formation strings
+  const cl = B.constellation.cluster;
+  $('fmt-cluster').textContent = `${st[1].sats} satellites, ${cl.alongTrackKm} km along-track, ±${cl.crossTrackKm} km cross-track, ${cl.controlSigmaKm} km control`;
+  $('fmt-talos').textContent = `${st[1].sats} spacecraft, ${cl.alongTrackKm} km along-track in one plane, middle spacecraft ±${cl.crossTrackKm} km cross-track; ${B.orbit.altKm} km / ${B.orbit.incDeg}°`;
+
+  // ---- stages
+  $('stages').innerHTML = st.map(s => `<div class="kpi"><div class="v">${s.cep}</div><div class="l">${s.name} · ${s.year} · ${s.sats} sat${s.sats>1?'s':''} / ${s.planes} plane${s.planes>1?'s':''}</div><div class="d">${s.geoloc}</div></div>`).join('');
+
+  renderRefs(['R3-1','R3-2','R3-3','R3-6','R3-10','R3-11','R3-12','R3-13','R3-14','R3-28']);
+})();
+</script>
+</body>
+</html>

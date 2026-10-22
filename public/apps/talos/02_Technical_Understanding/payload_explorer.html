@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Payload explorer — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<style>
+  .explorer { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); gap: 1.2rem; align-items: start; }
+  .stage { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 0.6rem 0.6rem 0.2rem; position: relative; }
+  .stage svg { width: 100%; height: auto; display: block; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 0.6rem 1rem; align-items: center; font-family: var(--font-ui); font-size: 0.82rem; padding: 0.3rem 0.4rem 0.6rem; border-bottom: 1px solid var(--line); margin-bottom: 0.4rem; }
+  .toolbar .ctl { display: flex; align-items: center; gap: 0.5rem; }
+  .toolbar input[type=range] { width: 160px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+  .chip { display: inline-flex; align-items: center; gap: 0.35em; border: 1px solid var(--line-strong); border-radius: 999px; padding: 0.1em 0.6em 0.1em 0.45em; cursor: pointer; background: var(--surface); font-weight: 600; font-size: 0.76rem; color: var(--ink-2); user-select: none; }
+  .chip::before { content: ""; width: 0.65em; height: 0.65em; border-radius: 50%; background: var(--c); }
+  .chip[aria-pressed="true"] { background: var(--surface-3); color: var(--ink); border-color: var(--c); }
+  .details { position: sticky; top: 4rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 1rem 1.2rem; font-family: var(--font-ui); font-size: 0.88rem; max-height: calc(100vh - 5rem); overflow: auto; }
+  .details h3 { margin: 0.2rem 0 0.3rem; font-size: 1.1rem; }
+  .details .sub { color: var(--ink-3); font-size: 0.78rem; margin-bottom: 0.6rem; }
+  .details .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin: 0.6rem 0; }
+  .details .facts div { background: var(--surface-2); border-radius: var(--radius); padding: 0.4rem 0.6rem; }
+  .details .facts .k { font-size: 0.7rem; color: var(--ink-3); }
+  .details .facts .v { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .details p { font-family: var(--font-body); font-size: 0.95rem; margin: 0.5rem 0; }
+  .details h4 { font-size: 0.8rem; color: var(--ink-3); margin: 0.9rem 0 0.3rem; text-transform: none; }
+  .details .spec { font-size: 0.82rem; color: var(--ink-2); background: var(--surface-2); border-radius: var(--radius); padding: 0.5rem 0.7rem; }
+  .iflist { list-style: none; padding: 0; margin: 0; }
+  .iflist li { display: flex; gap: 0.5rem; align-items: baseline; padding: 0.25rem 0; border-bottom: 1px dashed var(--line); font-size: 0.8rem; }
+  .iflist li .dot { width: 0.6em; height: 0.6em; border-radius: 50%; flex: 0 0 auto; background: var(--c); position: relative; top: -1px; }
+  .iflist li a { font-weight: 600; }
+  .iflist li .lab { color: var(--ink-3); }
+  .risklist a { display: inline-block; margin: 0.15rem 0.3rem 0.15rem 0; }
+  .empty { color: var(--ink-3); font-family: var(--font-body); font-size: 0.95rem; }
+  svg .comp { cursor: pointer; }
+  svg .comp .face { stroke: rgba(0,0,0,0.25); stroke-width: 0.6; }
+  svg .comp.optional .face { stroke-dasharray: 2 1.5; }
+  svg .comp.dim { opacity: 0.22; }
+  svg .comp.hi .face { stroke: var(--ink); stroke-width: 1.2; }
+  svg .comp.sel .face { stroke: var(--accent-2); stroke-width: 1.6; }
+  svg .deck { fill: var(--surface-2); stroke: var(--line-strong); stroke-width: 0.8; }
+  svg .deck.dim { opacity: 0.35; }
+  svg .decklbl { font-family: var(--font-ui); font-size: 9px; fill: var(--ink-3); font-weight: 600; }
+  svg .complbl { font-family: var(--font-ui); font-size: 7px; paint-order: stroke; stroke: var(--surface); stroke-width: 2px; stroke-linejoin: round; fill: var(--ink); pointer-events: none; }
+  svg .link { fill: none; stroke-width: 1.1; opacity: 0.9; }
+  svg .link.rf { stroke: var(--accent-2); } svg .link.data { stroke: var(--accent); } svg .link.power { stroke: var(--band-c); } svg .link.time { stroke: var(--band-s); } svg .link.thermal { stroke: var(--band-ku); } svg .link.mech { stroke: var(--ink-faint); }
+  svg .link.faint { opacity: 0.25; stroke-width: 0.7; }
+  svg .earth { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 0.6; }
+  svg .note { font-family: var(--font-ui); font-size: 6.5px; fill: var(--ink-3); }
+  .kpirow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.6rem; margin: 0.8rem 0 1rem; }
+  @media (max-width: 1100px) { .explorer { grid-template-columns: 1fr; } .details { position: static; max-height: none; } .kpirow { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="content wide">
+  <header class="page-head">
+    <div class="kicker"><b>02 Technical understanding</b> · Payload explorer</div>
+    <h1>TALOS-1 exploded view — every unit and how it connects</h1>
+    <p class="lead">Drag the slider to pull the spacecraft apart deck by deck. Click any unit to read what it does, what it weighs, what it draws, who could supply it, which risks it carries and what it is wired to. Hover to light up its connections; filter by connection type to trace the RF, data, power, timing or thermal paths through the whole satellite.</p>
+    <div class="meta"><span id="baseline-meta"></span><span>Geometry schematic, deployables not to scale</span><span>Deep link: append <code>#component-id</code></span></div>
+  </header>
+
+  <div class="kpirow" id="kpis"></div>
+
+  <div class="explorer">
+    <div class="stage">
+      <div class="toolbar">
+        <div class="ctl"><label for="explode">Explode</label><input type="range" id="explode" min="0" max="100" value="55"><output for="explode">55%</output></div>
+        <div class="ctl"><label><input type="checkbox" id="opt" checked> optional items</label></div>
+        <div class="ctl"><label><input type="checkbox" id="alllinks"> all links</label></div>
+        <div class="chips" id="typechips"></div>
+        <button class="small ghost" id="reset">Reset view</button>
+      </div>
+      <svg id="iso" viewBox="0 0 760 760" role="img" aria-label="Isometric exploded view of the TALOS-1 spacecraft"></svg>
+      <div class="legend" style="padding:0.3rem 0.4rem 0.5rem" id="layerlegend"></div>
+    </div>
+    <aside class="details" id="details" aria-live="polite"></aside>
+  </div>
+
+  <h2 id="table">Component table</h2>
+  <p>The same model as a sortable list. Mass and power are the baseline allocations behind the budgets page; "optional" rows are growth items outside the TALOS-1 core.</p>
+  <div class="table-wrap"><table id="ctable"><thead><tr><th data-sort="str">Unit</th><th data-sort="str">Subsystem</th><th data-sort="str">Deck</th><th class="num" data-sort="num">Mass kg</th><th class="num" data-sort="num">Power W</th><th class="num" data-sort="num">TRL</th><th>Bands</th><th>Candidate suppliers</th><th>Risks</th></tr></thead><tbody></tbody></table></div>
+
+  <h2 id="interfaces">Interface list</h2>
+  <p>Every link in the model, grouped by type. This is the seed of the interface control document (ICD): each row should become a numbered interface with a responsible engineer on both sides.</p>
+  <div class="tabs" id="iftabs"><div class="tablist"></div></div>
+
+  <h2>How to read the model</h2>
+  <div class="grid c2">
+    <div class="card"><h3>Decks, not drawers</h3><p>The six decks are a conceptual stacking in the direction Earth-facing (bottom) to zenith (top). The real spacecraft is an ESPA-class box of roughly 0.6 × 0.6 × 0.8 m; the point of the stack is to show which units sit on the same thermally controlled plate (the RF deck), which share the radiator (the digital deck), and why transmitters and receivers live on opposite faces.</p></div>
+    <div class="card"><h3>Links carry the design rules</h3><p>RF links (orange) are phase-matched coax where they feed the DF interferometer. Timing links (green) all originate in one unit — that is the TDOA/FDOA budget made visible. Power links (yellow) pass through the filtered payload PCDU because the UHF band is a victim of switching converters. Data links (blue) converge on the payload controller, the one unit that must never crash.</p></div>
+    <div class="card"><h3>Optional items</h3><p>Dashed units (0.7 m reflector, ML co-processor, inter-satellite link) are not in the TALOS-1 core budget. Toggle them off to see the demonstrator as costed; leave them on to see the Stage 2 cluster configuration.</p></div>
+    <div class="card"><h3>Where the numbers come from</h3><p>Masses and powers are allocations from the research notes (payload 25–45 kg, 90–160 W collecting; bus elements from the supplier catalogue), reconciled so that the component list, the budgets page and the baseline agree. They are inputs to Phase A, not measured values.</p></div>
+  </div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/components.js"></script>
+<script src="../assets/data/risks.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function () {
+  const C = COMPONENTS, byId = Object.fromEntries(C.map(c => [c.id, c]));
+  const SUBCOL = { 'payload-antenna': '--band-l', 'payload-rf': '--accent-2', 'payload-digital': '--accent', 'bus-avionics': '--ink-3', 'bus-adcs': '--ink-3', 'bus-comms': '--band-uhf', 'bus-power': '--band-c', 'bus-prop': '--band-s', 'bus-thermal': '--band-ku', 'bus-structure': '--ink-faint' };
+  // ---- geometry (deck units: 120 × 120; z up) ----
+  const DECK = 120;
+  // Draw order top→bottom: 5 structure/zenith, 3 avionics, 4 power, 2 digital, 1 RF, 0 antennas
+  const ORDER = [5, 3, 4, 2, 1, 0];
+  const G = {
+    // bus avionics deck
+    obc: { x: 8, y: 8, w: 26, d: 22, h: 10 }, 'adcs-st': { x: 90, y: 6, w: 12, d: 22, h: 14 }, 'adcs-rw': { x: 44, y: 40, w: 32, d: 32, h: 14 }, 'adcs-imu': { x: 8, y: 40, w: 18, d: 16, h: 6 },
+    'gnss-b': { x: 8, y: 66, w: 12, d: 10, h: 4 }, ttc: { x: 84, y: 40, w: 26, d: 20, h: 8 }, xtx: { x: 84, y: 76, w: 28, d: 26, h: 12 },
+    // power & propulsion deck
+    'eps-bat': { x: 12, y: 30, w: 40, d: 28, h: 18 }, 'eps-pcdu': { x: 64, y: 30, w: 38, d: 26, h: 12 }, prop: { x: 76, y: 76, w: 26, d: 26, h: 24 }, therm: { x: 8, y: 80, w: 40, d: 22, h: 4 }, 'eps-arr': { x: 0, y: 48, w: 0, d: 0, h: 0, shape: 'wings' },
+    // payload digital deck
+    'dig-rfsoc': { x: 10, y: 12, w: 36, d: 30, h: 12 }, 'pld-therm': { x: 6, y: 8, w: 48, d: 44, h: 2, shape: 'plate' }, 'dig-tuner': { x: 62, y: 12, w: 32, d: 22, h: 8 }, 'proc-sup': { x: 62, y: 42, w: 24, d: 20, h: 8 }, 'proc-ai': { x: 94, y: 42, w: 18, d: 14, h: 5 },
+    stor: { x: 10, y: 56, w: 20, d: 16, h: 5 }, time: { x: 40, y: 56, w: 20, d: 18, h: 7 }, 'gnss-p': { x: 10, y: 84, w: 14, d: 10, h: 4 }, isl: { x: 34, y: 84, w: 24, d: 18, h: 8 }, 'pld-pcdu': { x: 70, y: 74, w: 32, d: 24, h: 9 },
+    // payload RF deck
+    'rffe-uhf': { x: 8, y: 10, w: 30, d: 20, h: 8 }, 'rffe-l': { x: 8, y: 40, w: 30, d: 22, h: 8 }, 'rffe-scx': { x: 48, y: 10, w: 52, d: 36, h: 12 }, lo: { x: 48, y: 56, w: 24, d: 20, h: 6 }, cal: { x: 80, y: 56, w: 16, d: 12, h: 6 }, 'pld-harn': { x: 8, y: 76, w: 100, d: 8, h: 3, shape: 'harness' },
+    // nadir antenna panel (z ≤ 0 : below the panel)
+    'ant-wb': { x: 10, y: 10, w: 16, d: 16, h: 6, shape: 'twin' }, 'ant-sarr': { x: 70, y: 8, w: 30, d: 30, h: 2 }, 'ant-xarr': { x: 86, y: 86, w: 20, d: 20, h: 2 }, 'ant-uhf': { x: 6, y: 92, w: 10, d: 10, h: 0, shape: 'helix' }, 'ant-df': { x: 60, y: 60, w: 0, d: 0, h: 0, shape: 'cross' }, 'ant-refl': { x: 118, y: 40, w: 0, d: 0, h: 0, shape: 'dish' },
+    // structure
+    str: { x: 0, y: 0, w: DECK, d: DECK, h: 0, shape: 'frame' }, harn: { x: 104, y: 10, w: 6, d: 100, h: 3, shape: 'harness' },
+  };
+  const S = 2.55, ox = 380, oy = 70;
+  let explode = 0.55, showOpt = true, allLinks = false, sel = null, hover = null;
+  const types = Object.keys(IFACE_TYPES); const typeOn = Object.fromEntries(types.map(t => [t, t !== 'mech']));
+  const svg = d3.select('#iso');
+
+  function deckZ(layer) { const i = ORDER.indexOf(layer); const gap = 34 + explode * 62; return (ORDER.length - 1 - i) * gap; }
+  function P(x, y, z) { return [ox + (x - y) * 0.866 * S, oy + (x + y) * 0.5 * S - z * S]; }
+  function poly(pts) { return pts.map(p => p.join(',')).join(' '); }
+  function shade(col, k) { return k === 0 ? col : `color-mix(in srgb, ${col} ${100 - k}%, black)`; }
+
+  function box(g, c, geo, z0, col) {
+    const { x, y, w, d, h } = geo; const z1 = z0 + h;
+    const top = [P(x, y, z1), P(x + w, y, z1), P(x + w, y + d, z1), P(x, y + d, z1)];
+    const right = [P(x + w, y, z0), P(x + w, y, z1), P(x + w, y + d, z1), P(x + w, y + d, z0)];
+    const front = [P(x, y + d, z0), P(x, y + d, z1), P(x + w, y + d, z1), P(x + w, y + d, z0)];
+    g.append('polygon').attr('class', 'face').attr('points', poly(front)).attr('fill', shade(col, 38));
+    g.append('polygon').attr('class', 'face').attr('points', poly(right)).attr('fill', shade(col, 22));
+    g.append('polygon').attr('class', 'face').attr('points', poly(top)).attr('fill', col);
+    return P(x + w / 2, y + d / 2, z1 + 1);
+  }
+  function helix(g, c, geo, z0, col) { // two helices hanging below the nadir panel at two corners
+    const anchors = [[geo.x + 5, geo.y + 5], [DECK - 11, 11]]; let last;
+    anchors.forEach(([hx, hy]) => {
+      const len = 56, r = 5; let dstr = '';
+      for (let k = 0; k <= 60; k++) { const t = k / 60; const z = z0 - t * len; const ang = t * 14 * Math.PI; const px = hx + r * Math.cos(ang), py = hy + r * Math.sin(ang); const p = P(px, py, z); dstr += (k ? ' L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }
+      g.append('path').attr('class', 'face').attr('d', dstr).attr('fill', 'none').attr('stroke', col).attr('stroke-width', 1.3);
+      const base = [P(hx - 6, hy - 6, z0), P(hx + 6, hy - 6, z0), P(hx + 6, hy + 6, z0), P(hx - 6, hy + 6, z0)];
+      g.append('polygon').attr('class', 'face').attr('points', poly(base)).attr('fill', shade(col, 20));
+      last = P(hx, hy, z0 - len / 2);
+    });
+    return last;
+  }
+  function cross(g, c, geo, z0, col) { // DF cross-boom below the panel centre with 4 discs
+    const cx = geo.x, cy = geo.y, drop = 22, arm = 44;
+    const top = P(cx, cy, z0), hub = P(cx, cy, z0 - drop);
+    g.append('line').attr('class', 'face').attr('x1', top[0]).attr('y1', top[1]).attr('x2', hub[0]).attr('y2', hub[1]).attr('stroke', col).attr('stroke-width', 1.6);
+    [[arm, 0], [-arm, 0], [0, arm], [0, -arm]].forEach(([dx, dy]) => {
+      const e = P(cx + dx, cy + dy, z0 - drop);
+      g.append('line').attr('class', 'face').attr('x1', hub[0]).attr('y1', hub[1]).attr('x2', e[0]).attr('y2', e[1]).attr('stroke', col).attr('stroke-width', 1.4);
+      const disc = []; for (let k = 0; k < 24; k++) { const a = k / 24 * 2 * Math.PI; disc.push(P(cx + dx + 7 * Math.cos(a), cy + dy + 7 * Math.sin(a), z0 - drop)); }
+      g.append('polygon').attr('class', 'face').attr('points', poly(disc)).attr('fill', col);
+      const inner = []; for (let k = 0; k < 24; k++) { const a = k / 24 * 2 * Math.PI; inner.push(P(cx + dx + 4 * Math.cos(a), cy + dy + 4 * Math.sin(a), z0 - drop)); }
+      g.append('polygon').attr('points', poly(inner)).attr('fill', shade(col, 30)).attr('pointer-events', 'none');
+    });
+    return hub;
+  }
+  function dish(g, c, geo, z0, col) { // reflector on the +X side
+    const cx = geo.x + 22, cy = geo.y; const pts = []; for (let k = 0; k < 28; k++) { const a = k / 28 * 2 * Math.PI; pts.push(P(cx, cy + 22 * Math.cos(a), z0 - 10 + 22 * Math.sin(a))); }
+    g.append('polygon').attr('class', 'face').attr('points', poly(pts)).attr('fill', col).attr('fill-opacity', 0.75);
+    const a0 = P(DECK, cy, z0 + 4), a1 = P(cx, cy, z0 - 10);
+    g.append('line').attr('class', 'face').attr('x1', a0[0]).attr('y1', a0[1]).attr('x2', a1[0]).attr('y2', a1[1]).attr('stroke', col).attr('stroke-width', 1.4);
+    return P(cx, cy, z0 - 10);
+  }
+  function wings(g, c, geo, z0, col) {
+    const L = 78, Wd = 34, y0 = geo.y - Wd / 2;
+    [[-L - 4, 'L'], [DECK + 4, 'R']].forEach(([x0]) => {
+      const pts = [P(x0, y0, z0 + 6), P(x0 + L, y0, z0 + 6), P(x0 + L, y0 + Wd, z0 + 6), P(x0, y0 + Wd, z0 + 6)];
+      g.append('polygon').attr('class', 'face').attr('points', poly(pts)).attr('fill', col).attr('fill-opacity', 0.85);
+      for (let k = 1; k < 3; k++) { const p1 = P(x0 + L * k / 3, y0, z0 + 6), p2 = P(x0 + L * k / 3, y0 + Wd, z0 + 6); g.append('line').attr('x1', p1[0]).attr('y1', p1[1]).attr('x2', p2[0]).attr('y2', p2[1]).attr('stroke', 'rgba(0,0,0,0.3)').attr('stroke-width', 0.6); }
+    });
+    return P(DECK + 4 + L / 2, geo.y, z0 + 7);
+  }
+  function plate(g, c, geo, z0, col) { return box(g, c, geo, z0, col); }
+  function harness(g, c, geo, z0, col) { const { x, y, w, d } = geo; const p = [P(x, y, z0 + 1), P(x + w, y, z0 + 1), P(x + w, y + d, z0 + 1), P(x, y + d, z0 + 1)]; g.append('polygon').attr('class', 'face').attr('points', poly(p)).attr('fill', col).attr('fill-opacity', 0.6); return P(x + w / 2, y + d / 2, z0 + 2); }
+  function twin(g, c, geo, z0, col) { const a = box(g, c, geo, z0 - geo.h, col); box(g, c, { ...geo, x: geo.x + 28 }, z0 - geo.h, col); return a; }
+  function frame(g, c, geo, z0, col) { // zenith panel + wire frame to nadir deck
+    const z = z0, top = [P(0, 0, z), P(DECK, 0, z), P(DECK, DECK, z), P(0, DECK, z)];
+    g.append('polygon').attr('class', 'face').attr('points', poly(top)).attr('fill', col).attr('fill-opacity', 0.18);
+    const zb = deckZ(0);
+    [[0, 0], [DECK, 0], [DECK, DECK], [0, DECK]].forEach(([x, y]) => { const a = P(x, y, z), b = P(x, y, zb); g.append('line').attr('x1', a[0]).attr('y1', a[1]).attr('x2', b[0]).attr('y2', b[1]).attr('stroke', col).attr('stroke-width', 0.7).attr('stroke-dasharray', '2 2').attr('pointer-events', 'none'); });
+    // GNSS / TT&C zenith patches
+    [[14, 14], [92, 14]].forEach(([x, y]) => g.append('polygon').attr('class', 'face').attr('points', poly([P(x, y, z + 1), P(x + 10, y, z + 1), P(x + 10, y + 10, z + 1), P(x, y + 10, z + 1)])).attr('fill', shade(col, 10)));
+    return P(DECK / 2, DECK / 2, z + 1);
+  }
+  const SHAPES = { box, helix, cross, dish, wings, plate, harness, twin, frame };
+
+  const centers = {};
+  function render() {
+    svg.selectAll('*').remove();
+    const defs = svg.append('defs');
+    types.forEach(t => defs.append('marker').attr('id', 'arr-' + t).attr('viewBox', '0 0 8 8').attr('refX', 7).attr('refY', 4).attr('markerWidth', 5).attr('markerHeight', 5).attr('orient', 'auto').append('path').attr('d', 'M0 0 L8 4 L0 8 z').attr('fill', IFACE_TYPES[t].color));
+    const layerG = svg.append('g');
+    // Earth hint at bottom
+    const zb = deckZ(0) - 150; const e = P(DECK / 2, DECK / 2, zb);
+    svg.append('ellipse').attr('class', 'earth').attr('cx', e[0]).attr('cy', e[1] + 30).attr('rx', 230).attr('ry', 26);
+    svg.append('text').attr('class', 'note').attr('x', e[0]).attr('y', e[1] + 33).attr('text-anchor', 'middle').text('Earth (nadir) — survey antennas, arrays, DF boom and helices face this way');
+    ORDER.forEach(layer => {
+      const z = deckZ(layer);
+      const g = layerG.append('g').attr('class', 'layer');
+      if (layer !== 5) { g.append('polygon').attr('class', 'deck').attr('points', poly([P(0, 0, z), P(DECK, 0, z), P(DECK, DECK, z), P(0, DECK, z)])); }
+      const lp = P(-4, DECK + 2, z); g.append('text').attr('class', 'decklbl').attr('x', lp[0]).attr('y', lp[1]).attr('text-anchor', 'end').text(LAYERS[layer]);
+      C.filter(c => c.layer === layer).sort((a, b) => { const ga = G[a.id] || {}, gb = G[b.id] || {}; return ((ga.x || 0) + (ga.y || 0) + (ga.shape === 'plate' ? -50 : 0)) - ((gb.x || 0) + (gb.y || 0) + (gb.shape === 'plate' ? -50 : 0)); }).forEach(c => {
+        if (c.optional && !showOpt) return;
+        const geo = G[c.id]; if (!geo) return;
+        const col = getComputedStyle(document.documentElement).getPropertyValue(SUBCOL[c.sub]).trim();
+        const cg = g.append('g').attr('class', 'comp' + (c.optional ? ' optional' : '')).attr('data-id', c.id);
+        const fn = SHAPES[geo.shape || 'box'];
+        const z0 = layer === 0 && (geo.shape === 'helix' || geo.shape === 'cross' || geo.shape === 'dish' || geo.shape === 'twin') ? z : z;
+        centers[c.id] = fn(cg, c, geo, z0, col);
+        const lab = centers[c.id]; const short = c.name.split(/[\(,:—]/)[0].trim();
+        cg.append('text').attr('class', 'complbl').attr('x', lab[0]).attr('y', lab[1] - (geo.shape === 'cross' ? 4 : 3)).attr('text-anchor', 'middle').text(short.length > 26 ? short.slice(0, 24) + '…' : short);
+        cg.on('mouseenter', () => { hover = c.id; paint(); }).on('mouseleave', () => { hover = null; paint(); }).on('click', () => { select(c.id === sel ? null : c.id); });
+      });
+    });
+    svg.append('g').attr('id', 'links');
+    // fit viewBox
+    const bb = svg.node().getBBox(); svg.attr('viewBox', `${bb.x - 10} ${bb.y - 10} ${bb.width + 20} ${bb.height + 20}`);
+    paint();
+  }
+  function linksOf(id) { const out = []; C.forEach(c => c.interfaces.forEach(i => { if (c.id === id || i.to === id) out.push({ from: c.id, to: i.to, type: i.type, label: i.label }); })); return out; }
+  function paint() {
+    const focus = hover || sel;
+    const lg = svg.select('#links'); lg.selectAll('*').remove();
+    let links = [];
+    if (allLinks) C.forEach(c => c.interfaces.forEach(i => links.push({ from: c.id, to: i.to, type: i.type, label: i.label })));
+    if (focus) links = links.concat(linksOf(focus));
+    const seen = new Set();
+    links.filter(l => typeOn[l.type] && centers[l.from] && centers[l.to]).forEach(l => {
+      const k = l.from + '>' + l.to + l.type; if (seen.has(k)) return; seen.add(k);
+      const a = centers[l.from], b = centers[l.to]; const mx = (a[0] + b[0]) / 2 + (b[1] - a[1]) * 0.12, my = (a[1] + b[1]) / 2 - Math.abs(b[0] - a[0]) * 0.12;
+      const isFocus = focus && (l.from === focus || l.to === focus);
+      lg.append('path').attr('class', 'link ' + l.type + (isFocus || !focus ? '' : ' faint')).attr('d', `M${a[0]},${a[1]} Q${mx},${my} ${b[0]},${b[1]}`).attr('marker-end', isFocus ? `url(#arr-${l.type})` : null)
+        .append('title').text(`${byId[l.from].name} → ${byId[l.to].name}: ${l.label} (${IFACE_TYPES[l.type].name})`);
+    });
+    const related = new Set(); if (focus) { related.add(focus); linksOf(focus).forEach(l => { if (typeOn[l.type]) { related.add(l.from); related.add(l.to); } }); }
+    svg.selectAll('.comp').classed('dim', d => false).each(function () { const id = this.getAttribute('data-id'); d3.select(this).classed('dim', !!focus && !related.has(id)).classed('hi', id === hover).classed('sel', id === sel); });
+    svg.selectAll('.deck').classed('dim', !!focus);
+  }
+  function select(id) { sel = id; if (id) history.replaceState(null, '', '#' + id); else history.replaceState(null, '', location.pathname); paint(); details(); }
+  function riskTag(r) { const s = r.L * r.I; return `<a class="tag ${s >= 12 ? 'critical' : s >= 8 ? 'warn' : ''}" href="risks.html#${r.id}" title="${r.title}">${r.id} ${r.title.length > 34 ? r.title.slice(0, 32) + '…' : r.title}</a>`; }
+  function details() {
+    const el = document.getElementById('details');
+    if (!sel) { el.innerHTML = `<h3>Select a unit</h3><p class="empty">Click a box in the drawing, or a row in the table below. The panel shows mass, power, TRL, specification, candidate suppliers, risks and every interface the unit has.</p><h4>Totals (core, without optional items)</h4><div class="facts">${totalsHtml()}</div><h4>Decks</h4><ul class="iflist">${ORDER.map(l => `<li><span class="dot" style="--c:var(--line-strong)"></span><span>${LAYERS[l]}</span><span class="lab">${C.filter(c => c.layer === l).length} units</span></li>`).join('')}</ul>`; return; }
+    const c = byId[sel]; const sub = SUBSYSTEMS.find(s => s.id === c.sub);
+    const ifs = linksOf(sel);
+    el.innerHTML = `
+      <div class="sub"><span class="tag accent">${sub.name}</span> ${c.optional ? '<span class="tag warn">optional / growth</span>' : ''} <span class="tag">${LAYERS[c.layer]}</span></div>
+      <h3>${c.name}</h3>
+      <div>${(c.band || []).map(b => `<span class="band-chip ${b}">${b.toUpperCase()}</span>`).join(' ')}</div>
+      <div class="facts"><div><div class="k">Mass</div><div class="v">${c.kg.toFixed(1)} kg</div></div><div><div class="k">Power (collecting)</div><div class="v">${c.w} W</div></div><div><div class="k">TRL</div><div class="v">${c.trl}</div></div></div>
+      <div class="spec"><b>Spec:</b> ${c.spec}<br><b>Size:</b> ${c.size}</div>
+      <p>${c.desc}</p>
+      <h4>Candidate suppliers</h4><p style="font-size:.88rem">${c.suppliers} <a href="../01_Research_Landscape/suppliers.html">→ catalogue</a></p>
+      <h4>Interfaces (${ifs.length})</h4><ul class="iflist">${ifs.map(l => { const other = l.from === sel ? l.to : l.from; const dir = l.from === sel ? '→' : '←'; return `<li><span class="dot" style="--c:${IFACE_TYPES[l.type].color}"></span><a href="#${other}" data-go="${other}">${dir} ${byId[other].name.split(/[\(,:—]/)[0].trim()}</a><span class="lab">${l.label}</span></li>`; }).join('')}</ul>
+      <h4>Risks</h4><div class="risklist">${(c.risks || []).map(id => { const r = RISKS.find(x => x.id === id); return r ? riskTag(r) : ''; }).join('') || '<span class="empty">none assigned</span>'}</div>`;
+    el.querySelectorAll('[data-go]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); select(a.dataset.go); el.scrollTop = 0; }));
+  }
+  function totals(includeOpt) { let pm = 0, pw = 0, bm = 0, bw = 0; C.forEach(c => { if (c.optional && !includeOpt) return; if (c.sub.startsWith('payload')) { pm += c.kg; pw += c.w; } else { bm += c.kg; bw += c.w; } }); return { pm, pw, bm, bw }; }
+  function totalsHtml() { const t = totals(false); return `<div><div class="k">Payload</div><div class="v">${t.pm.toFixed(1)} kg</div></div><div><div class="k">Bus</div><div class="v">${t.bm.toFixed(1)} kg</div></div><div><div class="k">Payload power</div><div class="v">${t.pw} W</div></div>`; }
+  function kpis() {
+    const t = totals(false), to = totals(true), m = BASELINE.mass.marginPct / 100;
+    document.getElementById('kpis').innerHTML = [
+      ['v', `${C.length}<small>units</small>`, 'in the component model', `${C.filter(c => c.optional).length} optional growth items`],
+      ['v', `${t.pm.toFixed(1)}<small>kg</small>`, 'payload, core', `${to.pm.toFixed(1)} kg with options`],
+      ['v', `${(t.pm + t.bm).toFixed(1)}<small>kg</small>`, 'dry mass, core', `${((t.pm + t.bm) * (1 + m)).toFixed(0)} kg with ${BASELINE.mass.marginPct}% margin · ${((to.pm + to.bm) * (1 + m)).toFixed(0)} kg with options`],
+      ['v', `${t.pw}<small>W</small>`, 'payload power, collecting', `${to.pw} W with options; bus ~${BASELINE.power.modes.collect.bus} W + 45 W downlink`],
+      ['v', `${BASELINE.mass.launchMax - Math.round((to.pm + to.bm) * (1 + m))}<small>kg</small>`, 'headroom to 150 kg', 'reflector, propellant, arrays, 2nd RFSoC'],
+    ].map(([_, v, l, d]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div><div class="d">${d}</div></div>`).join('');
+  }
+  function table() {
+    const tb = document.querySelector('#ctable tbody');
+    tb.innerHTML = C.map(c => `<tr data-id="${c.id}"><td><a href="#${c.id}" data-go="${c.id}">${c.name}</a>${c.optional ? ' <span class="tag warn">optional</span>' : ''}</td><td>${SUBSYSTEMS.find(s => s.id === c.sub).name}</td><td>${LAYERS[c.layer]}</td><td class="num">${c.kg.toFixed(1)}</td><td class="num">${c.w}</td><td class="num">${c.trl}</td><td>${(c.band || []).map(b => `<span class="band-chip ${b}">${b.toUpperCase()}</span>`).join(' ')}</td><td class="small">${c.suppliers}</td><td>${(c.risks || []).map(id => `<a href="risks.html#${id}">${id}</a>`).join(' ')}</td></tr>`).join('');
+    tb.querySelectorAll('[data-go]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); select(a.dataset.go); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
+  }
+  function ifaceTabs() {
+    const t = document.getElementById('iftabs'); const list = t.querySelector('.tablist');
+    types.forEach((ty, i) => {
+      const rows = []; C.forEach(c => c.interfaces.forEach(f => { if (f.type === ty) rows.push([c, f]); }));
+      const b = document.createElement('button'); b.dataset.tab = ty; b.textContent = `${IFACE_TYPES[ty].name} (${rows.length})`; if (i === 0) b.setAttribute('aria-selected', 'true'); list.append(b);
+      const p = document.createElement('div'); p.className = 'tabpanel'; p.dataset.tab = ty;
+      p.innerHTML = `<div class="table-wrap"><table class="compact"><thead><tr><th>#</th><th>From</th><th>To</th><th>Interface</th></tr></thead><tbody>${rows.map(([c, f], k) => `<tr><td>${ty.toUpperCase().slice(0, 3)}-${String(k + 1).padStart(2, '0')}</td><td><a href="#${c.id}" data-go="${c.id}">${c.name}</a></td><td><a href="#${f.to}" data-go="${f.to}">${byId[f.to].name}</a></td><td>${f.label}</td></tr>`).join('')}</tbody></table></div>`;
+      t.append(p);
+    });
+    t.querySelectorAll('[data-go]').forEach(a => a.addEventListener('click', e => { e.preventDefault(); select(a.dataset.go); window.scrollTo({ top: 0, behavior: 'smooth' }); }));
+  }
+  // toolbar
+  const chips = document.getElementById('typechips');
+  types.forEach(ty => { const b = document.createElement('button'); b.className = 'chip'; b.style.setProperty('--c', IFACE_TYPES[ty].color); b.textContent = IFACE_TYPES[ty].name; b.setAttribute('aria-pressed', typeOn[ty]); b.addEventListener('click', () => { typeOn[ty] = !typeOn[ty]; b.setAttribute('aria-pressed', typeOn[ty]); paint(); }); chips.append(b); });
+  document.getElementById('layerlegend').innerHTML = SUBSYSTEMS.map(s => `<span style="--c:${s.color}">${s.name}</span>`).join('');
+  document.getElementById('baseline-meta').textContent = `${BASELINE.satName} · ${BASELINE.version}`;
+  bindRange('explode', v => { explode = v / 100; render(); }, v => v + '%');
+  document.getElementById('opt').addEventListener('change', e => { showOpt = e.target.checked; render(); });
+  document.getElementById('alllinks').addEventListener('change', e => { allLinks = e.target.checked; paint(); });
+  document.getElementById('reset').addEventListener('click', () => { sel = null; hover = null; document.getElementById('explode').value = 55; explode = 0.55; render(); details(); history.replaceState(null, '', location.pathname); });
+  document.addEventListener('themechange', render);
+  window.addEventListener('hashchange', () => { const id = location.hash.slice(1); if (byId[id]) select(id); });
+  kpis(); table(); ifaceTabs(); render(); details();
+  const h = location.hash.slice(1); if (byId[h]) select(h);
+})();
+</script>
+</body>
+</html>

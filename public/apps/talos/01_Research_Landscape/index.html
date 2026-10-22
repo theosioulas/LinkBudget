@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>State of the art — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .gen-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; margin: 1.2rem 0; }
+  .gen { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 1rem 1.1rem; font-family: var(--font-ui); font-size: 0.88rem; }
+  .gen .era { color: var(--ink-3); font-size: 0.78rem; }
+  .gen h3 { margin: 0.1rem 0 0.4rem; font-size: 1.05rem; }
+  .gen .mass { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin: 0.2rem 0 0.4rem; }
+  .gen .mass small { font-size: 0.8rem; font-weight: 500; color: var(--ink-3); }
+  .gen ul { margin: 0.4rem 0 0; padding-left: 1.1rem; color: var(--ink-2); }
+  .gen li { margin: 0.15rem 0; }
+  .gen.talos { border-color: var(--accent-2); }
+  .scatter-legend span { --c: var(--ink-3); }
+  .findings li { margin: 0.45rem 0; }
+  .findings b { font-family: var(--font-ui); }
+  svg .dot-nat { fill: var(--band-x); }
+  svg .dot-com { fill: var(--accent); }
+  svg .dot-talos { fill: var(--accent-2); }
+  svg .dot-nd { fill: none; stroke: var(--ink-3); stroke-dasharray: 2 2; }
+  svg .earth { fill: var(--surface-3); stroke: var(--line-strong); }
+  svg .sat { fill: var(--accent); stroke: var(--surface); stroke-width: 1; }
+  svg .sat.nat { fill: var(--band-x); }
+  svg .hyper { fill: none; stroke: var(--band-s); stroke-width: 1.2; stroke-dasharray: 3 2; }
+  svg .lop { fill: none; stroke: var(--band-l); stroke-width: 1.2; }
+  svg .ell { fill: color-mix(in srgb, var(--band-s) 30%, transparent); stroke: var(--band-s); }
+  svg .emit { fill: var(--critical); }
+  @media (max-width: 900px) { .gen-grid { grid-template-columns: 1fr; } .grid.c4 { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>01 Research &amp; landscape</b> · State of the art</div>
+    <h1>State of the art in space-based passive RF</h1>
+    <p class="lead">Space-based passive RF monitoring has moved in a decade from a handful of classified 500-kg national satellites to a commercial market led by clusters of 13–30 kg CubeSats, and in 2025–26 the leading operators and primes have moved back up to the 150 kg class to get aperture, power and X-band. That 150 kg class is the one TALOS targets: this page explains what the discipline is, how the architectures differ in the way they geolocate an emitter, who flies what, and where a Greek/EU entrant can stand.</p>
+    <div class="meta"><span>Baseline: TALOS-1 v0.3</span><span>Sources: research note 01 (operators), 04, 05</span><span>Status as of 21 Oct 2026</span></div>
+  </header>
+
+  <h2>What the discipline is</h2>
+  <p>A passive-RF satellite carries no transmitter for its mission; it listens. Wideband receivers tuned between a few tens of MHz and 18 GHz record emissions from radars, data links, satellite phones, push-to-talk radios, VSAT terminals and GNSS jammers, and the on-board or ground processing extracts <em>externals</em>: frequency, bandwidth, pulse or burst timing, modulation class, power and, from the arrival time and Doppler shift at one or several satellites, the position of the emitter. Content is not demodulated; this is what distinguishes the commercial "RF geolocation" business of HawkEye 360, Unseenlabs and Kleos from classical COMINT, and what makes an unclassified, exportable product possible<sup class="ref" data-r="R5-13"></sup><sup class="ref" data-r="R4-2"></sup>.</p>
+  <p>Three products have emerged from this measurement chain. <b>Spectrum mapping</b> records which bands are occupied where (Aurora Insight's original business). <b>Geolocation</b> turns time-of-arrival (TOA) and frequency-of-arrival (FOA) measurements into a position with a confidence ellipse; HawkEye 360 measures TOA/FOA on orbit and solves the time-difference (TDOA) and frequency-difference (FDOA) problem on the ground, delivering 95 % confidence ellipses<sup class="ref" data-r="R1-6"></sup>. <b>Characterisation and cataloguing</b> turns repeated detections into an emitter library with patterns of life, which is where the durable value sits for defence customers (research note 04 §5). The three stack: a satellite that cannot geolocate can still map, and a constellation that geolocates well enough, often enough, feeds a catalogue.</p>
+  <p>The physics forces one architectural choice before anything else. A single satellite can only geolocate by exploiting its own motion (Doppler history over tens of seconds) or by measuring angle of arrival with an interferometric antenna; both need the emitter to stay on for a while and both yield kilometre-class to tens-of-kilometre results on a single pass. Two or more satellites that see the same burst at the same instant can geolocate a burst of a few milliseconds by TDOA/FDOA, with accuracy that scales with signal bandwidth, SNR, baseline geometry and the time synchronisation between the satellites (tens of nanoseconds). This is why the whole field sorts itself into "formations" and "monosatellites" (Section 4), and why TALOS is designed to start as the latter and grow into the former.</p>
+
+  <h2>Scale of the field today</h2>
+  <div class="grid c4" id="kpis">
+    <div class="kpi"><div class="v">&gt;30<small>satellites</small></div><div class="l">HawkEye 360 on orbit, Clusters 1–15</div><div class="d">Cluster 15 launched 20 Oct 2026 on Bandwagon-5; 29 satellites in Apr 2025<sup class="ref" data-r="R1-5"></sup><sup class="ref" data-r="R1-7"></sup></div></div>
+    <div class="kpi"><div class="v">25<small>satellites</small></div><div class="l">Unseenlabs BRO on orbit</div><div class="d">23 Gen-1 CubeSats + 2 Gen-2 150 kg; BRO-32 launched 1 Oct 2026<sup class="ref" data-r="R1-21"></sup></div></div>
+    <div class="kpi"><div class="v">$117.7 M</div><div class="l">HawkEye 360 revenue 2025</div><div class="d">From $30.5 M in 2022; FY-2026 guidance $215–220 M; backlog $292 M (Jun 2026)<sup class="ref" data-r="R1-10"></sup><sup class="ref" data-r="R1-2"></sup></div></div>
+    <div class="kpi"><div class="v">$3.8 → 9.3 B</div><div class="l">Space-based RF-mapping market 2025 → 2034 <span class="tag warn">analyst est.</span></div><div class="d">10.5 % CAGR per Dataintelo; methodology opaque, treat as an order of magnitude only<sup class="ref" data-r="R1-62"></sup></div></div>
+  </div>
+  <p>The market-size figure deserves its warning tag. The analyst estimates come from report vendors whose methodologies are not published and whose "space-based RF mapping" definition includes services that do not exist yet. The hard number is HawkEye 360's audited revenue: $117.7 M in 2025 with a first net profit of $2.7 M, and $49.8 M in Q2-2026 alone (+87 % year on year)<sup class="ref" data-r="R1-2"></sup>. One trade report quoted $98.7 M for 2025; the prospectus figure is used throughout this study<sup class="ref" data-r="R1-20"></sup>. Every other operator is an order of magnitude smaller: Unseenlabs targets €100 M revenue by 2029 from a 2024 base it does not disclose<sup class="ref" data-r="R1-25"></sup>, Spire guides $75–85 M for all of 2026 across weather, aviation and RF<sup class="ref" data-r="R1-34"></sup>, and Kleos booked €272 K in 2022, the year before it failed<sup class="ref" data-r="R1-32"></sup>. The revealed commercial market in 2026 is therefore roughly $150–250 M a year, concentrated in one US company whose largest customer is the NRO (39 % of 2025 revenue)<sup class="ref" data-r="R1-20"></sup>.</p>
+
+  <h2>Three generations of spacecraft</h2>
+  <p>The mass class of a passive-RF satellite is a proxy for what it can hear. Antenna aperture sets sensitivity at C- and X-band, power sets how many receiver chains can run at once and for how long per orbit, and volume sets whether a deployable interferometer baseline or a reflector fits. The field has gone through a full cycle.</p>
+  <div class="gen-grid">
+    <div class="gen"><div class="era">2004 → 2021 · national programmes</div><h3>Large national satellites</h3><div class="mass">130–516 kg <small>per satellite, single or triplet</small></div>
+      <ul><li>France: ESSAIM (2004, 4 µsats), ELISA (2011, 4 × ~130 kg), CERES (Nov 2021, 3 × 446–516 kg at 670 km / 75°, €450 M, 10-yr life)<sup class="ref" data-r="R1-53"></sup><sup class="ref" data-r="R1-54"></sup></li>
+      <li>India: EMISAT (Apr 2019, 436 kg IMS-2 bus, 748 km SSO, DRDO Kautilya ELINT payload)<sup class="ref" data-r="R1-60"></sup></li>
+      <li>Russia: Lotos-S1 (8 launched 2014–2024, ~900 km, multi-tonne) and Pion-NKS (2021, ~450 km)<sup class="ref" data-r="R1-51"></sup><sup class="ref" data-r="R1-52"></sup></li>
+      <li>China: Yaogan ELINT triplets at ~1,100 km (est. 1–2 t each)<sup class="ref" data-r="R1-48"></sup><sup class="ref" data-r="R1-49"></sup></li>
+      <li>Geolocation: 3-sat TDOA formations (CERES, Yaogan) or single large satellites (Lotos, EMISAT)</li></ul></div>
+    <div class="gen"><div class="era">2018 → 2024 · commercial CubeSats</div><h3>6U–30 kg clusters</h3><div class="mass">6–30 kg <small>per satellite, 3–4 per cluster</small></div>
+      <ul><li>HawkEye 360 Pathfinder (Dec 2018): 3 × 13.4 kg SFL NEMO-15; Block 2 "Hawks" ~30 kg on SFL DEFIANT from 2021; Block 3 Kestrel 8U (2025) at ~75 % lower cost<sup class="ref" data-r="R1-6"></sup><sup class="ref" data-r="R1-8"></sup><sup class="ref" data-r="R1-9"></sup></li>
+      <li>Unseenlabs BRO Gen-1 (Aug 2019 →): 6U/8U GomSpace, ~15 kg, 23 flown<sup class="ref" data-r="R1-22"></sup></li>
+      <li>Kleos (2020–23): 16 × 6U in 4-sat clusters; bankrupt Jul 2023<sup class="ref" data-r="R1-28"></sup></li>
+      <li>Aurora Insight, Spire LEMUR, Horizon Amber (6U, lost 2023), PHASMA (3U, 2025)</li>
+      <li>Proved TDOA/FDOA and single-sat geolocation commercially; limited by power (Pathfinder could only control two of three satellites) and aperture (little above 6 GHz without an LNB)</li></ul></div>
+    <div class="gen talos"><div class="era">2024 → · the return to microsatellites</div><h3>150 kg class — where TALOS sits</h3><div class="mass">~150 kg <small>ESPA-class, L/S/C/X capable</small></div>
+      <ul><li>Unseenlabs BRO-31 Gen-2 (Jul 2026, Transporter-17): ~150 kg, U-Space/GomSpace platforms, L/S/C/X (and Ku) to 12 GHz, ~1 M km² per pass; BRO-32 second unit Oct 2026; ~20–40 planned<sup class="ref" data-r="R1-23"></sup><sup class="ref" data-r="R1-24"></sup><sup class="ref" data-r="R1-25"></sup></li>
+      <li>BAE Systems Azalea (Nov 2025): 3 × ~150 kg RF + 1 ICEYE SAR at ~560 km, onboard "Enhanced SDR" AI, self-funded<sup class="ref" data-r="R1-43"></sup></li>
+      <li>Aerospacelab trio (Mar 2024): HawkEye-style triangle on its own 100-kg-class bus line (mass n/d)<sup class="ref" data-r="R1-41"></sup></li>
+      <li>CASSIOPÉE (DGA, Sept 2026): Airbus S250 bus + Unseenlabs payload for 2032<sup class="ref" data-r="R1-27"></sup></li>
+      <li><b>TALOS-1: 530 km / 53°, ≈104 kg with margin inside a 150 kg allocation, UHF–X, single satellite first, 3-sat TDOA/FDOA cluster second</b></li></ul></div>
+  </div>
+  <figure class="diagram"><div id="massChart"></div>
+    <figcaption><b>Mass class versus first-launch year.</b> National programmes (orange) sit at 130 kg and above; the 2018–2024 commercial wave (blue) sits at 6–30 kg; from 2024 the commercial and prime-built systems climb back to ~150 kg, which is where TALOS-1 (red, 2030) is placed. Hollow markers are masses not disclosed or estimated from the bus class (est.). Logarithmic mass axis.</figcaption></figure>
+  <p>Why the move back up? Unseenlabs is explicit that Gen-2 exists to cover L, S, C and X up to 12 GHz and to see land and space emitters, not just ship radars, and that it is roughly ten times the mass of Gen-1<sup class="ref" data-r="R1-25"></sup>. BAE Systems built Azalea at 150 kg to carry an ultra-wideband sensor and enough compute to run AI classification on board<sup class="ref" data-r="R1-43"></sup>. HawkEye 360 went the opposite way with Block 3 (smaller, ~75 % cheaper, ~80 % of the signals) because its revisit problem is solved by numbers and its most lucrative signals are in UHF–S<sup class="ref" data-r="R1-9"></sup>. The two trends are consistent: a cheap CubeSat sees strong signals below 6 GHz; an X-band radar catalogue or weak-signal collection needs aperture and power, and ESPA-class is the smallest bus that gives both. The CubeSat precedents also show that the TALOS 150 kg allocation is generous for a first unit, which is why the baseline closes at 87 kg dry + 20 % margin and leaves 35–45 kg for a reflector, propellant or a second digitiser.</p>
+
+  <h2>Chronology 2015 → 2026</h2>
+  <p>The sequence below is the true order of events that matters for a programme plan: how long founders took to reach first launch and a paying service, when governments moved from studies to operational buys, and when the 150 kg class arrived.</p>
+  <ul class="timeline">
+    <li><div class="when">Sept 2015</div><div class="what">HawkEye 360 founded (Herndon, VA); Unseenlabs founded (Rennes) the same year</div><p>Both start from the same thesis — commercial RF geolocation from LEO — and choose opposite architectures: 3-sat formation versus independent monosatellites<sup class="ref" data-r="R1-4"></sup><sup class="ref" data-r="R1-22"></sup>.</p></li>
+    <li><div class="when">2017 – Aug 2018</div><div class="what">Kleos Space founded; ASX listing raises €6.96 M</div><p>Luxembourg company with Australian listing, 4-sat CubeSat clusters, "data-as-a-service" model<sup class="ref" data-r="R1-29"></sup>.</p></li>
+    <li><div class="when">Dec 2018</div><div class="what">HawkEye 360 Pathfinder (Cluster 1) launched</div><p>Three 13.4 kg SFL NEMO-15 satellites, water thrusters, 125 km along-track spacing with 5 km (1σ) control. First commercial data Feb 2019; single-string and power-limited<sup class="ref" data-r="R1-6"></sup>.</p></li>
+    <li><div class="when">Apr – Aug 2019</div><div class="what">EMISAT (India) launched; BRO-1 (Unseenlabs) launched</div><p>EMISAT is a 436 kg national ELINT satellite; BRO-1 a 6U CubeSat that geolocates ships on its own<sup class="ref" data-r="R1-60"></sup><sup class="ref" data-r="R1-22"></sup>.</p></li>
+    <li><div class="when">Nov 2020</div><div class="what">Kleos Scouting Mission (KSM1) launched on PSLV</div><p>Months-long slip left liquidity "tenuous"; KSM1 later suffered anomalies and was deorbited<sup class="ref" data-r="R1-28"></sup><sup class="ref" data-r="R5-5"></sup>.</p></li>
+    <li><div class="when">Jan – Mar 2021</div><div class="what">HawkEye 360 Cluster 2 launched and reaches IOC</div><p>~30 kg DEFIANT buses, "up to 10× collection capacity", redundancy, dedicated GNSS antenna — the real initial operating capability, 5.5 years after founding<sup class="ref" data-r="R1-11"></sup><sup class="ref" data-r="R1-8"></sup>.</p></li>
+    <li><div class="when">Jun – Nov 2021</div><div class="what">Pion-NKS (Russia), Kleos Vigilance, NGA RF Emitter Data contract, CERES (France)</div><p>CERES: 3 × ~500 kg on Vega, €450 M, operational by spring 2022 over Ukraine<sup class="ref" data-r="R1-53"></sup>. NGA buys HawkEye data up to $10 M<sup class="ref" data-r="R1-15"></sup>.</p></li>
+    <li><div class="when">Sept 2022</div><div class="what">NRO Strategic Commercial Enhancements: six RF study contracts</div><p>~$300 K base each to Aurora Insight, HawkEye 360, Kleos, PredaSAR, Spire, Umbra — the start of a four-year path to an operational buy<sup class="ref" data-r="R1-13"></sup>.</p></li>
+    <li><div class="when">Jan – Jul 2023</div><div class="what">Kleos Observer launched; Horizon Amber-1 lost on Virgin Orbit; Kleos files for bankruptcy (26 Jul)</div><p>€272 K revenue against €11.3 M loss in 2022; satellites expected to live ~18 months of a 5-year design<sup class="ref" data-r="R1-31"></sup><sup class="ref" data-r="R1-32"></sup>.</p></li>
+    <li><div class="when">Dec 2023 – Feb 2024</div><div class="what">HawkEye 360 buys Maxar's RF Solutions (ex-Aurora Insight); Unseenlabs raises €85 M</div><p>Spectrum mapping consolidates into the geolocation leader; Unseenlabs' round is the largest French space raise to date<sup class="ref" data-r="R1-37"></sup><sup class="ref" data-r="R1-26"></sup>.</p></li>
+    <li><div class="when">Mar 2024</div><div class="what">Aerospacelab launches a trio of RF-sensing satellites</div><p>HawkEye-style triangular formation on a European bus; white paper claims radar geolocation, no accuracy published<sup class="ref" data-r="R1-41"></sup>.</p></li>
+    <li><div class="when">Nov 2025</div><div class="what">BAE Systems Azalea cluster (3 × 150 kg RF + SAR) and PHASMA (Greece, 2 × 3U) launched on Transporter-15</div><p>First 150-kg-class commercial/prime RF cluster; first Greek RF-monitoring CubeSats<sup class="ref" data-r="R1-43"></sup><sup class="ref" data-r="R1-45"></sup>.</p></li>
+    <li><div class="when">Dec 2025 – Mar 2026</div><div class="what">HawkEye 360: >$100 M 5-year international deal, NRO extension, $75 M European MoD, Series E; Spire single-satellite RFGL demo</div><p>Dedicated-capacity sovereign clusters become a product; single-satellite geolocation now demonstrated by two operators<sup class="ref" data-r="R1-16"></sup><sup class="ref" data-r="R1-18"></sup><sup class="ref" data-r="R1-35"></sup>.</p></li>
+    <li><div class="when">7 May 2026</div><div class="what">HawkEye 360 IPO on NYSE (HAWK)</div><p>$478 M gross raised, ~$2.4 B valuation, ~20× 2025 revenue<sup class="ref" data-r="R1-1"></sup><sup class="ref" data-r="R1-2"></sup>.</p></li>
+    <li><div class="when">Jul 2026</div><div class="what">Unseenlabs BRO-31 — first ~150 kg Gen-2 satellite (Transporter-17)</div><p>L/S/C/X(/Ku) to 12 GHz, multi-domain; ten times the mass of Gen-1<sup class="ref" data-r="R1-23"></sup><sup class="ref" data-r="R1-25"></sup>.</p></li>
+    <li><div class="when">Aug – Sept 2026</div><div class="what">NRO CRFCA operational contract (uncapped) to HawkEye 360; CASSIOPÉE announced; HawkEye–Leonardo MoU and Luxembourg subsidiary</div><p>Commercial RF moves from study to operational augmentation in the US; France commits its sovereign successor to CERES with Airbus + Unseenlabs for 2032<sup class="ref" data-r="R1-14"></sup><sup class="ref" data-r="R1-27"></sup><sup class="ref" data-r="R1-17"></sup>.</p></li>
+    <li><div class="when">1 – 20 Oct 2026</div><div class="what">BRO-32 (second Gen-2) on Transporter-18; HawkEye 360 Cluster 15 on Bandwagon-5</div><p>Clusters 15/16 are the first built for a committed-capacity customer; HawkEye reports $36 M of awards across >10 nations in Q3<sup class="ref" data-r="R1-21"></sup><sup class="ref" data-r="R1-5"></sup><sup class="ref" data-r="R1-19"></sup>.</p></li>
+  </ul>
+
+  <h2>Architecture taxonomy: how each system geolocates</h2>
+  <p>Four architectures cover every system on orbit. They differ in how many satellites see the same emission at once, and therefore in which measurement is available for geolocation. The diagram draws the mechanism; the table that follows names the practitioners.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 960 345" role="img" aria-label="Four passive-RF architectures and their geolocation mechanism">
+      <!-- panel 1: single large satellite -->
+      <g transform="translate(0,0)">
+        <text x="120" y="18" class="lbl" text-anchor="middle" font-weight="600">1 · Single satellite</text>
+        <path d="M20 250 Q120 150 220 250" class="earth"/>
+        <circle cx="70" cy="120" r="5" class="sat nat"/><circle cx="120" cy="105" r="5" class="sat nat"/><circle cx="170" cy="120" r="5" class="sat nat"/>
+        <path d="M70 120 L170 120" class="wire" stroke-dasharray="3 3"/>
+        <text x="120" y="92" class="lbl xs" text-anchor="middle">same satellite, t₁ → t₂ → t₃</text>
+        <circle cx="128" cy="205" r="4" class="emit"/>
+        <path d="M70 120 L128 205 M120 105 L128 205 M170 120 L128 205" class="wire rf" stroke-width="0.8"/>
+        <path d="M60 200 C90 180 170 180 196 212" class="lop"/>
+        <path d="M66 215 C96 192 160 192 190 226" class="lop"/>
+        <text x="120" y="275" class="lbl s" text-anchor="middle">Doppler (FOA) history over the pass,</text>
+        <text x="120" y="289" class="lbl s" text-anchor="middle">or interferometric AOA; needs 10s of s</text>
+        <text x="120" y="308" class="lbl xs" text-anchor="middle">Lotos, EMISAT, Unseenlabs BRO,</text><text x="120" y="321" class="lbl xs" text-anchor="middle">Spire demo 2026, TALOS-1 (Stage 1)</text>
+      </g>
+      <!-- panel 2: 3-sat formation -->
+      <g transform="translate(240,0)">
+        <text x="120" y="18" class="lbl" text-anchor="middle" font-weight="600">2 · 3-satellite formation</text>
+        <path d="M20 250 Q120 150 220 250" class="earth"/>
+        <circle cx="80" cy="118" r="5" class="sat"/><circle cx="160" cy="118" r="5" class="sat"/><circle cx="120" cy="90" r="5" class="sat"/>
+        <path d="M80 118 L160 118 L120 90 Z" class="wire" stroke-dasharray="3 3"/>
+        <text x="120" y="76" class="lbl xs" text-anchor="middle">100–500 km baselines, same instant</text>
+        <circle cx="128" cy="205" r="4" class="emit"/>
+        <path d="M80 118 L128 205 M160 118 L128 205 M120 90 L128 205" class="wire rf" stroke-width="0.8"/>
+        <path d="M70 230 C100 195 150 190 200 215" class="hyper"/>
+        <path d="M95 240 C110 205 150 180 180 170" class="hyper"/>
+        <ellipse cx="128" cy="205" rx="9" ry="5" class="ell"/>
+        <text x="120" y="275" class="lbl s" text-anchor="middle">TDOA hyperbolae (+FDOA) on one burst,</text>
+        <text x="120" y="289" class="lbl s" text-anchor="middle">ms-class signals; 10–50 ns sync</text>
+        <text x="120" y="308" class="lbl xs" text-anchor="middle">HawkEye 360, CERES, Yaogan, Azalea,</text><text x="120" y="321" class="lbl xs" text-anchor="middle">Aerospacelab, TALOS cluster (Stage 2)</text>
+      </g>
+      <!-- panel 3: monosatellite constellation -->
+      <g transform="translate(480,0)">
+        <text x="120" y="18" class="lbl" text-anchor="middle" font-weight="600">3 · Monosatellite constellation</text>
+        <path d="M20 250 Q120 150 220 250" class="earth"/>
+        <circle cx="50" cy="128" r="5" class="sat"/><circle cx="120" cy="100" r="5" class="sat"/><circle cx="190" cy="128" r="5" class="sat"/>
+        <text x="50" y="112" class="lbl xs" text-anchor="middle">pass 1</text><text x="120" y="86" class="lbl xs" text-anchor="middle">pass 2</text><text x="190" y="112" class="lbl xs" text-anchor="middle">pass 3</text>
+        <circle cx="128" cy="205" r="4" class="emit"/>
+        <path d="M50 128 L128 205 M120 100 L128 205 M190 128 L128 205" class="wire rf" stroke-width="0.8"/>
+        <ellipse cx="128" cy="205" rx="26" ry="8" class="ell" opacity="0.5"/><ellipse cx="128" cy="205" rx="14" ry="6" class="ell"/>
+        <text x="120" y="275" class="lbl s" text-anchor="middle">Independent single-sat fixes, many sats</text>
+        <text x="120" y="289" class="lbl s" text-anchor="middle">→ revisit; multi-pass averaging</text>
+        <text x="120" y="308" class="lbl xs" text-anchor="middle">Unseenlabs (25 sats),</text><text x="120" y="321" class="lbl xs" text-anchor="middle">Spire RFGL fleet</text>
+      </g>
+      <!-- panel 4: pairs / 4-sat multilateration -->
+      <g transform="translate(720,0)">
+        <text x="120" y="18" class="lbl" text-anchor="middle" font-weight="600">4 · Pairs and 4-sat clusters</text>
+        <path d="M20 250 Q120 150 220 250" class="earth"/>
+        <circle cx="90" cy="112" r="5" class="sat"/><circle cx="150" cy="112" r="5" class="sat"/>
+        <path d="M90 112 L150 112" class="wire" stroke-dasharray="3 3"/>
+        <circle cx="60" cy="140" r="4" class="sat" opacity="0.5"/><circle cx="180" cy="140" r="4" class="sat" opacity="0.5"/>
+        <text x="120" y="98" class="lbl xs" text-anchor="middle">2 (Spire) … 4 (Kleos) satellites</text>
+        <circle cx="128" cy="205" r="4" class="emit"/>
+        <path d="M90 112 L128 205 M150 112 L128 205" class="wire rf" stroke-width="0.8"/>
+        <path d="M60 235 C100 200 160 195 205 225" class="hyper"/>
+        <path d="M55 218 C100 190 150 190 200 200" class="lop"/>
+        <text x="120" y="275" class="lbl s" text-anchor="middle">Pair: one TDOA hyperbola + FDOA line;</text>
+        <text x="120" y="289" class="lbl s" text-anchor="middle">4 sats: up to six pair baselines</text>
+        <text x="120" y="308" class="lbl xs" text-anchor="middle">Spire pairs (2026),</text><text x="120" y="321" class="lbl xs" text-anchor="middle">Kleos 4-sat clusters (2020–23)</text>
+      </g>
+    </svg>
+    <figcaption><b>The four architectures and the measurement each one can make.</b> Red dot = emitter; red lines = received emission; green dashed curves = TDOA hyperbolae; blue curves = Doppler/FDOA lines of position; green ellipse = resulting confidence region. A single satellite must exploit its own motion over the pass (panel 1); a formation fixes a single burst instantaneously (panel 2); a monosatellite constellation trades instantaneous accuracy for revisit (panel 3); pairs and 4-sat clusters sit in between (panel 4). TALOS-1 begins in panel 1 and the Stage-2 cluster moves to panel 2.</figcaption>
+  </figure>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Architecture</th><th>Who</th><th>Geolocation method</th><th>Claimed accuracy</th><th>What it costs you</th></tr></thead>
+    <tbody>
+      <tr><td>Single large satellite</td><td>Lotos-S1 / Pion-NKS (RU), EMISAT (IN), Unseenlabs BRO Gen-1 and Gen-2 (FR)</td><td>Doppler/FOA over the pass; AOA; multi-pass accumulation; Unseenlabs' "monosatellite" method is proprietary<sup class="ref" data-r="R1-22"></sup></td><td>Unseenlabs ~1 km for maritime emitters (claimed, unverified)<sup class="ref" data-r="R1-22"></sup>; national systems n/d</td><td>Needs emitters that stay on for tens of seconds; weak for short bursts; no timing-sync problem</td></tr>
+      <tr><td>3-satellite formation</td><td>HawkEye 360 (US), CERES (FR), Yaogan ELINT triplets (CN), BAE Azalea (UK), Aerospacelab (BE)</td><td>TDOA/FDOA on a single burst; TOA/FOA measured on orbit, solved on the ground (HawkEye)<sup class="ref" data-r="R1-6"></sup></td><td>HawkEye: 95 % ellipses, no public CEP; NOSS analogue 2–3 km<sup class="ref" data-r="R1-49"></sup></td><td>Three satellites per "pixel"; formation keeping (propulsion); ns-class inter-satellite timing</td></tr>
+      <tr><td>Monosatellite constellation</td><td>Unseenlabs (25 sats), Spire RFGL fleet</td><td>Independent fixes per satellite, averaged over passes</td><td>Unseenlabs ~1 km claimed; Spire n/d<sup class="ref" data-r="R1-35"></sup></td><td>Revisit scales with satellite count; accuracy on bursty emitters stays coarse</td></tr>
+      <tr><td>Pairs / 4-sat multilateration</td><td>Spire RFGL pairs (6 new pairings Q1 2026), Kleos 4-sat clusters (defunct)</td><td>Pair TDOA hyperbola + FDOA; Kleos used up to six antenna pairs<sup class="ref" data-r="R1-33"></sup><sup class="ref" data-r="R1-28"></sup></td><td>Kleos "within 300 m" brochure claim; n/d operationally<sup class="ref" data-r="R4-8"></sup></td><td>Pair geometry gives ambiguous solutions; 4-sat clusters cost more per fix than triplets</td></tr>
+    </tbody></table></div>
+
+  <h2>Key findings for management</h2>
+  <ol class="findings">
+    <li><b>The market is real but concentrated.</b> One operator (HawkEye 360) accounts for most of the roughly $150–250 M/yr revealed commercial market; it has >30 satellites, a $292 M backlog and an uncapped NRO operational contract<sup class="ref" data-r="R1-2"></sup><sup class="ref" data-r="R1-14"></sup>. Competing on volume in the US market is not an option for a Greek entrant; a sovereign, regional, government-anchored rationale is (see <a href="market_regulatory.html">Market &amp; regulation</a>).</li>
+    <li><b>Europe has no sovereign commercial RF layer and knows it.</b> IISS ranks SIGINT/RF-mapping as Europe's most constrained ISR gap and costs 4–8 national SIGINT satellites at ~$200 M each<sup class="ref" data-r="R1-55"></sup>. France is rebuilding (CASSIOPÉE 2032), Germany is competing SPOCK-2 with SIGINT sensors, the UK has one prime-funded cluster; HawkEye 360 is filling the gap from Luxembourg with Leonardo<sup class="ref" data-r="R1-57"></sup><sup class="ref" data-r="R1-17"></sup>.</li>
+    <li><b>The 150 kg class is the new consensus for multi-band (L→X) collection.</b> Unseenlabs Gen-2, BAE Azalea and the Airbus S250-based CASSIOPÉE all sit there; it is the smallest class that carries X-band aperture and 100–200 W of payload power. TALOS is in the right class, and 2030 is late enough that the suppliers will have flown (research note 02).</li>
+    <li><b>Single-satellite geolocation is now credible for persistent emitters</b> (Unseenlabs since 2019, Spire 2026), which makes a one-satellite first stage sellable as monitoring; <b>cluster TDOA/FDOA remains the only proven way to fix a short burst</b>, which is why Stage 2 is a 3-satellite formation.</li>
+    <li><b>Time to IOC is 4–6 years and the cost of a first operational cluster is €60–120 M</b> for a 150 kg class including launch, ground and two years of operations (analyst inference, bracketed by Unseenlabs Gen-2 unit contracts ~€5 M bus-only and CERES at €450 M/3). Kleos shows what happens with less money and a 20-month commissioning slip.</li>
+    <li><b>Every survivor is government-anchored</b>: NRO 39 % of HawkEye revenue; Spire pivoting to defence after selling maritime; Unseenlabs embedded in a DGA programme. Pure commercial maritime demand did not sustain Kleos or Horizon<sup class="ref" data-r="R1-20"></sup><sup class="ref" data-r="R1-34"></sup>.</li>
+    <li><b>Nobody publishes independently verified accuracy.</b> HawkEye gives 95 % ellipses without a CEP, Unseenlabs claims ~1 km, Kleos claimed 300 m. TALOS should publish predicted CEP with its conditions in the tasking interface — an honest differentiator rather than a weakness.</li>
+    <li><b>Greece has the industrial precursors but no RF line.</b> The €130 M national smallsat programme is EO-only; PHASMA (Libre Space + HSC) is a 3U RF-monitoring IOD; HAITF at Schimatari can test a 150 kg satellite; Open Cosmos Aegean builds in Pallini; KSAT operates Nemea<sup class="ref" data-r="R1-58"></sup><sup class="ref" data-r="R1-45"></sup>. The RF layer is the missing modality in Hellas Space 2.0<sup class="ref" data-r="R4-24"></sup>.</li>
+  </ol>
+
+  <h2>Where TALOS sits</h2>
+  <div class="callout decision"><div class="t">Positioning statement</div>
+    <p>TALOS is a <b>150 kg-class, ITAR-free, UHF-to-X-band passive-RF microsatellite built and operated from Greece</b>, flown first as a single monosatellite for monitoring, characterisation and catalogue seeding over the Eastern Mediterranean, Aegean and Black Sea, then as a 3-satellite TDOA/FDOA cluster for burst geolocation, and finally as a 12–24 satellite regional-persistence constellation. It competes with HawkEye 360 on sovereignty and regional revisit, not on global scale; it is the Greek/EU equivalent of what Unseenlabs is to France and Azalea is to the UK, with the X-band radar catalogue and the EU-sourced hardware chain as the technical differentiators.</p></div>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Attribute</th><th>TALOS-1 (2030)</th><th>Unseenlabs BRO-31 (2026)</th><th>BAE Azalea (2025)</th><th>HawkEye Block 2 (2021–)</th><th>CERES (2021)</th></tr></thead>
+    <tbody id="posTable"></tbody>
+  </table></div>
+  <p>Two things in that table are deliberate choices rather than inheritances. First, the 53° inclination: a sun-synchronous orbit is what Transporter rideshares deliver and what every commercial operator flew first, but mid-inclination planes give two to three times more passes over the Eastern Mediterranean, Black Sea and Middle East, which is exactly why HawkEye 360 added 40–46° planes and launches Clusters 15/16 on Bandwagon<sup class="ref" data-r="R1-4"></sup><sup class="ref" data-r="R1-5"></sup>. Second, the dual-path receiver with an 8-channel 5 GSPS RFSoC: no operator discloses its digitiser, but HawkEye's choice of the Xiphos Q-series (Zynq) on 24 satellites and the Pathfinder's AD9361 + Zynq 7045 heritage show the family, and the 2 GHz instantaneous bandwidth per channel is what the X-band radar mission needs that a 56 MHz CubeSat SDR cannot give<sup class="ref" data-r="R2-x84"></sup><sup class="ref" data-r="R1-6"></sup>. The rest of this chapter supports these choices: the <a href="operators.html">operator profiles</a>, the <a href="suppliers.html">supplier catalogue</a>, the <a href="market_regulatory.html">market and regulatory path</a>, and the <a href="lessons_learned.html">lessons learned</a> from the companies that did it before.</p>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  // ---- references: fill <sup class="ref" data-r="..."> markers and render the Sources list in citation order
+  function cleanTitle(t){ return t.replace(/\s*[:—-]?\s*https?:\/\/.*$/,'').replace(/[:;\s]+$/,''); }
+  function wireRefs(){
+    const seen=[]; document.querySelectorAll('sup.ref[data-r]').forEach(s=>{ const id=s.dataset.r; const ok=REFERENCES.some(r=>r.id===id); if(!ok){ console.warn('missing reference id', id); } s.innerHTML=`<a href="#ref-${id}">[${id}]</a>`; if(ok&&!seen.includes(id)) seen.push(id); });
+    const ol=document.getElementById('refs'); seen.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${cleanTitle(r.title)} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); });
+  }
+  wireRefs();
+
+  // ---- positioning table from BASELINE
+  const B=BASELINE; const pos=[
+    ['Mass', `≈${Math.round(87*1.2)} kg with margin / 150 kg allocation`, '~150 kg', '~150 kg', '~30 kg', '446–516 kg'],
+    ['Orbit', `${B.orbit.altKm} km, ${B.orbit.incDeg}° (SSO alt.)`, '500–550 km SSO', '~560 km', '400–600 km SSO + 40–46°', '670 km, 75°'],
+    ['Bands', `UHF 225 MHz → X 12 GHz`, 'L/S/C/X(/Ku) to 12 GHz', 'ultra-wideband (n/d)', '30 MHz–18 GHz (claimed)', 'radar + telecom (n/d)'],
+    ['Receiver', `${B.payload.channels.tuner} ch tuner ${B.payload.channels.tunerIbwMHz} MHz + ${B.payload.channels.rfsoc} ch RFSoC ${B.payload.channels.rfsocIbwMHz/1000} GHz IBW`, 'n/d (Brittany payload)', '"Enhanced SDR", onboard AI', 'SDR 70 MHz–6 GHz, 56 MHz IBW + LNB (Pathfinder)', 'n/d (Airbus)'],
+    ['Geolocation', 'Stage 1 single-sat; Stage 2 3-sat TDOA/FDOA', 'single-satellite', 'cluster + AI fusion with SAR', '3-sat TDOA/FDOA', '3-sat triangulation'],
+    ['Timing', `GNSS-disciplined OCXO ≤${B.payload.timing.syncNs} ns + CSAC`, 'n/d', 'n/d', 'GNSS-timed TOA/FOA', 'n/d'],
+    ['Downlink', `X-band ${B.comms.xband.rateMbps/1000} Gbit/s`, 'n/d', 'n/d', 'X-band (faster from Cluster 15)', 'n/d'],
+    ['Propulsion', `${B.prop.type}, ${B.prop.dvTotalMs} m/s`, 'n/d', 'n/d', 'water electrothermal (~96 m/s Pathfinder)', 'chemical (n/d)'],
+    ['Export regime', 'ITAR-free; EAR-only semiconductors', 'FR (strict)', 'UK', 'US ITAR/EAR, >200 licences', 'FR national'],
+    ['Programme cost', `€${B.cost.demonstrator[0]}–${B.cost.demonstrator[1]} M demonstrator; €${B.cost.cluster3[0]}–${B.cost.cluster3[1]} M cluster (est.)`, '~€5 M bus-only contracts; €112.5 M raised', 'self-funded (n/d)', '~$378 M pre-IPO for >30 sats', '€450 M for 3'],
+  ];
+  document.getElementById('posTable').innerHTML=pos.map(r=>'<tr>'+r.map((c,i)=>`<td${i===0?' style="font-weight:600"':''}>${c}</td>`).join('')+'</tr>').join('');
+
+  // ---- mass vs year scatter (hand-drawn d3, theme-aware via CSS classes)
+  // dx/dy/a = label offset and anchor, chosen by hand to avoid overlaps
+  const pts=[
+    {n:'ELISA (FR)',y:2011,m:130,t:'nat'},{n:'Lotos-S1 (RU)',y:2014,m:5000,t:'nat',nd:1},{n:'EMISAT (IN)',y:2019,m:436,t:'nat'},{n:'CERES (FR)',y:2021.9,m:516,t:'nat'},{n:'Yaogan-31 (CN)',y:2018,m:1500,t:'nat',nd:1},{n:'Pion-NKS (RU)',y:2021.5,m:5000,t:'nat',nd:1,dy:12},
+    {n:'HawkEye Pathfinder',y:2018.9,m:13.4,t:'com',a:'end',dx:-8},{n:'HawkEye Block 2',y:2021,m:30,t:'com'},{n:'Kestrel-0A',y:2025.5,m:12,t:'com',nd:1},{n:'Unseenlabs BRO-1',y:2019.6,m:15,t:'com',dy:-6},{n:'Kleos',y:2020.9,m:8,t:'com',nd:1,a:'end',dx:-8,dy:8},{n:'Aurora Charlie',y:2021.1,m:10,t:'com',nd:1,dy:2},{n:'Aerospacelab trio',y:2024.2,m:50,t:'com',nd:1},{n:'PHASMA (3U)',y:2025.9,m:4,t:'com'},{n:'BAE Azalea',y:2025.9,m:150,t:'com',dy:-7},{n:'Unseenlabs BRO-31',y:2026.5,m:150,t:'com',a:'end',dx:-8,dy:14},
+    {n:'TALOS-1',y:2030.4,m:104,t:'talos',a:'end',dx:-11}
+  ];
+  function drawMass(){
+    const el=document.getElementById('massChart'); el.innerHTML='';
+    const w=Math.max(320,el.clientWidth), h=300, m={t:14,r:20,b:34,l:52};
+    const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${w} ${h}`);
+    const x=d3.scaleLinear().domain([2010,2031]).range([m.l,w-m.r]);
+    const y=d3.scaleLog().domain([2,8000]).range([h-m.b,m.t]);
+    svg.append('g').attr('transform',`translate(0,${h-m.b})`).call(d3.axisBottom(x).ticks(10).tickFormat(d3.format('d'))).call(g=>{g.select('.domain').attr('class','axis-line');g.selectAll('text').attr('class','lbl xs');g.selectAll('line').attr('class','axis-line');});
+    svg.append('g').attr('transform',`translate(${m.l},0)`).call(d3.axisLeft(y).tickValues([5,10,30,100,150,500,1500,5000]).tickFormat(d=>d>=1000?(d/1000)+' t':d+' kg').tickSize(-(w-m.l-m.r))).call(g=>{g.select('.domain').remove();g.selectAll('line').attr('class','grid-line');g.selectAll('text').attr('class','lbl xs');});
+    const band=svg.append('rect').attr('x',x(2024)).attr('y',y(220)).attr('width',x(2031)-x(2024)).attr('height',y(90)-y(220)).attr('fill','var(--accent-soft)').attr('opacity',0.6);
+    svg.append('text').attr('x',x(2027.4)).attr('y',y(220)+11).attr('class','lbl xs').text('150 kg class');
+    const g=svg.selectAll('g.p').data(pts).join('g').attr('transform',d=>`translate(${x(d.y)},${y(d.m)})`);
+    g.append('circle').attr('r',d=>d.t==='talos'?7:5).attr('class',d=>d.nd?'dot-nd':(d.t==='nat'?'dot-nat':d.t==='talos'?'dot-talos':'dot-com'));
+    g.append('text').attr('class','lbl xs').attr('x',d=>d.dx??8).attr('text-anchor',d=>d.a||'start').attr('dy',d=>d.dy??4).text(d=>d.n+(d.nd?' (est.)':''));
+    svg.append('text').attr('x',w-m.r).attr('y',h-4).attr('text-anchor','end').attr('class','lbl xs').text('first launch year');
+  }
+  drawMass(); let lw=0; new ResizeObserver(()=>{const el=document.getElementById('massChart'); if(Math.abs(el.clientWidth-lw)>20){lw=el.clientWidth;drawMass();}}).observe(document.getElementById('massChart'));
+  document.addEventListener('themechange',drawMass);
+})();
+</script>
+</body>
+</html>

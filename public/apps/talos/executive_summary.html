@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Executive summary — TALOS study</title>
+<link rel="stylesheet" href="assets/css/app.css">
+<style>
+  .verdict td:first-child { font-weight: 600; }
+  .verdict .tag { white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>Overview</b> · Executive summary</div>
+    <h1>Executive summary</h1>
+    <p class="lead">Can a Greek/EU team build and operate a 100–150 kg passive-RF satellite that grows into a geolocating constellation, and should it? Yes — with four conditions that are commercial and regulatory rather than physical. This page states the conclusion, the evidence behind it and the decisions it asks for.</p>
+    <div class="meta"><span>Issue 0.3 · 21 October 2026</span><span>Evidence: five research notes, 220 sources checked October 2026</span></div>
+  </header>
+
+  <h2>Bottom line</h2>
+  <p>The mission is technically feasible with today's catalogue parts and a modest amount of custom RF work. The physics favours it: ground radars are visible from low Earth orbit through their sidelobes from anywhere in the footprint, tactical UHF/L-band radios sit 15–25 dB above the receiver noise at 1,500 km, and the satellite's own position and clock can be tied to GNSS at the metre and 20-nanosecond level that time-difference geolocation needs. The market has been proven by HawkEye 360 ($117.7 M revenue in 2025, profitable, IPO at $2.4 B in May 2026) and the 150 kg class has just been validated by Unseenlabs' Gen-2 BRO-31 (L/S/C/X/Ku) and BAE Systems' Azalea trio. Europe has no sovereign commercial supplier of this data outside France, and the EU's own agencies (EUSPA, EDF) have issued demand signals for space-based GNSS-interference monitoring and persistent ISR.</p>
+  <p>The hard parts are not detection but <b>dynamic range</b> (a surveillance radar's mainlobe arrives at −24 dBm next to −120 dBm communications), <b>self-interference</b> on a small bus, <b>timing</b> for TDOA/FDOA, and the <b>data reduction</b> that turns gigabits per second of IQ into kilobytes of reports before the next ground contact. All four have known engineering answers and all four are retired by a pathfinder flight before the 150 kg satellite is committed.</p>
+
+  <div class="callout decision"><div class="t">Recommendation</div><p>Proceed to Phase A on the TALOS baseline (530 km / 53°, dual-path UHF–X receiver, 4-element DF interferometer, GNSS-disciplined timing, 1 Gbit/s X-band downlink), run a 16U pathfinder in parallel with Phase B, and do not launch the demonstrator until funding for the first three-satellite cluster is committed. The cluster, not the demonstrator, is the product.</p></div>
+
+  <h2>Feasibility verdict by area</h2>
+  <div class="table-wrap"><table class="verdict">
+    <thead><tr><th>Area</th><th>Verdict</th><th>Evidence</th><th>Condition</th></tr></thead>
+    <tbody>
+      <tr><td>Detection of target emitters</td><td><span class="tag ok">Feasible</span></td><td>Link budgets close with 5–10 dBi antennas for radars (SNR 30–45 dB via sidelobes), tactical comms (15–25 dB), Link-16/IFF (8–13 dB per pulse), military GNSS jammers (+4…+14 dB). Consumer drone links and 10 mW personal jammers are below the thermal floor from 500 km with any aperture that fits the bus.</td><td>Sell what the physics supports; never claim consumer-drone or PPD detection.</td></tr>
+      <tr><td>Single-satellite geolocation</td><td><span class="tag warn">Feasible, coarse</span></td><td>Doppler/FOA over a pass (68 m demonstrated by UT Austin on Spire data in a best case; 2–24 km worst case), interferometric AOA (2–6 km with a 1.2 m baseline at L-band and 5° phase error), multi-pass accumulation to 1–5 km for fixed emitters. Unseenlabs sells "nearest km" from one satellite.</td><td>Planning figure 5–20 km per pass; star-tracker attitude and phase-calibrated front-ends.</td></tr>
+      <tr><td>Cluster TDOA/FDOA geolocation</td><td><span class="tag ok">Feasible</span></td><td>Proven by HawkEye (13 clusters), CERES, Yaogan. Thermal-noise limits of 42 m for a 25 kHz voice channel and metres for radars; practical results 0.3–3 km for comms (Kleos 0.32–32 km on a 4 W beacon), hundreds of metres for radars. 20 ns clocks and 100–250 km baselines.</td><td>Propulsion for formation keeping; common-view GNSS timing from day one; ISL in Stage 3.</td></tr>
+      <tr><td>Spacecraft in the 100–150 kg class</td><td><span class="tag ok">Comfortable</span></td><td>Core dry mass ≈ 87 kg (payload 24 kg, 124 W) + 20% margin ≈ 104 kg; ITAR-free EU bus options (NanoAvionics MP42H, Aerospacelab VSP, LuxSpace Triton-X, BST LEOS-100). 620 W BOL wings cover ~195 W orbit-average demand.</td><td>Payload-mass limit of MP42H (35 kg) must be negotiated or a larger EU bus chosen if the reflector is adopted.</td></tr>
+      <tr><td>Data & ground segment</td><td><span class="tag ok">Feasible</span></td><td>Reports + snapshots ≈ 30 GB/day vs ≈ 200 GB/day downlinkable from Greek-latitude passes at 1 Gbit/s; 2 TB on board buffers a week. KSAT operates an X/S-band site at Nemea; HAITF at Schimatari can do system-level TVAC/vibration.</td><td>Mid-latitude-only ground network gives 4–6 contacts/day; latency under 90 min needs a polar/Dubai complement or an ISL.</td></tr>
+      <tr><td>Regulatory & legal</td><td><span class="tag warn">Feasible, no precedent</span></td><td>Receive-only needs no ITU assignment; TT&C and X-band downlink need CR/C filings via EETT; national licence under Law 4508/2017 (implementing decision still pending Feb 2025); externals-only collection keeps a commercial operator outside the interception regime; EU dual-use 5A001/3A001 and possibly ML11 apply to the hardware; ITAR-free design is achievable.</td><td>Legal opinion and Ministry/HSC/EETT engagement in Phase A; 12–18 months for the first Greek SIGINT licence.</td></tr>
+      <tr><td>Market</td><td><span class="tag ok">Real, government-anchored</span></td><td>HawkEye backlog $292 M; European MoD subscription up to $75 M; NRO operational RF buys uncapped; EUSPA RFI for space GNSS-RFI monitoring; Hellas Space 2.0 (€350 M) has no RF line yet. Every survivor is government-anchored; Kleos died without one.</td><td>A milestone-paid anchor contract (Hellenic MoD / EU agency) before the demonstrator is built.</td></tr>
+      <tr><td>Money & schedule</td><td><span class="tag warn">Plausible</span></td><td>Demonstrator €18–35 M in 36–48 months; 3-sat cluster €40–65 M cumulative by 2032; 12 satellites €110–170 M by 2036. Comparators: Unseenlabs ~€120 M for 25 satellites, HawkEye >$500 M to a $200 M run-rate, Greek national smallsat programme €130 M executed via ESA.</td><td>Fund demonstrator and cluster together; EDF/ESA/HCDI co-funding; avoid single-lender debt.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>The concept in five sentences</h2>
+  <p>TALOS-1 is an ESPA-class satellite at 530 km and 53° inclination — the orbit that maximises passes over the Eastern Mediterranean, Aegean, Black Sea and Middle East — carrying a dual-path receiver: a high-dynamic-range tuner path for narrowband communications from 70 MHz to 6 GHz and a direct-sampling RFSoC path that digitises 2 GHz blocks of S-, C- and X-band for radars. Its antennas are deployable UHF helices, hemispheric wideband survey elements, S- and X-band patch arrays and a four-element 1–12 GHz interferometer on a 1.2 m cross-boom that gives a line of bearing from a single snapshot. On board, every radar pulse becomes a descriptor word, every communications burst a signal report, and only prioritised IQ snapshots — 20 kB to 5 MB each — are stored for downlink, so that a day's collection fits in the passes over Greece. Three such satellites flying 150 km apart turn those time-stamped snapshots into instantaneous TDOA/FDOA fixes; three clusters in three planes turn fixes into tracks and patterns of life; twelve or more give sub-hour regional revisit. The products are detections, geolocations with confidence ellipses, an emitter catalogue with maturity levels, and alerts on change — delivered as GeoJSON/OGC APIs and NATO STANAG 4676 tracks from a sovereign EU enclave.</p>
+
+  <h2>What it will and will not do</h2>
+  <div class="grid c2">
+    <div class="card"><h3>Will</h3><ul>
+      <li>Detect and fingerprint naval, coastal, air-defence and AEW&C radars from anywhere in a 2,000 km footprint; catalogue them by PRI, pulse width, scan and modulation-on-pulse.</li>
+      <li>Map military-class GNSS jammers and EW systems, tactical UHF/L nets, TETRA, UHF SATCOM, L-band satphones, military UAS ground stations.</li>
+      <li>Geolocate persistent emitters to 1–5 km with one satellite over several passes and to hundreds of metres to a few kilometres instantly with a cluster.</li>
+      <li>Cue SAR/EO and maritime assets; correlate RF with AIS/ADS-B to flag dark vessels and spoofing.</li>
+      <li>Find a satellite operator's uplink interferer — the NOAA GOES case shows a 1.5 kHz emitter is findable with persistence.</li>
+    </ul></div>
+    <div class="card"><h3>Will not</h3><ul>
+      <li>Detect consumer drones, 10 mW personal GNSS jammers or hand-held links at 2.4/5.8 GHz from 500 km — they are 10–45 dB below the noise.</li>
+      <li>Intercept content. The system measures externals (frequency, time, bandwidth, modulation, power, position). Content is a separately governed state mode, not a commercial product.</li>
+      <li>Give tactical-latency alerts in Stage 1: store-and-forward over a Greek-latitude ground network means 1–10 hours; minutes need polar/regional stations or an inter-satellite link.</li>
+      <li>Out-scale HawkEye 360. It differentiates on sovereignty, regional persistence, X-band coverage and fusion with national assets, not on satellite count.</li>
+    </ul></div>
+  </div>
+
+  <h2>Top risks</h2>
+  <ol>
+    <li><b>Funding gap between demonstrator and cluster (P-01, score 20)</b> — the Kleos failure mode. Mitigation: commit both before launch; milestone-paid anchor.</li>
+    <li><b>Self-interference / EMC (T-02, 16)</b> — transmitters, converters and clocks 100 dB above the signals of interest. Mitigation: EMC budget at Phase A, EM-level RF compatibility test, filtered payload power, opposite-face placement, transmit blanking.</li>
+    <li><b>Launch delay or failure (T-12, 16)</b> — two launch options, orbit-agnostic design, launch insurance for the FM.</li>
+    <li><b>Customer concentration (P-02, 16)</b> — NATO/EU agencies, allied MoDs, regulators and maritime insurers alongside the anchor.</li>
+    <li><b>Cyber (T-17, 15)</b> — a SIGINT constellation is a target; zero-trust ground segment, HSM-held keys, NIS2 compliance from day one.</li>
+  </ol>
+  <p>Timing sync, SEU/latch-up of the commercial RFSoC, the downlink bottleneck, export licensing and radiation lifetime all score 12 and are the risks a pathfinder flight retires. The full register is in <a href="02_Technical_Understanding/risks.html">section 02</a>.</p>
+
+  <h2>Decisions requested</h2>
+  <ol>
+    <li>Approve Phase 0/A (6–9 months, 6–10 FTE) on the TALOS baseline, with the legal opinion, licensing path and export classification as its first deliverables (gate G0).</li>
+    <li>Approve the pathfinder strategy: a 16U single-chain pathfinder in parallel with Phase B (€5–9 M), or a hosted payload (€1.5–4 M) if the budget forbids both.</li>
+    <li>Set the funding rule: no demonstrator launch without committed cluster funding (≥ €25–35 M incremental).</li>
+    <li>Start the anchor-customer conversation now: Hellenic MoD / HNDGS, EUSPA (GNSS-RFI service), EDF consortium, NATO APSS.</li>
+    <li>Adopt ITAR-free as a design rule, with EAR-only semiconductors as the accepted residual.</li>
+  </ol>
+
+  <h2>Where to go next</h2>
+  <p>The <a href="02_Technical_Understanding/payload_explorer.html">payload explorer</a> shows the spacecraft unit by unit; the <a href="03_Scenarios_Services/coverage_sim.html">coverage simulator</a> and the <a href="03_Scenarios_Services/geolocation_sim.html">TDOA/FDOA simulator</a> let you test the constellation stages; the <a href="04_Service_Demo/index.html">operations console</a> shows what customers would use; and the <a href="02_Technical_Understanding/roadmap_cost.html">roadmap</a> carries the cost estimator and decision gates.</p>
+</div>
+<script src="assets/js/app.js" data-root="./"></script>
+</body>
+</html>

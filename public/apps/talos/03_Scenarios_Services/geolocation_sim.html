@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TDOA / FDOA simulator — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .page-head .meta { flex-wrap: wrap; }
+  .grid > *, .sim > * { min-width: 0; }
+  .sim { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 1rem; align-items: start; margin: 1rem 0; }
+  @media (max-width: 1000px) { .sim { grid-template-columns: 1fr; } }
+  .sim .panel { margin: 0; position: sticky; top: 3.4rem; max-height: calc(100vh - 4rem); overflow-y: auto; }
+  @media (max-width: 1000px) { .sim .panel { position: static; max-height: none; } }
+  .panel .controls { grid-template-columns: 1fr; gap: 0.5rem; }
+  .panel h4 { margin: 0.9rem 0 0.35rem; font-size: 0.78rem; color: var(--ink-3); border-top: 1px solid var(--line); padding-top: 0.6rem; }
+  .panel h4:first-of-type { border-top: 0; padding-top: 0; margin-top: 0.3rem; }
+  .ctl select, .ctl input[type=number], .ctl textarea { width: 100%; font: inherit; font-size: 0.85rem; padding: 0.3rem 0.45rem; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--ink); }
+  .ctl input[type=range] { width: 100%; }
+  .ctl textarea { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.78rem; min-height: 4.5em; }
+  .ctl .chk { display: flex; justify-content: flex-start; align-items: center; gap: 0.45rem; font-size: 0.85rem; margin: 0.15rem 0; }
+  .ctl .chk input { margin: 0; }
+  .ctl .radios { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+  .ctl .radios label { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; padding: 0.2rem 0.55rem; border: 1px solid var(--line-strong); border-radius: 999px; cursor: pointer; margin: 0; }
+  .ctl .radios label:has(input:checked) { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .ctl .radios input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; }
+  .btn { font: inherit; font-size: 0.82rem; padding: 0.3rem 0.75rem; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); cursor: pointer; }
+  .btn[aria-pressed="true"], .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .map-wrap { position: relative; }
+  .map { height: 560px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface-2); }
+  @media (max-width: 640px) { .map { height: 520px; } }
+  .map-status { position: absolute; top: 8px; left: 10px; font-family: var(--font-ui); font-size: 0.75rem; background: color-mix(in srgb, var(--surface) 88%, transparent); border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; color: var(--ink-2); pointer-events: none; max-width: 70%; }
+  .map-status.bad { color: var(--critical); }
+  .map-tools { display: flex; flex-wrap: wrap; gap: 0.4rem 0.6rem; align-items: center; margin: 0.6rem 0; font-family: var(--font-ui); font-size: 0.82rem; }
+  .map-tools .sp { flex: 1; }
+  .legend-lop { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; font-family: var(--font-ui); font-size: 0.76rem; color: var(--ink-2); }
+  .legend-lop i { display: inline-block; width: 18px; height: 0; border-top: 2px solid var(--c); vertical-align: middle; margin-right: 0.3em; }
+  .legend-lop i.d { border-top-style: dashed; }
+  .tslider { display: grid; grid-template-columns: auto 1fr auto; gap: 0.6rem; align-items: center; font-family: var(--font-ui); font-size: 0.82rem; margin: 0.4rem 0; }
+  .tslider input { width: 100%; }
+  .tslider .t { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 9ch; text-align: right; }
+  .out { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.6rem; margin: 0.8rem 0; }
+  @media (max-width: 1100px) { .out { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .out > div { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.5rem 0.75rem; font-family: var(--font-ui); }
+  .out .k { font-size: 0.72rem; color: var(--ink-3); }
+  .out .v { font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }
+  .out .v small { font-size: 0.72rem; font-weight: 500; color: var(--ink-3); }
+  .out .v.bad { color: var(--critical); }
+  .inset svg { width: 100%; height: auto; max-width: 420px; display: block; margin: 0 auto; }
+  .inset .ax { stroke: var(--axis); stroke-width: 1; }
+  .inset .ell { fill: color-mix(in srgb, var(--band-ku) 22%, transparent); stroke: var(--band-ku); stroke-width: 1.5; }
+  .inset .ell.cep { fill: none; stroke: var(--band-ku); stroke-dasharray: 4 3; stroke-width: 1; }
+  .inset .vel { stroke: var(--accent); stroke-width: 2; fill: none; }
+  .tests { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0.7rem; }
+  .tests .card { padding: 0.8rem 0.9rem; font-family: var(--font-ui); font-size: 0.84rem; display: flex; flex-direction: column; gap: 0.4rem; }
+  .tests .card b { font-size: 0.9rem; }
+  .tests .card .exp { color: var(--ink-2); }
+  .tests .card .res { font-variant-numeric: tabular-nums; }
+  .tests .card .res.ok { color: var(--ok); } .tests .card .res.bad { color: var(--critical); }
+  .hint { font-family: var(--font-ui); font-size: 0.78rem; color: var(--ink-3); }
+  .sats table { font-size: 0.8rem; }
+  .physics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 2rem; }
+  @media (max-width: 900px) { .physics { grid-template-columns: 1fr; } }
+  .physics > * { min-width: 0; }
+  .physics .katex-display { margin: 0.5rem 0; overflow-x: auto; overflow-y: hidden; }
+</style>
+</head>
+<body>
+<div class="content wide">
+  <header class="page-head">
+    <div class="kicker"><b>03 Scenarios &amp; services</b> · TDOA / FDOA simulator</div>
+    <h1>TDOA / FDOA simulator</h1>
+    <p class="lead">A Cramér–Rao-bound calculator for the geolocation geometry of a TALOS cluster: choose a formation, an emitter and its signal, the timing and ephemeris error floors, and read the 95 % confidence ellipse, the CEP and the lines of position drawn on the map. Move the time slider to fly the cluster past the emitter and watch the ellipse rotate and stretch. The research test cases load with one click so the model can be checked against the published figures.</p>
+    <div class="meta"><span>Engine: orbit.js geolocation CRLB</span><span>Baseline: <span id="base-ver">—</span></span><span>Related: <a href="../02_Technical_Understanding/geolocation.html">Geolocation theory</a> · <a href="single_vs_constellation.html">Single vs constellation</a> · <a href="coverage_sim.html">Coverage simulator</a></span></div>
+  </header>
+
+  <div class="sim">
+    <div class="panel" id="controls">
+      <h4>Formation</h4>
+      <div class="controls">
+        <div class="ctl"><label>Geometry</label><select id="form">
+          <option value="single">Single satellite</option>
+          <option value="pair">2-satellite pair (along-track)</option>
+          <option value="cluster3">3-satellite cluster, collinear along-track</option>
+          <option value="cluster3x" selected>3-satellite cluster + cross-track offset (baseline)</option>
+          <option value="diamond">4-satellite diamond (two planes)</option>
+          <option value="custom">Custom offsets</option></select></div>
+        <div class="ctl"><label>Baseline L (adjacent spacing) <output for="L">150</output></label><input type="range" id="L" min="20" max="500" step="5" value="150"></div>
+        <div class="ctl"><label>Cross-track offset W <output for="W">20</output></label><input type="range" id="W" min="0" max="150" step="5" value="20"></div>
+        <div class="ctl"><label>Altitude <output for="alt">530</output></label><input type="range" id="alt" min="400" max="700" step="10" value="530"></div>
+        <div class="ctl"><label>Inclination <output for="inc">53</output></label><input type="range" id="inc" min="30" max="98" step="0.5" value="53"></div>
+        <div class="ctl" id="custom-wrap" style="display:none"><label>One satellite per line: along-track km, cross-track km</label><textarea id="custom">-150, 0
+0, 20
+150, 0</textarea></div>
+        <div class="ctl"><label>Ground-track offset from emitter at t = 0 <output for="dct">300</output></label><input type="range" id="dct" min="-1500" max="1500" step="25" value="300"><div class="hint">Perpendicular distance from the emitter to the ground track; the sign picks the side. The orbit is placed so that the formation centre is exactly abeam the emitter at t = 0 (closest approach).</div></div>
+      </div>
+      <h4>Emitter and signal</h4>
+      <div class="controls">
+        <div class="ctl"><label>Position preset</label><select id="poi"></select></div>
+        <div class="row2"><div class="ctl"><label>Latitude</label><input type="number" id="plat" step="0.01" min="-90" max="90" value="38.0"></div><div class="ctl"><label>Longitude</label><input type="number" id="plon" step="0.01" min="-180" max="180" value="23.7"></div></div>
+        <div class="hint">Or click the map to move the emitter. "Re-centre track" places the formation abeam the new position.</div>
+        <div class="ctl"><button class="btn" id="recentre">Re-centre track on emitter</button></div>
+        <div class="ctl"><label>Emitter class</label><select id="eclass"></select></div>
+        <div class="row3"><div class="ctl"><label>Bandwidth kHz</label><input type="number" id="bw" step="any" min="0.1" value="25"></div><div class="ctl"><label>EIRP dBm</label><input type="number" id="eirp" step="1" value="40"></div><div class="ctl"><label>f₀ MHz</label><input type="number" id="f0" step="any" min="30" value="300"></div></div>
+        <div class="ctl"><label>Integration time <output for="tint">100 ms</output></label><input type="range" id="tint" min="-3" max="3" step="0.1" value="2"></div>
+        <div class="ctl"><label>Pulses / snapshots integrated <output for="npul">1</output></label><input type="range" id="npul" min="0" max="3" step="0.1" value="0"></div>
+        <div class="ctl"><label>Receive antenna gain <output for="grx">5</output></label><input type="range" id="grx" min="0" max="30" step="1" value="5"><div class="hint">5 dBi wideband survey, 8 dBi DF element, 15–20 dBi S/X arrays, 25+ dBi 0.7 m reflector at X-band. NF <span id="nf-txt">—</span> dB, 2 dB misc. loss.</div></div>
+        <div class="ctl"><label>SNR source</label><select id="snrmode"><option value="link">Link budget per satellite</option><option value="per">Manual per-satellite SNR</option><option value="eff">Manual effective pair SNR γ (research convention)</option></select></div>
+        <div class="ctl" id="snr-wrap" style="display:none"><label>SNR <output for="snr">10</output></label><input type="range" id="snr" min="-10" max="60" step="1" value="10"></div>
+      </div>
+      <h4>Error floors (added in quadrature)</h4>
+      <div class="controls">
+        <div class="ctl"><label>Timing sync between satellites <output for="esync">20</output></label><input type="range" id="esync" min="0" max="100" step="1" value="20"></div>
+        <div class="ctl"><label>Frequency sync between LOs <output for="efs">0.05</output></label><input type="range" id="efs" min="0" max="2" step="0.01" value="0.05"></div>
+        <div class="ctl"><label>Satellite position error <output for="epos">5</output></label><input type="range" id="epos" min="0" max="50" step="1" value="5"></div>
+        <div class="ctl"><label>Satellite velocity error <output for="evel">1</output></label><input type="range" id="evel" min="0" max="10" step="0.1" value="1"></div>
+      </div>
+      <h4>Method</h4>
+      <div class="controls">
+        <div class="ctl"><div class="radios" id="method">
+          <label><input type="radio" name="m" value="tdoa">TDOA</label><label><input type="radio" name="m" value="fdoa">FDOA</label><label><input type="radio" name="m" value="both" checked>TDOA + FDOA</label><label><input type="radio" name="m" value="aoa">AOA (single sat)</label><label><input type="radio" name="m" value="dop">Doppler (single pass)</label></div></div>
+        <div id="aoa-wrap" style="display:none">
+          <div class="ctl"><label>Interferometer baseline D <output for="aD">1.2</output></label><input type="range" id="aD" min="0.3" max="3" step="0.1" value="1.2"></div>
+          <div class="ctl"><label>Phase calibration error <output for="aphi">5</output></label><input type="range" id="aphi" min="1" max="30" step="1" value="5"></div>
+          <div class="ctl"><label>Attitude knowledge <output for="aatt">0.02</output></label><input type="range" id="aatt" min="0.005" max="0.2" step="0.005" value="0.02"></div>
+        </div>
+      </div>
+      <h4>Display</h4>
+      <div class="controls">
+        <div class="ctl"><label>Ellipse magnification on map</label><select id="mag"><option value="1">×1 (true scale)</option><option value="10">×10</option><option value="50" selected>×50</option><option value="200">×200</option></select></div>
+        <div class="ctl"><label class="chk"><input type="checkbox" id="l-lop" checked> Lines of position (TDOA solid, FDOA dashed)</label><label class="chk"><input type="checkbox" id="l-fp" checked> Footprints (5° elevation)</label><label class="chk"><input type="checkbox" id="l-trk" checked> Ground track ±10 min</label></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="map-wrap"><div class="map" id="map"></div><div class="map-status" id="status">—</div></div>
+      <div class="map-tools"><button class="btn" id="p-reset">Re-centre view</button><span class="sp"></span><div class="legend-lop" id="legend"></div></div>
+      <div class="tslider"><div>Cluster time</div><input type="range" id="tt" min="-600" max="600" step="5" value="0" aria-label="Time relative to closest approach"><div class="t" id="ttlabel">t = 0 s</div></div>
+      <div class="out" id="out">
+        <div><div class="k">σ_τ per pair (thermal ⊕ floors)</div><div class="v" id="o-st">—</div></div>
+        <div><div class="k">σ_f per pair (thermal ⊕ floors)</div><div class="v" id="o-sf">—</div></div>
+        <div><div class="k">Effective pair SNR γ</div><div class="v" id="o-snr">—</div></div>
+        <div><div class="k">Geometry factors (1σ minor / major) ÷ c·σ_τ</div><div class="v" id="o-gdop">—</div></div>
+        <div><div class="k">95 % semi-major / semi-minor</div><div class="v" id="o-ax">—</div></div>
+        <div><div class="k">Orientation of major axis</div><div class="v" id="o-ang">—</div></div>
+        <div><div class="k">CEP (50 %)</div><div class="v" id="o-cep">—</div></div>
+        <div><div class="k">Co-visibility (≥ 5° at emitter)</div><div class="v" id="o-vis">—</div></div>
+      </div>
+      <div class="grid c2">
+        <figure class="inset" style="margin:0"><div id="inset"></div><figcaption><b>Error ellipse at true scale.</b> 95 % ellipse (filled), CEP circle (dashed), east–north axes, and the direction of the formation's ground track (blue arrow). The weak axis of a TDOA fix points from the emitter towards the formation: cross-track for an emitter abeam (t = 0), turning along-track as the cluster moves ahead or behind. A cross-track satellite shortens it.</figcaption></figure>
+        <div class="sats"><div class="table-wrap"><table class="compact" id="sats"><thead><tr><th>Satellite</th><th data-sort="num">Along / cross (km)</th><th data-sort="num">Range (km)</th><th data-sort="num">Elevation at emitter</th><th data-sort="num">SNR (dB)</th><th>Visible</th></tr></thead><tbody></tbody></table></div><div class="hint" id="sat-note"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>Sweeps</h2>
+  <p>Both charts recompute with every control change, using the current signal, error floors and method. The first moves the emitter along the perpendicular to the ground track at the current cluster time; the second varies the adjacent spacing of the current formation with the emitter fixed. Breaks in a line are positions where at least one satellite loses co-visibility.</p>
+  <div class="grid c2">
+    <figure style="margin:0"><div id="chart-ct"></div><figcaption><b>CEP against the emitter's cross-track distance from the formation's ground track.</b> Directly under a collinear formation the fix is degenerate; the useful band is a few hundred to about 1,500 km on either side, where the geometry is strong but the slant range is still short enough for the link budget.</figcaption></figure>
+    <figure style="margin:0"><div id="chart-L"></div><figcaption><b>CEP against baseline length.</b> Longer baselines lower the geometric dilution (≈ d/L) but shrink the common footprint; at 500 km orbits the practical window is 50–250 km<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>. The TALOS baseline uses 150 km.</figcaption></figure>
+  </div>
+
+  <h2>Test cases from the research base</h2>
+  <p>Each card loads a complete configuration and shows the figure quoted in research note 03 §6 next to the value the simulator produces. Thermal-noise cases disable the error floors so that only the Stein bound is tested; the formation cases use the floors stated in the source.</p>
+  <div class="tests" id="tests"></div>
+
+  <h2>The physics in the model</h2>
+  <div class="physics">
+    <div>
+      <h3>Measurements</h3>
+      <p>For satellites \(i, j\) at positions \(\mathbf r_i, \mathbf r_j\) with velocities \(\mathbf v_i, \mathbf v_j\) and an emitter at \(\mathbf x\) on the Earth's surface:</p>
+      $$ \Delta\tau_{ij} = \frac{|\mathbf x-\mathbf r_i| - |\mathbf x-\mathbf r_j|}{c} \qquad \Delta f_{ij} = \frac{f_0}{c}\left(\dot r_i - \dot r_j\right),\; \dot r_i = \mathbf v_i\cdot\hat{\mathbf u}_i $$
+      <p>Each TDOA is a hyperboloid, each FDOA an iso-Doppler surface; the map draws their zero-residual intersections with the Earth's surface for every satellite pair (reference satellite 1 against the others, the independent set).</p>
+      <h3>Thermal-noise bounds (Stein form, as used by HawkEye 360<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>)</h3>
+      $$ \sigma_\tau = \frac{1}{\beta\sqrt{BT\gamma}},\; \beta = \frac{2\pi B}{\sqrt{12}} \qquad \sigma_f = \frac{1}{T_e\sqrt{BT\gamma}},\; T_e = \frac{2\pi T}{\sqrt{12}} $$
+      $$ \gamma = \left(\frac{1}{\gamma_1}+\frac{1}{\gamma_2}+\frac{1}{\gamma_1\gamma_2}\right)^{-1} $$
+      <p>\(B\) is the signal bandwidth, \(T\) the integration time, \(\gamma\) the effective pair SNR built from the per-satellite SNRs \(\gamma_1,\gamma_2\) of the link budget \(P_r = EIRP - L_{fs}(d, f_0) + G_r - L\), \(N = kT_0B + NF\). Integrating \(n\) pulses or snapshots divides both bounds by \(\sqrt n\). The rectangular-spectrum assumption gives \(\beta \approx 1.81B\); real signals with energy at the band edges (chirps, PSK) do slightly better, smooth-spectrum FM slightly worse.</p>
+    </div>
+    <div>
+      <h3>Error floors and covariance</h3>
+      $$ \sigma_{\tau}^2 = \sigma_{\tau,th}^2 + \sigma_{sync}^2 + \frac{2\sigma_{pos}^2}{c^2} \qquad \sigma_f^2 = \sigma_{f,th}^2 + \sigma_{LO}^2 + \frac{2 f_0^2\sigma_{vel}^2}{c^2} $$
+      <p>The Jacobian \(\mathbf H\) of the measurements with respect to the emitter's east–north position is evaluated analytically (gradient of a range is the unit vector, gradient of a range rate is the velocity component normal to the line of sight divided by range). The least-squares covariance is</p>
+      $$ \mathbf C = \left(\mathbf H^{\mathsf T}\mathbf W\mathbf H\right)^{-1},\; \mathbf W = \mathrm{diag}(1/\sigma_k^2) $$
+      <p>A pair's TDOA gradient is its baseline projected across the line of sight: the component transverse to the ground line of sight counts in full, the component along it only as \(\sin^2\varepsilon\). The weak axis of a TDOA fix therefore points from the emitter towards the formation — cross-track when the emitter is abeam, along-track when it is ahead or behind. The eigen-decomposition of \(\mathbf C\) gives the 1σ semi-axes; the 95 % ellipse scales them by \(\sqrt{-2\ln(0.05)} = 2.45\) and the CEP is approximated by \(0.59(\sigma_1+\sigma_2)\). A useful rule of thumb for the geometry factor is \(\mathrm{GDOP}\approx d/L\): 1,000 km slant range over a 100 km baseline multiplies the range-difference error by about ten<sup class="ref"><a href="#ref-R3-2">[R3-2]</a><a href="#ref-R3-12">[R3-12]</a></sup> — but only along the baseline. Perpendicular to it the relevant baseline is the formation's cross-track extent \(W\), so a TDOA-only fix from a 150 km × 20 km formation has a geometry factor near \(d/W \approx 50\) cross-track; FDOA, whose gradient is strongest across the track, removes most of that penalty, which is why the hybrid is the baseline product.</p>
+      <h3>Single-satellite methods</h3>
+      $$ \sigma_\theta = \sqrt{\left(\frac{\lambda\,\sigma_\phi}{2\pi D\cos\theta}\right)^2 + \sigma_{att}^2},\quad \text{ground error} \approx d\,\sigma_\theta \;(\text{cross}),\; \frac{d\,\sigma_\theta}{\sin\varepsilon}\;(\text{along the look}) $$
+      <p>For AOA the phase error combines the calibration residual with thermal noise \(1/\sqrt{BT\gamma}\). Doppler-only geolocation over a pass is shown qualitatively: position error \(\approx \lambda\,\sigma_f\,d/v\) times a geometry factor of 1–10, with a mirror solution across the track<sup class="ref"><a href="#ref-R3-13">[R3-13]</a><a href="#ref-R3-14">[R3-14]</a></sup>.</p>
+    </div>
+  </div>
+
+  <h2>Model limits</h2>
+  <div class="callout warn"><div class="t">Read the ellipses as lower bounds</div>
+    <p>The simulator computes the Cramér–Rao bound of an unbiased estimator, not the performance of a real cross-ambiguity-function processor; practical systems sit 1.5–3× above it at low SNR and lose the fix altogether below roughly 0 dB per satellite. Only thermal noise and the four stated floors are modelled: no multipath, no ionospheric or tropospheric differential delay (metres at L-band, tens of metres at UHF), no emitter motion during the snapshot, no emitter frequency drift, no clock drift within the integration time, no mutual interference. The emitter is constrained to the Earth's surface at zero altitude; the mirror ambiguity of two-satellite and collinear geometries is not represented in the ellipse. Orbits are circular with J2 drift; cross-track offsets are produced by RAAN differences, so the realised separation varies with latitude and is reported in the satellite table. The TDOA bound uses the Stein convention quoted in the research; the Knapp–Carter form in <code>orbit.js</code> (\(\sqrt{2BT\gamma}\)) is a factor √2 more optimistic — a bandwidth-definition convention, not a physical difference.</p>
+  </div>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/emitters.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/data/world.js"></script>
+<script src="../assets/js/geo.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  const $ = id => document.getElementById(id), B = BASELINE, C = ORB.C, D2R = ORB.D2R, R2D = ORB.R2D, MIN_EL = 5;
+  $('base-ver').textContent = B.version; $('nf-txt').textContent = B.payload.nfDb;
+  const PRESETS = [['Athens', 38.0, 23.7], ['Nicosia', 35.17, 33.36], ['Odesa', 46.48, 30.73], ['Suez', 29.97, 32.55], ['Tripoli', 32.9, 13.18], ['Hormuz', 26.57, 56.25], ['Taipei', 25.03, 121.57], ['Svalbard', 78.23, 15.39]];
+  PRESETS.forEach((p, i) => { const o = document.createElement('option'); o.value = i; o.textContent = p[0]; $('poi').append(o); });
+  const co = document.createElement('option'); co.value = 'custom'; co.textContent = 'Custom / clicked'; $('poi').append(co);
+  EMITTERS.forEach(e => { const o = document.createElement('option'); o.value = e.id; o.textContent = e.name; $('eclass').append(o); });
+  const ce = document.createElement('option'); ce.value = 'custom'; ce.textContent = 'Custom signal'; $('eclass').append(ce);
+  $('eclass').value = 'tac-vhf-uhf';
+
+  // ---------- state ----------
+  const S = { em: { name: 'Athens', lat: 38.0, lon: 23.7 }, epoch: new Date('2026-10-21T10:00:00Z'), orbits: [], offsets: [], t: 0, last: null };
+  const map = new GeoMap($('map'), { projection: 'equirect', center: [S.em.lon, S.em.lat] });
+  map.setZoom(6, false);
+  const col = () => ({ s: [1,2,3,4,5,6,7,8].map(i => U.css('--s' + i)), em: U.css('--band-ku'), tdoa: U.css('--accent-2'), fdoa: U.css('--band-s'), ink: U.css('--ink-2') });
+
+  // ---------- formation ----------
+  function offsets() {
+    const L = +$('L').value, W = +$('W').value, f = $('form').value;
+    if (f === 'single') return [{ a: 0, c: 0 }];
+    if (f === 'pair') return [{ a: -L / 2, c: 0 }, { a: L / 2, c: 0 }];
+    if (f === 'cluster3') return [{ a: -L, c: 0 }, { a: 0, c: 0 }, { a: L, c: 0 }];
+    if (f === 'cluster3x') return [{ a: -L, c: 0 }, { a: 0, c: W }, { a: L, c: 0 }];
+    if (f === 'diamond') return [{ a: -L / 2, c: 0 }, { a: 0, c: W / 2 }, { a: L / 2, c: 0 }, { a: 0, c: -W / 2 }];
+    const out = []; $('custom').value.split('\n').forEach(l => { const f2 = l.trim().split(/[,\s]+/); if (f2.length >= 2 && !isNaN(+f2[0]) && !isNaN(+f2[1])) out.push({ a: +f2[0], c: +f2[1] }); });
+    return out.length ? out : [{ a: 0, c: 0 }];
+  }
+  // place the formation centre abeam the emitter at t=0 with the requested cross-track offset
+  function placeOrbits() {
+    const alt = +$('alt').value, inc = +$('inc').value, a = ORB.RE + alt, si = Math.sin(inc * D2R);
+    const lat = S.em.lat, lon = S.em.lon, dct = +$('dct').value;
+    // iterate: formation centre at t=0 sits at the foot of the perpendicular from the emitter, displaced by dct across the track
+    let latC = lat, lonC = lon, u = 0, st = null, hd = 0;
+    for (let k = 0; k < 3; k++) {
+      u = Math.asin(Math.max(-1, Math.min(1, Math.sin(latC * D2R) / si))) * R2D; // ascending pass through latC
+      const ref = ORB.makeOrbit({ alt, inc, raan: 0, ta: u, epoch: S.epoch }); st = ORB.stateEcef(ref, S.epoch);
+      const b = ORB.enuBasis(st.lat, st.lon); hd = Math.atan2(ORB.V.dot(st.v, b.e), ORB.V.dot(st.v, b.n));
+      const P = ORB.destination(lat, lon, hd * R2D + 90, Math.abs(dct) < 1 ? 1 : dct); latC = P[1]; lonC = P[0];
+    }
+    const raan0 = lonC - st.lon;
+    S.offsets = offsets();
+    S.orbits = S.offsets.map((o, k) => ORB.makeOrbit({ alt, inc, raan: raan0 + o.c / (a * Math.max(0.2, si)) * R2D, ta: u + o.a / a * R2D, epoch: S.epoch, name: 'S' + (k + 1) }));
+    S.heading = hd;
+  }
+
+  // ---------- signal and bounds ----------
+  function signal() {
+    const B_ = Math.max(1, +$('bw').value * 1e3), T = Math.pow(10, +$('tint').value) * 1e-3, n = Math.pow(10, +$('npul').value), f0 = Math.max(1, +$('f0').value) * 1e6;
+    return { B: B_, T, n, f0, eirp: +$('eirp').value, grx: +$('grx').value, nf: B.payload.nfDb, loss: 2 };
+  }
+  function snrLin(sig, dKm) { // per-satellite SNR (linear)
+    const mode = $('snrmode').value; if (mode !== 'link') return U.lin(+$('snr').value);
+    const pr = ORB.RF.rxPower(sig.eirp, dKm, sig.f0 / 1e6, sig.grx, sig.loss), N = ORB.RF.kTB(sig.B) + sig.nf; return U.lin(pr - N);
+  }
+  function effSnr(g1, g2) { return $('snrmode').value === 'eff' ? U.lin(+$('snr').value) : 1 / (1 / g1 + 1 / g2 + 1 / (g1 * g2)); }
+  // Stein form (research 03 §6.2): σ_τ = 1/(β√(BTγ)), β = 2πB/√12 — orbit.js's helper uses √(2BTγ); passing γ/2 reproduces the Stein convention
+  const steinTdoa = (B_, T, g) => ORB.RF.sigmaTdoa(B_, T, g / 2), steinFdoa = (B_, T, g) => ORB.RF.sigmaFdoa(B_, T, g / 2);
+  function pairSigmas(sig, g) {
+    const th_t = steinTdoa(sig.B, sig.T, g) / Math.sqrt(sig.n), th_f = steinFdoa(sig.B, sig.T, g) / Math.sqrt(sig.n);
+    const sync = +$('esync').value * 1e-9, pos = Math.sqrt(2) * (+$('epos').value / 1000) / C, fs = +$('efs').value, vel = Math.sqrt(2) * (+$('evel').value / 100 / 1000) * sig.f0 / C;
+    return { th_t, th_f, st: Math.sqrt(th_t ** 2 + sync ** 2 + pos ** 2), sf: Math.sqrt(th_f ** 2 + fs ** 2 + vel ** 2) };
+  }
+  const method = () => document.querySelector('#method input:checked').value;
+
+  // full solution for emitter (lat,lon) at time t with the current orbits; returns {ellipse, cov, sats, vis, st, sf, g, pairs}
+  function solve(lat, lon, t, orbitsOverride) {
+    const orbits = orbitsOverride || S.orbits, when = new Date(S.epoch.getTime() + t * 1000), sig = signal(), m = method();
+    const p = ORB.geodeticToEcef(lat, lon, 0);
+    const sats = orbits.map(o => { const s = ORB.stateEcef(o, when); const la = ORB.lookAngles(lat, lon, 0, s.r); const g = snrLin(sig, la.range); return { ...s, name: o.name, range: la.range, el: la.el, az: la.az, snr: g, vis: la.el >= MIN_EL }; });
+    const vis = sats.every(s => s.vis);
+    const res = { sats, vis, sig, m, when, ellipse: null, cov: null, st: NaN, sf: NaN, g: NaN, pairs: [] };
+    if (m === 'aoa' || m === 'dop') {
+      const s = sats[0], lam = 299.792458 / (sig.f0 / 1e6), d = s.range; res.g = s.snr;
+      if (m === 'aoa') {
+        const Dm = +$('aD').value, phiCal = +$('aphi').value * D2R, att = +$('aatt').value * D2R;
+        const phiTh = 1 / Math.sqrt(Math.max(1e-9, sig.B * sig.T * s.snr * sig.n));
+        const phi = Math.sqrt(phiCal ** 2 + phiTh ** 2);
+        const nad = ORB.nadirAngle(s.alt, s.el) * D2R; // off-nadir angle to the emitter
+        const sth = Math.sqrt((lam * phi / (2 * Math.PI * Dm * Math.max(0.2, Math.cos(nad)))) ** 2 + att ** 2);
+        const cross = d * sth, along = d * sth / Math.max(0.1, Math.sin(s.el * D2R));
+        const brg = s.az * D2R; // bearing from emitter to satellite; the look direction on the ground
+        const ca = Math.sin(brg), sa = Math.cos(brg); // east, north components of the look direction
+        const cov = [[along ** 2 * ca * ca + cross ** 2 * sa * sa, (along ** 2 - cross ** 2) * ca * sa], [(along ** 2 - cross ** 2) * ca * sa, along ** 2 * sa * sa + cross ** 2 * ca * ca]];
+        res.cov = cov; res.ellipse = ORB.ellipse(cov, 0.95); res.aoa = { sth, phi, phiTh };
+      } else {
+        const sf = Math.sqrt(steinFdoa(sig.B, sig.T, s.snr) ** 2 / sig.n + (+$('efs').value) ** 2 + ((+$('evel').value / 100 / 1000) * sig.f0 / C) ** 2);
+        const v = ORB.V.norm(s.vEci); const base = lam * sf * d / v / 1000; // λ[m]·σf[Hz]·d[km]/v[km/s] → m → km
+        res.dop = { sf, base, lo: base, hi: base * 10 }; const r = base * 3; res.cov = [[r * r, 0], [0, r * r]]; res.ellipse = ORB.ellipse(res.cov, 0.95);
+      }
+      res.vis = sats[0].vis; return res;
+    }
+    if (sats.length < 2) return res;
+    const pairs = []; for (let i = 1; i < sats.length; i++) pairs.push([0, i]); res.pairs = pairs;
+    const J = ORB.geoJacobians(p, sats, pairs); const H = [], W_ = []; let stMean = 0, sfMean = 0, gMean = 0;
+    pairs.forEach(([i, j], k) => {
+      const g = effSnr(sats[i].snr, sats[j].snr); const sg = pairSigmas(sig, g); stMean += sg.st / pairs.length; sfMean += sg.sf / pairs.length; gMean += g / pairs.length;
+      if (m === 'tdoa' || m === 'both') { H.push([J.tdoa[k][0] / C, J.tdoa[k][1] / C]); W_.push(sg.st); }
+      if (m === 'fdoa' || m === 'both') { H.push([J.fdoa[k][0] * sig.f0 / C, J.fdoa[k][1] * sig.f0 / C]); W_.push(sg.sf); }
+    });
+    res.st = stMean; res.sf = sfMean; res.g = gMean;
+    if (H.length >= 2) { const cov = ORB.covariance(H, W_); if (cov && isFinite(cov[0][0]) && cov[0][0] >= 0 && cov[1][1] >= 0) { res.cov = cov; res.ellipse = ORB.ellipse(cov, 0.95); } }
+    return res;
+  }
+
+  // ---------- LOP contours ----------
+  function lopLines(sats, pair, lat, lon, f0, which) {
+    const n = 81, span = 9; const g = ORB.lopGrid(sats, pair, lat, lon, span, n, f0);
+    const vals = which === 'tdoa' ? g.tdoaUs : g.fdoaHz; const cs = d3.contours().size([n, n]).thresholds([0])(vals);
+    const dLat = g.lats[1] - g.lats[0], dLon = g.lons[1] - g.lons[0], lines = [];
+    cs.forEach(c => c.coordinates.forEach(poly => poly.forEach(ring => {
+      let cur = [];
+      ring.forEach(([x, y]) => { const edge = x < 0.01 || y < 0.01 || x > n - 0.01 || y > n - 0.01; if (edge) { if (cur.length > 1) lines.push(cur); cur = []; return; } cur.push([g.lons[0] + (x - 0.5) * dLon, g.lats[0] + (y - 0.5) * dLat]); });
+      if (cur.length > 1) lines.push(cur);
+    })));
+    return lines;
+  }
+
+  // ---------- drawing ----------
+  function draw() {
+    const r = S.last, Cc = col(), layers = [], mag = +$('mag').value, when = r.when;
+    const fp = s => ORB.footprintRadiusKm(s.alt, MIN_EL);
+    if ($('l-trk').checked) S.orbits.forEach((o, i) => layers.push({ type: 'line', coords: ORB.groundTrack(o, new Date(when.getTime() - 600e3), 1200, 20).map(p => [p[0], p[1]]), stroke: Cc.s[i % 8], width: 1, opacity: 0.6, dash: [4, 3] }));
+    if ($('l-fp').checked) r.sats.forEach((s, i) => layers.push({ type: 'circle', center: [s.lon, s.lat], radiusKm: fp(s), fill: 'rgba(42,120,214,0.08)', stroke: Cc.s[i % 8], width: 1 }));
+    const legend = [];
+    if ($('l-lop').checked && r.pairs.length && r.vis) {
+      r.pairs.forEach(([i, j], k) => {
+        const c = Cc.s[j % 8];
+        if (r.m !== 'fdoa') lopLines(r.sats, [i, j], S.em.lat, S.em.lon, r.sig.f0, 'tdoa').forEach(l => layers.push({ type: 'line', coords: l, stroke: c, width: 1.6 }));
+        if (r.m !== 'tdoa') lopLines(r.sats, [i, j], S.em.lat, S.em.lon, r.sig.f0, 'fdoa').forEach(l => layers.push({ type: 'line', coords: l, stroke: c, width: 1.4, dash: [6, 4] }));
+        legend.push(`<span><i style="--c:${c}"></i>S${i + 1}–S${j + 1}${r.m === 'both' ? ' TDOA / FDOA' : r.m === 'tdoa' ? ' TDOA' : ' FDOA'}</span>`);
+      });
+    }
+    r.sats.forEach((s, i) => layers.push({ type: 'point', coords: [s.lon, s.lat], r: 4.5, fill: Cc.s[i % 8], stroke: '#fff', width: 1.2, label: s.name, size: 11 }));
+    if (r.ellipse && r.vis) {
+      const e = r.ellipse; const big = Math.max(e.semiMajor, e.semiMinor) * mag;
+      if (big < 6000) layers.push({ type: 'ellipse', center: [S.em.lon, S.em.lat], semiMajorKm: Math.max(0.5, e.semiMajor * mag), semiMinorKm: Math.max(0.5, e.semiMinor * mag), angleDeg: e.angleDeg, fill: 'rgba(227,73,72,0.25)', stroke: Cc.em, width: 1.5 });
+      if (r.m === 'dop') { // mirror solution: reflect the emitter across the satellite's ground track
+        const s = r.sats[0]; const hd = S.heading * R2D; const d = ORB.greatCircleKm(s.lat, s.lon, S.em.lat, S.em.lon);
+        const brg = ORB.lookAngles(s.lat, s.lon, 0, ORB.geodeticToEcef(S.em.lat, S.em.lon, 0)).az; // bearing sub-satellite point → emitter
+        const along = d * Math.cos((brg - hd) * D2R), cross = d * Math.sin((brg - hd) * D2R);
+        const q = ORB.destination(s.lat, s.lon, hd, along); const m = ORB.destination(q[1], q[0], hd + 90, -cross);
+        layers.push({ type: 'point', coords: m, r: 5, fill: 'transparent', stroke: Cc.em, width: 1.5, label: 'mirror solution', size: 10 });
+      }
+    }
+    layers.push({ type: 'point', coords: [S.em.lon, S.em.lat], r: 5.5, fill: Cc.em, stroke: '#fff', width: 1.5, label: S.em.name, size: 11 });
+    map.layers = layers; map.draw();
+    $('legend').innerHTML = legend.join('') + (r.ellipse && r.vis ? `<span><i style="--c:${Cc.em}"></i>95 % ellipse ×${mag}</span>` : '');
+  }
+  function fmtKm(km) { return km >= 10 ? km.toFixed(1) + ' km' : km >= 1 ? km.toFixed(2) + ' km' : (km * 1000).toFixed(0) + ' m'; }
+  function renderOut() {
+    const r = S.last, e = r.ellipse, bad = !r.vis;
+    $('status').textContent = bad ? `Emitter not co-visible by all satellites (elevation ≥ ${MIN_EL}° needed) — move the time slider or the emitter` : r.ellipse ? `${r.m === 'aoa' || r.m === 'dop' ? 'Satellite 1 only, ' + (r.m === 'aoa' ? 'interferometric AOA' : 'single-pass Doppler (qualitative, G = 3)') : r.sats.length + ' satellites, ' + (r.m === 'both' ? 'TDOA + FDOA' : r.m.toUpperCase())} — CEP ${fmtKm(e.cep)}, 95 % ellipse ${fmtKm(e.semiMajor)} × ${fmtKm(e.semiMinor)}` : 'Geometry singular — no fix (need ≥ 2 independent measurements)';
+    $('status').classList.toggle('bad', bad || !r.ellipse);
+    const set = (id, html, cls) => { const el = $(id); el.innerHTML = html; el.className = 'v' + (cls ? ' ' + cls : ''); };
+    if (r.m === 'aoa') { set('o-st', `σ_θ ${(r.aoa.sth * 1e3).toFixed(2)} <small>mrad</small>`); set('o-sf', `σ_φ ${(r.aoa.phi * R2D).toFixed(1)}° <small>(thermal ${(r.aoa.phiTh * R2D).toFixed(2)}°)</small>`); set('o-snr', `${U.dB(r.g).toFixed(1)} <small>dB (single sat)</small>`); set('o-gdop', `${(r.sats[0].range).toFixed(0)} <small>km range</small>`); }
+    else if (r.m === 'dop') { set('o-st', '— <small>single satellite</small>'); set('o-sf', `${r.dop.sf.toFixed(3)} <small>Hz</small>`); set('o-snr', `${U.dB(r.g).toFixed(1)} <small>dB (single sat)</small>`); set('o-gdop', `${fmtKm(r.dop.lo)} – ${fmtKm(r.dop.hi)} <small>(G = 1–10)</small>`); }
+    else { set('o-st', isFinite(r.st) ? `${(r.st * 1e9).toFixed(1)} <small>ns</small> ≈ ${(r.st * C * 1000).toFixed(0)} <small>m</small>` : '—'); set('o-sf', isFinite(r.sf) ? `${r.sf < 0.01 ? (r.sf * 1e3).toFixed(2) + ' <small>mHz</small>' : r.sf.toFixed(3) + ' <small>Hz</small>'} ≈ ${fmtKm(r.sf * 0.4)} <small>(≈400 m/Hz)</small>` : '—'); set('o-snr', isFinite(r.g) ? `${U.dB(r.g).toFixed(1)} <small>dB</small>` : '—'); set('o-gdop', e && isFinite(r.st) && r.m !== 'fdoa' ? `${(e.sigmaMinor / (r.st * C)).toFixed(1)} / ${(e.sigmaMajor / (r.st * C)).toFixed(0)}` : '—'); }
+    set('o-ax', e ? `${fmtKm(e.semiMajor)} / ${fmtKm(e.semiMinor)}` : '—');
+    set('o-ang', e ? `${((90 - e.angleDeg + 360) % 180).toFixed(0)}° <small>from north</small>` : '—');
+    set('o-cep', e ? fmtKm(e.cep) : '—', bad ? 'bad' : '');
+    set('o-vis', r.sats.map(s => s.vis ? '●' : '○').join(' ') + ` <small>${r.sats.filter(s => s.vis).length}/${r.sats.length}</small>`, bad ? 'bad' : '');
+    // satellite table
+    const tb = $('sats').querySelector('tbody'); tb.innerHTML = '';
+    r.sats.forEach((s, i) => { const o = S.offsets[i] || { a: 0, c: 0 }; const tr = document.createElement('tr'); tr.innerHTML = `<td>${s.name}</td><td class="num">${o.a.toFixed(0)} / ${o.c.toFixed(0)}</td><td class="num">${s.range.toFixed(0)}</td><td class="num">${s.el.toFixed(1)}°</td><td class="num">${U.dB(s.snr).toFixed(1)}</td><td>${s.vis ? '<span class="tag ok">yes</span>' : '<span class="tag critical">no</span>'}</td>`; tb.append(tr); });
+    const g0 = r.sats[0], g1 = r.sats[r.sats.length - 1]; const sep = r.sats.length > 1 ? ORB.greatCircleKm(g0.lat, g0.lon, g1.lat, g1.lon) : 0;
+    $('sat-note').textContent = `${r.when.toISOString().slice(0, 16).replace('T', ' ')} UTC; ground-track heading ${((S.heading * R2D + 360) % 360).toFixed(0)}°; sub-satellite spread S1–S${r.sats.length}: ${sep.toFixed(0)} km. ${$('snrmode').value === 'link' ? `Link budget: EIRP ${r.sig.eirp} dBm, ${(r.sig.f0 / 1e6).toFixed(0)} MHz, ${U.si(r.sig.B, 'Hz', 0)} noise bandwidth, ${r.sig.grx} dBi, NF ${r.sig.nf} dB.` : 'Manual SNR.'}`;
+    drawInset();
+  }
+  function drawInset() {
+    const r = S.last, e = r.ellipse; const el = $('inset');
+    if (!e || !r.vis) { el.innerHTML = '<div class="hint" style="padding:2rem;text-align:center">No ellipse for this geometry.</div>'; return; }
+    const Wd = 320, Hh = 300, cx = 160, cy = 150; const maxAx = Math.max(e.semiMajor, 1e-3); const scale = 115 / maxAx; // px per km
+    const nice = niceStep(maxAx); const px = nice * scale;
+    const a = e.angleDeg * D2R; // from east toward north; SVG y is down
+    let s = `<svg viewBox="0 0 ${Wd} ${Hh}" role="img" aria-label="Error ellipse at true scale">`;
+    for (let k = -3; k <= 3; k++) { s += `<line class="grid-line" x1="${cx + k * px}" y1="${cy - 130}" x2="${cx + k * px}" y2="${cy + 130}"/><line class="grid-line" x1="${cx - 150}" y1="${cy + k * px}" x2="${cx + 150}" y2="${cy + k * px}"/>`; }
+    s += `<line class="ax" x1="${cx - 150}" y1="${cy}" x2="${cx + 150}" y2="${cy}"/><line class="ax" x1="${cx}" y1="${cy - 135}" x2="${cx}" y2="${cy + 135}"/>`;
+    s += `<text class="lbl xs" x="${cx + 142}" y="${cy - 5}" text-anchor="end">E</text><text class="lbl xs" x="${cx + 5}" y="${cy - 124}">N</text>`;
+    s += `<ellipse class="ell" cx="${cx}" cy="${cy}" rx="${e.semiMajor * scale}" ry="${Math.max(0.6, e.semiMinor * scale)}" transform="rotate(${-e.angleDeg} ${cx} ${cy})"/>`;
+    s += `<circle class="ell cep" cx="${cx}" cy="${cy}" r="${Math.max(0.6, e.cep * scale)}"/>`;
+    const hd = S.heading; const vx = Math.sin(hd), vy = -Math.cos(hd);
+    s += `<path class="vel" d="M${cx - vx * 60} ${cy - vy * 60} L${cx + vx * 60} ${cy + vy * 60}"/><path class="vel" d="M${cx + vx * 60} ${cy + vy * 60} l${-vx * 10 + vy * 5} ${-vy * 10 - vx * 5} M${cx + vx * 60} ${cy + vy * 60} l${-vx * 10 - vy * 5} ${-vy * 10 + vx * 5}"/>`;
+    s += `<text class="lbl xs" x="8" y="${Hh - 8}">grid ${fmtKm(nice)} · 95 %: ${fmtKm(e.semiMajor)} × ${fmtKm(e.semiMinor)} · CEP ${fmtKm(e.cep)}</text>`;
+    s += `<text class="lbl xs" x="${Wd - 8}" y="14" text-anchor="end">track →</text></svg>`;
+    el.innerHTML = s;
+  }
+  function niceStep(v) { const p = Math.pow(10, Math.floor(Math.log10(v))); const m = v / p; return (m < 2 ? 0.5 : m < 5 ? 1 : 2) * p; }
+
+  // ---------- sweeps ----------
+  function sweeps() {
+    const r = S.last; if (r.m === 'aoa' || r.m === 'dop') { $('chart-ct').innerHTML = '<div class="hint" style="padding:1rem">Sweeps apply to the multi-satellite methods.</div>'; $('chart-L').innerHTML = ''; return; }
+    // (1) cross-track sweep at the current time about the formation centre's sub-point
+    const centre = r.sats[Math.floor(r.sats.length / 2)]; const hd = S.heading * R2D; const pts = [];
+    for (let x = -1800; x <= 1800; x += 50) { const p = ORB.destination(centre.lat, centre.lon, hd + 90, Math.abs(x) < 1 ? 1 : x); const q = solve(p[1], p[0], S.t); pts.push([x, q.ellipse && q.vis ? q.ellipse.cep : NaN]); }
+    const cur = ORB.lookAngles(centre.lat, centre.lon, 0, ORB.geodeticToEcef(S.em.lat, S.em.lon, 0)); const dEm = ORB.greatCircleKm(centre.lat, centre.lon, S.em.lat, S.em.lon); const xEm = dEm * Math.sin((cur.az - hd) * D2R);
+    Charts.line($('chart-ct'), { title: 'CEP vs cross-track distance of the emitter (km, log)', xLabel: 'cross-track distance from ground track (km)', yLabel: 'CEP (km)', yLog: true, height: 280, series: [{ name: 'CEP', points: pts }], bands: [{ x0: xEm - 25, x1: xEm + 25, color: U.css('--band-ku'), label: 'emitter' }], format: v => fmtKm(v), xFormat: v => v.toFixed(0) + ' km' });
+    // (2) baseline sweep with the emitter fixed
+    const alt = +$('alt').value, inc = +$('inc').value, a = ORB.RE + alt, si = Math.sin(inc * D2R), f = $('form').value; const ptsL = [];
+    const base = S.orbits[0]; const raan0 = base.raan0 * R2D, u0 = base.u0 * R2D - (S.offsets[0].a / a) * R2D;
+    const W = +$('W').value;
+    for (let L = 20; L <= 500; L += 20) {
+      let offs; if (f === 'pair') offs = [{ a: -L / 2, c: 0 }, { a: L / 2, c: 0 }]; else if (f === 'cluster3') offs = [{ a: -L, c: 0 }, { a: 0, c: 0 }, { a: L, c: 0 }]; else if (f === 'cluster3x') offs = [{ a: -L, c: 0 }, { a: 0, c: W }, { a: L, c: 0 }]; else if (f === 'diamond') offs = [{ a: -L / 2, c: 0 }, { a: 0, c: W / 2 }, { a: L / 2, c: 0 }, { a: 0, c: -W / 2 }]; else { const k = L / Math.max(1, +$('L').value); offs = S.offsets.map(o => ({ a: o.a * k, c: o.c })); }
+      const orbs = offs.map((o, k) => ORB.makeOrbit({ alt, inc, raan: raan0 + o.c / (a * Math.max(0.2, si)) * R2D, ta: u0 + o.a / a * R2D, epoch: S.epoch, name: 'S' + (k + 1) }));
+      const q = solve(S.em.lat, S.em.lon, S.t, orbs); ptsL.push([L, q.ellipse && q.vis ? q.ellipse.cep : NaN]);
+    }
+    Charts.line($('chart-L'), { title: 'CEP vs adjacent baseline length (km, log)', xLabel: 'baseline L (km)', yLabel: 'CEP (km)', yLog: true, height: 280, series: [{ name: 'CEP', points: ptsL }], bands: [{ x0: +$('L').value - 6, x1: +$('L').value + 6, color: U.css('--band-ku'), label: 'current' }], format: v => fmtKm(v), xFormat: v => v.toFixed(0) + ' km' });
+  }
+
+  // ---------- pipeline ----------
+  let timer = null;
+  function recompute(replace) { if (replace) placeOrbits(); S.last = solve(S.em.lat, S.em.lon, S.t); renderOut(); draw(); clearTimeout(timer); timer = setTimeout(sweeps, 80); checkTests(); }
+  const deb = (fn, ms = 60) => { let h; return () => { clearTimeout(h); h = setTimeout(fn, ms); }; };
+  const geomChange = deb(() => recompute(true)), sigChange = deb(() => recompute(false));
+
+  // ---------- test cases ----------
+  const TESTS = [
+    { id: 't1', name: 'Research 03 §6.2 — 25 kHz voice, 100 ms, γ = 10 dB', exp: 'σ_τ ≈ 139 ns ≈ 42 m; σ_f ≈ 0.035 Hz', src: 'R3-2', set: { form: 'cluster3', L: 100, W: 0, bw: 25, tint: 2, npul: 0, f0: 300, snrmode: 'eff', snr: 10, esync: 0, efs: 0, epos: 0, evel: 0, m: 'both' }, check: r => ({ ok: Math.abs(r.st * 1e9 - 139.6) < 2 && Math.abs(r.sf - 0.035) < 0.002, txt: `σ_τ = ${(r.st * 1e9).toFixed(1)} ns = ${(r.st * C * 1000).toFixed(1)} m; σ_f = ${r.sf.toFixed(4)} Hz` }) },
+    { id: 't2', name: 'Research 03 §6.2 — 1 MHz radar pulse, 1 µs, γ = 20 dB', exp: 'σ_τ ≈ 55 ns ≈ 16 m; 100 pulses → 1.6 m', src: 'R3-2', set: { form: 'cluster3', L: 100, W: 0, bw: 1000, tint: -3, npul: 2, f0: 3000, snrmode: 'eff', snr: 20, esync: 0, efs: 0, epos: 0, evel: 0, m: 'tdoa' }, check: r => ({ ok: Math.abs(r.st * C * 1000 - 1.65) < 0.1, txt: `with 100 pulses σ_τ = ${(r.st * 1e9).toFixed(2)} ns = ${(r.st * C * 1000).toFixed(2)} m (single pulse ${(r.st * 10 * 1e9).toFixed(0)} ns)` }) },
+    { id: 't3', name: 'Leiter & Gurfil — 3 satellites, 100 km, 20 ns clocks', exp: 'CRLB maps 0.2–3 km', src: 'R3-11', set: { form: 'cluster3', L: 100, W: 0, dct: 300, snrmode: 'eff', snr: 60, esync: 20, efs: 0, epos: 0, evel: 0, m: 'tdoa', bw: 25, tint: 2, npul: 0, f0: 300 }, check: r => ({ ok: r.ellipse && r.ellipse.cep > 0.2 && r.ellipse.cep < 3, txt: r.ellipse ? `CEP ${fmtKm(r.ellipse.cep)}; 95 % ${fmtKm(r.ellipse.semiMajor)} × ${fmtKm(r.ellipse.semiMinor)} at 300 km cross-track` : 'no fix' }) },
+    { id: 't4', name: 'GDOP rule of thumb — d ≈ 1,000 km, L = 100 km, W = 20 km, 25 kHz comms, TDOA only', exp: 'GDOP ≈ d/L ≈ 10 → ≈ 400 m along the baseline; the cross-track axis scales with d/W instead', src: 'R3-2', set: { form: 'cluster3x', L: 100, W: 20, dct: 800, snrmode: 'eff', snr: 10, esync: 0, efs: 0, epos: 0, evel: 0, m: 'tdoa', bw: 25, tint: 2, npul: 0, f0: 300 }, check: r => { if (!r.ellipse) return { ok: false, txt: 'no fix' }; const sd = r.st * C; const fa = r.ellipse.sigmaMinor / sd, fc = r.ellipse.sigmaMajor / sd; return { ok: fa > 3 && fa < 30, txt: `geometry factor ${fa.toFixed(0)} along the formation (1σ ${fmtKm(r.ellipse.sigmaMinor)}), ${fc.toFixed(0)} cross-track (1σ ${fmtKm(r.ellipse.sigmaMajor)}); CEP ${fmtKm(r.ellipse.cep)}` }; } },
+    { id: 't5', name: 'TALOS baseline cluster — UHF PTT radio, full error budget', exp: 'Stage 2 planning figure 0.3–3 km (95 %) for comms', src: 'R3-2', set: { form: 'cluster3x', L: B.constellation.cluster.alongTrackKm, W: B.constellation.cluster.crossTrackKm, dct: 300, eclass: 'tac-vhf-uhf', tint: 2, npul: 0, grx: 5, snrmode: 'link', esync: B.payload.timing.syncNs, efs: 0.05, epos: B.payload.timing.gnssPosM, evel: 1, m: 'both' }, check: r => ({ ok: r.ellipse && r.ellipse.semiMajor < 3, txt: r.ellipse ? `95 % ${fmtKm(r.ellipse.semiMajor)} × ${fmtKm(r.ellipse.semiMinor)}, CEP ${fmtKm(r.ellipse.cep)}, γ ${U.dB(r.g).toFixed(0)} dB` : 'no fix' }) },
+    { id: 't6', name: 'Kleos Cape Verde — 4-sat diamond ≈ 120 km, 4.2 W VHF beacon', exp: 'Measured 0.32–32 km; best ellipse 4.5 × 0.26 km', src: 'R3-10', set: { form: 'diamond', L: 120, W: 120, alt: 500, dct: 400, eclass: 'custom', bw: 12.5, eirp: 36, f0: 145.175, tint: 2, npul: 0, grx: 2, snrmode: 'link', esync: 50, efs: 0.1, epos: 10, evel: 2, m: 'both' }, check: r => ({ ok: r.ellipse && r.ellipse.semiMajor > 0.2 && r.ellipse.semiMajor < 32, txt: r.ellipse ? `95 % ${fmtKm(r.ellipse.semiMajor)} × ${fmtKm(r.ellipse.semiMinor)} (CRLB; the flight result includes processing losses)` : 'no fix' }) },
+    { id: 't7', name: 'Single satellite AOA — 1.2 m DF boom, L-band, 5° phase', exp: '1–10 km per snapshot (research 03 §6.1)', src: 'R3-2', set: { form: 'single', dct: 500, eclass: 'satcom-l', tint: 1, npul: 0, grx: 8, snrmode: 'link', m: 'aoa', aD: 1.2, aphi: 5, aatt: 0.02 }, check: r => ({ ok: r.ellipse && r.ellipse.cep > 0.5 && r.ellipse.cep < 15, txt: r.ellipse ? `CEP ${fmtKm(r.ellipse.cep)}, σ_θ ${(r.aoa.sth * 1e3).toFixed(1)} mrad at ${r.sats[0].range.toFixed(0)} km` : 'no fix' }) },
+  ];
+  function applySettings(set) {
+    const map2 = { form: 'form', L: 'L', W: 'W', alt: 'alt', inc: 'inc', dct: 'dct', bw: 'bw', eirp: 'eirp', f0: 'f0', tint: 'tint', npul: 'npul', grx: 'grx', snrmode: 'snrmode', snr: 'snr', esync: 'esync', efs: 'efs', epos: 'epos', evel: 'evel', aD: 'aD', aphi: 'aphi', aatt: 'aatt' };
+    if (set.eclass) { $('eclass').value = set.eclass; if (set.eclass !== 'custom') applyClass(); }
+    for (const k in set) { if (k === 'm') { document.querySelector(`#method input[value="${set.m}"]`).checked = true; continue; } if (k === 'eclass') continue; const el = $(map2[k]); if (!el) continue; el.value = set[k]; if (el.type === 'range') { const out = document.querySelector(`output[for="${el.id}"]`); if (out) out.textContent = FMT[el.id] ? FMT[el.id](+el.value) : el.value; } }
+    showMode(); recompute(true);
+  }
+  function renderTests() {
+    const box = $('tests'); TESTS.forEach(t => { const c = document.createElement('div'); c.className = 'card'; c.innerHTML = `<b>${t.name}</b><div class="exp">Expected: ${t.exp} <sup class="ref"><a href="#ref-${t.src}">[${t.src}]</a></sup></div><div class="res" id="res-${t.id}">Not loaded</div><div><button class="btn primary" data-t="${t.id}">Load</button></div>`; box.append(c); });
+    box.addEventListener('click', e => { const b = e.target.closest('button[data-t]'); if (!b) return; S.activeTest = b.dataset.t; S.t = 0; $('tt').value = 0; $('ttlabel').textContent = 't = 0 s'; applySettings(TESTS.find(t => t.id === b.dataset.t).set); $('controls').scrollTop = 0; });
+  }
+  function checkTests() { TESTS.forEach(t => { const el = $('res-' + t.id); if (!el) return; if (S.activeTest !== t.id) { if (!el.dataset.keep) el.textContent = 'Not loaded'; return; } const r = t.check(S.last); el.textContent = 'Simulator: ' + r.txt; el.className = 'res ' + (r.ok ? 'ok' : 'bad'); el.dataset.keep = '1'; }); }
+
+  // ---------- bindings ----------
+  const FMT = { L: v => v + ' km', W: v => v + ' km', alt: v => v + ' km', inc: v => v + '°', dct: v => v + ' km', tint: v => U.si(Math.pow(10, v) * 1e-3, 's', 0), npul: v => Math.round(Math.pow(10, v)).toString(), grx: v => v + ' dBi', snr: v => v + ' dB', esync: v => v + ' ns', efs: v => v.toFixed(2) + ' Hz', epos: v => v + ' m', evel: v => v.toFixed(1) + ' cm/s', aD: v => v.toFixed(1) + ' m', aphi: v => v + '°', aatt: v => v.toFixed(3) + '°' };
+  Object.keys(FMT).forEach(id => bindRange(id, null, FMT[id]));
+  ['L', 'W', 'alt', 'inc', 'dct'].forEach(id => $(id).addEventListener('input', geomChange));
+  $('form').addEventListener('change', () => { $('custom-wrap').style.display = $('form').value === 'custom' ? '' : 'none'; recompute(true); });
+  $('custom').addEventListener('input', deb(() => recompute(true), 400));
+  ['bw', 'eirp', 'f0', 'tint', 'npul', 'grx', 'snr', 'esync', 'efs', 'epos', 'evel', 'aD', 'aphi', 'aatt'].forEach(id => $(id).addEventListener('input', sigChange));
+  ['bw', 'eirp', 'f0'].forEach(id => $(id).addEventListener('input', () => { $('eclass').value = 'custom'; }));
+  function applyClass() { const e = EMITTERS.find(x => x.id === $('eclass').value); if (!e) return; $('bw').value = e.bw / 1e3; $('eirp').value = e.eirpSl != null ? e.eirpSl : e.eirp; $('f0').value = e.fTyp; }
+  $('eclass').addEventListener('change', () => { applyClass(); recompute(false); });
+  function showMode() { $('snr-wrap').style.display = $('snrmode').value === 'link' ? 'none' : ''; $('aoa-wrap').style.display = method() === 'aoa' ? '' : 'none'; $('custom-wrap').style.display = $('form').value === 'custom' ? '' : 'none'; }
+  $('snrmode').addEventListener('change', () => { showMode(); recompute(false); });
+  document.querySelectorAll('#method input').forEach(i => i.addEventListener('change', () => { showMode(); recompute(false); }));
+  ['mag', 'l-lop', 'l-fp', 'l-trk'].forEach(id => $(id).addEventListener('change', draw));
+  $('tt').addEventListener('input', () => { S.t = +$('tt').value; $('ttlabel').textContent = `t = ${S.t >= 0 ? '+' : ''}${S.t} s`; S.last = solve(S.em.lat, S.em.lon, S.t); renderOut(); draw(); clearTimeout(timer); timer = setTimeout(sweeps, 150); checkTests(); });
+  $('poi').addEventListener('change', () => { const v = $('poi').value; if (v === 'custom') return; const p = PRESETS[+v]; S.em = { name: p[0], lat: p[1], lon: p[2] }; $('plat').value = p[1]; $('plon').value = p[2]; map.setCenter([S.em.lon, S.em.lat], false); recompute(true); });
+  const emInput = () => { const la = +$('plat').value, lo = +$('plon').value; if (isNaN(la) || isNaN(lo)) return; S.em = { name: 'Emitter', lat: Math.max(-89, Math.min(89, la)), lon: ((lo + 540) % 360) - 180 }; $('poi').value = 'custom'; recompute(false); };
+  $('plat').addEventListener('change', emInput); $('plon').addEventListener('change', emInput);
+  map.on('click', ({ lon, lat }) => { S.em = { name: 'Emitter', lat, lon }; $('plat').value = lat.toFixed(2); $('plon').value = lon.toFixed(2); $('poi').value = 'custom'; recompute(false); });
+  map.on('move', ({ lon, lat, x, y, event }) => { if (lon == null) { hideTip(); return; } showTip(`${lat.toFixed(2)}°, ${lon.toFixed(2)}° — click to move the emitter`, event.clientX, event.clientY); });
+  $('map').addEventListener('pointerleave', hideTip);
+  $('recentre').addEventListener('click', () => { map.setCenter([S.em.lon, S.em.lat], false); recompute(true); });
+  $('p-reset').addEventListener('click', () => { map.resetView(); map.setCenter([S.em.lon, S.em.lat], false); map.setZoom(6); });
+  document.addEventListener('themechange', () => { draw(); sweeps(); drawInset(); });
+
+  applyClass(); showMode(); renderTests(); recompute(true);
+  renderRefs(['R3-1', 'R3-2', 'R3-10', 'R3-11', 'R3-12', 'R3-13', 'R3-14']);
+  window.__geo = { S, solve, TESTS, applySettings };
+})();
+</script>
+</body>
+</html>

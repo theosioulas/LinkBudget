@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RF chain &amp; digitiser — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .katex-display { overflow-x:auto; overflow-y:hidden; padding:.2rem 0; }
+  table.stages input { width:5.2rem; font:inherit; font-size:.85rem; padding:.2rem .35rem; border:1px solid var(--line-strong); border-radius:4px; background:var(--surface); color:var(--ink); text-align:right; }
+  table.stages td { vertical-align:middle; }
+  .presets { display:flex; flex-wrap:wrap; gap:.4rem; margin:.4rem 0 .8rem; }
+  td.sm { font-size:.78rem; color:var(--ink-2); }
+  .rules li { margin:.3rem 0; }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>02 Technical understanding</b> · RF chain &amp; digitiser</div>
+    <h1>RF chain &amp; digitiser</h1>
+    <p class="lead">Twelve receive chains in two families: four high-dynamic-range tuner channels for UHF and L-band, eight block-downconverted S/C/X chains into a 5 GSPS RFSoC. This page sets the gain and noise budget of a chain (with a cascade calculator), the frequency plan with the notches for the satellite's own transmitters, the ADC dynamic-range arithmetic, the LO stability needed for FDOA, and the digitiser board candidates with their export status. The chain's job is simple to state and hard to do: keep a 2.5 dB noise figure while surviving −24 dBm pulses.</p>
+    <div class="meta"><span id="meta-baseline">Baseline: TALOS-1 v0.3</span><span>Sources: research notes 02 §C–D, 03 §4</span></div>
+  </header>
+
+  <div class="grid c4" id="kpis"></div>
+
+  <h2>One chain, stage by stage</h2>
+  <p>Every chain follows the same order (research 03 §4.3): a limiter that protects the LNA from the strongest pulses, a pre-select filter that removes out-of-band energy before any gain, the LNA that sets the noise figure, a step attenuator that extends the strong-signal range under microsecond AGC control, a block converter or tuner, an anti-alias filter and the ADC. The diagram is drawn from the calculator below: edit a stage and the running noise figure and gain update. Rule of thumb from the research: total gain is set so the thermal floor sits 10–15 dB above the ADC's quantisation floor, leaving 60–70 dB of headroom to full scale on the direct-sampling path and ≈ 80 dB on the tuner path; the attenuator buys another 30 dB in microseconds.</p>
+  <figure class="diagram">
+    <div id="chain-svg"></div>
+    <figcaption><b>Receive chain with running cascade.</b> Boxes carry each stage's gain and noise figure; the row beneath shows the cumulative noise figure and gain after that stage (Friis). The limiter and filter in front of the LNA are pure loss, so every 0.1 dB there is 0.1 dB of system noise figure — which is why the UHF pre-select filter must be a low-loss cavity or ceramic type despite needing 60 dB of cellular rejection.</figcaption>
+  </figure>
+
+  <h3>Cascade noise-figure and gain calculator</h3>
+  <p>Friis' formula for N stages with linear gains \(G_i\) and noise factors \(F_i\):</p>
+  $$ F_{sys} = F_1 + \frac{F_2 - 1}{G_1} + \frac{F_3 - 1}{G_1 G_2} + \cdots, \qquad NF_{sys} = 10\log_{10} F_{sys} $$
+  <p>Edit gains and noise figures (a passive stage has NF equal to its loss). The presets reproduce the three TALOS chain families as specified in <code>components.js</code>. Headroom is computed against the ADC full-scale input you set; the RFSoC and the 16-bit tuner ADC have different full-scale levels and ENOB, so the presets switch those too.</p>
+  <div class="panel">
+    <div class="presets"><button class="small" data-preset="scx">S/C/X block chain → RFSoC</button><button class="small" data-preset="uhf">UHF chain → tuner</button><button class="small" data-preset="l">L-band chain → tuner</button><button class="small" id="add-stage">+ add stage</button></div>
+    <div class="table-wrap"><table class="stages compact"><thead><tr><th>#</th><th>Stage</th><th class="num">Gain (dB)</th><th class="num">NF (dB)</th><th class="num">Cum. gain</th><th class="num">Cum. NF</th><th></th></tr></thead><tbody id="stages"></tbody></table></div>
+    <div class="controls" style="margin-top:.6rem">
+      <div class="ctl"><label>ADC full scale <output for="adc-fs">+1</output> dBm</label><input type="range" id="adc-fs" min="-10" max="10" step="0.5" value="1"></div>
+      <div class="ctl"><label>ADC sample rate <output for="adc-fs2">5000</output> MSPS</label><input type="range" id="adc-fs2" min="100" max="5000" step="50" value="5000"></div>
+      <div class="ctl"><label>ENOB <output for="adc-enob">9.5</output> bits</label><input type="range" id="adc-enob" min="7" max="14" step="0.1" value="9.5"></div>
+      <div class="ctl"><label>Detection bin <output for="adc-bin">1 MHz</output></label><input type="range" id="adc-bin" min="4" max="7.5" step="0.1" value="6"></div>
+    </div>
+    <div class="readout">
+      <div><div class="k">System noise figure</div><div class="v" id="c-nf">—</div></div>
+      <div><div class="k">Total gain</div><div class="v" id="c-g">—</div></div>
+      <div><div class="k">Thermal floor at ADC (Nyquist)</div><div class="v" id="c-nout">—</div></div>
+      <div><div class="k">ADC quantisation floor (Nyquist)</div><div class="v" id="c-qf">—</div></div>
+      <div><div class="k">Thermal above quantisation</div><div class="v" id="c-marg">—</div></div>
+      <div><div class="k">Headroom floor → full scale</div><div class="v" id="c-head">—</div></div>
+      <div><div class="k">Max input before clipping</div><div class="v" id="c-maxin">—</div></div>
+      <div><div class="k">… with 31 dB attenuation</div><div class="v" id="c-maxatt">—</div></div>
+      <div><div class="k">Per-bin dynamic range</div><div class="v" id="c-bin">—</div></div>
+    </div>
+    <p class="muted" id="c-note" style="font-size:.8rem;margin:.6rem 0 0"></p>
+  </div>
+
+  <h2>Frequency plan and filter banks</h2>
+  <p>Block down-conversion uses a shared, GNSS-disciplined 100 MHz OCXO reference (research 03 §4.2). The S/C/X bank mixes each 2 GHz block into the RFSoC's first Nyquist zone (0–2 GHz at 5 GSPS); the L-band and UHF chains feed the tuner, which is agile over 200 MHz windows. Two notches are mandatory: the S-band TT&amp;C transmitter at 2200–2290 MHz sits inside the 2–2.5 GHz block, and the X-band downlink at 8025–8400 MHz sits inside the 8–10 GHz block, 200 MHz from the X-band radar window. Both are handled by filtering plus time gating — receive is blanked while the transmitter is keyed.</p>
+  <figure class="diagram">
+    <div id="plan-svg"></div>
+    <figcaption><b>TALOS-1 frequency plan.</b> Top row: the five receiver bands from <code>baseline.js</code> and the VHF gap. Middle: switched pre-select filters and the LO that brings each block to the 0–2 GHz IF. Bottom: own-transmitter notches and the cellular band that the UHF pre-select must reject by more than 60 dB. The L-band row shows the three split filters (960–1215 / 1215–1300 / 1525–1700 MHz) that keep the IFF/Link-16, GNSS-L2/L5 and GNSS-L1/L-MSS windows separate so that a strong 1090 MHz transponder cannot desensitise the GNSS-interference channel.</figcaption>
+  </figure>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Sub-band</th><th>Coverage</th><th>Path</th><th>Pre-select filter</th><th>LO / IF</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><span class="band-chip uhf">UHF</span></td><td>225–512 MHz</td><td>Tuner (direct, 1st Nyquist of the tuner ADC)</td><td>225–512 bandpass, &gt; 60 dB rejection of 800–1000 MHz cellular</td><td>none (direct)</td><td class="sm">Cellular/TETRA desensitisation risk; optional notch 380–400 MHz if TETRA is not a target</td></tr>
+      <tr><td><span class="band-chip l">L</span></td><td>960–1700 MHz</td><td>Tuner, 200 MHz IBW agile; optional whole-band direct sampling for Link-16 hop-following</td><td>Split 960–1215 / 1215–1300 / 1525–1700</td><td>tuner internal LO</td><td class="sm">IFF, Link-16, GNSS bands, L-MSS, AEW L-band</td></tr>
+      <tr><td><span class="band-chip s">S</span></td><td>2.0–4.0 GHz</td><td>Block downconvert → RFSoC</td><td>2.0–2.5 / 2.5–3.0 / 3.0–4.0</td><td>LO 2 GHz → IF 0–2 GHz</td><td class="sm">Own S-band TT&amp;C 2.2–2.29 GHz notched / time-gated</td></tr>
+      <tr><td><span class="band-chip c">C</span></td><td>4.0–8.0 GHz</td><td>Two 2 GHz blocks → RFSoC</td><td>4–6 / 6–8</td><td>LO 4 and 6 GHz</td><td class="sm">Patriot C-band, C-VSAT, 5.8 GHz links</td></tr>
+      <tr><td><span class="band-chip x">X</span></td><td>8.0–12.0 GHz</td><td>Two 2 GHz blocks → RFSoC</td><td>8–10 / 10–12</td><td>LO 8 and 10 GHz</td><td class="sm">Own X-band downlink 8025–8400 MHz: receive blanked or notched during transmission</td></tr>
+    </tbody>
+  </table></div>
+  <p>With eight RFSoC chains and five 2 GHz blocks, not every block is digitised on every chain at once. The S/C/X bank's switched pre-selectors let the payload controller assign blocks to chains per task: for example the four DF chains on the 2–4 GHz block for an AEW&amp;C search while the S-array H/V pair stays on 2.5–3.0 GHz and the X-array pair on 8–10 GHz. Whole-band staring across 2–12 GHz would need 5 × 8 = 40 ADC channels; the alternative — time-multiplexing blocks with dwell times set by the scan periods of the expected radars (seconds) — is what ESM receivers have always done.</p>
+
+  <h2>Direct sampling versus superheterodyne</h2>
+  <p>The architecture decision is taken on the <a href="index.html">architecture page</a> (D-01); here is the RF-level consequence. Direct sampling at 5 GSPS puts the whole 2 GHz block into one converter with ENOB ≈ 9–10 (56–62 dB over Nyquist); its strength is bandwidth, time-of-arrival resolution (≈ 1/f<sub>s</sub> with interpolation to ~1 ns) and eight phase-coherent channels on one die for interferometry<sup class="ref"><a href="#ref-R3-19">[R3-19]</a></sup>. The tuner path trades bandwidth for cleanliness: analogue pre-selection ahead of a 16-bit, 250 MSPS converter with ENOB 12–13 gives 75–80 dB of range, exactly what 25 kHz comms next to 60 dBm cellular base stations need. HawkEye's history is the precedent for both: AD9361-class tuners on Pathfinder<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup>, Xiphos Q-series RFSoC processors on Clusters 8–9 and after<sup class="ref"><a href="#ref-R2-x84">[R2-x84]</a></sup>.</p>
+
+  <h2>ADC dynamic range and processing gain</h2>
+  <p>The converter's signal-to-noise ratio over its Nyquist band and the gain from looking in a narrower bin:</p>
+  $$ SNR_{Nyq} \approx 6.02\,ENOB + 1.76\ \text{dB}, \qquad G_{proc} = 10\log_{10}\frac{f_s/2}{B_{bin}}, \qquad DR_{bin} \approx SNR_{Nyq} + G_{proc} $$
+  <p>At 5 GSPS with ENOB 9.5 the Nyquist SNR is ≈ 59 dB; a 1 MHz bin adds 34 dB, so ≈ 93 dB of range per bin — close to the 95 dB target in <code>baseline.js</code> — <em>provided the converter is never clipped</em>. Clipping is a global event: intermodulation from one saturating pulse lands in every bin of the block. That is why the step attenuator and the limiter are in the chain and why the over-range flag drives blanking in the comms channels. The small calculator makes the trade visible: the tuner's 16-bit converter wins at the Nyquist level, the RFSoC wins per bin because of its sample rate, and the two end up within a few dB of each other for narrow bins.</p>
+  <div class="panel">
+    <h3>ADC range per bin</h3>
+    <div class="controls">
+      <div class="ctl"><label>Resolution <output for="dr-bits">14</output> bits</label><input type="range" id="dr-bits" min="8" max="16" step="1" value="14"></div>
+      <div class="ctl"><label>ENOB <output for="dr-enob">9.5</output> bits</label><input type="range" id="dr-enob" min="6" max="14" step="0.1" value="9.5"></div>
+      <div class="ctl"><label>Sample rate <output for="dr-fs">5000</output> MSPS</label><input type="range" id="dr-fs" min="50" max="6000" step="50" value="5000"></div>
+      <div class="ctl"><label>Bin bandwidth <output for="dr-bin">25 kHz</output></label><input type="range" id="dr-bin" min="3" max="8" step="0.1" value="4.4"></div>
+    </div>
+    <div class="readout">
+      <div><div class="k">Ideal SNR (N bits)</div><div class="v" id="dr-ideal">—</div></div>
+      <div><div class="k">Real SNR over Nyquist</div><div class="v" id="dr-nyq">—</div></div>
+      <div><div class="k">Processing gain to bin</div><div class="v" id="dr-pg">—</div></div>
+      <div><div class="k">Range per bin (est.)</div><div class="v" id="dr-bin-out">—</div></div>
+    </div>
+    <p class="muted" style="font-size:.8rem;margin:.6rem 0 0">Spur-free range per bin is an estimate: real converters add spurs 5–15 dB above the noise-limited figure, and interleaving artefacts in multi-core RF ADCs need calibration. Treat the output as the noise-limited ceiling, not the SFDR a datasheet would quote.</p>
+  </div>
+
+  <h2>Reference, LO and phase noise for FDOA</h2>
+  <p>Every frequency the payload measures is referenced to the 100 MHz GNSS-disciplined OCXO in the timing unit; the LO synthesiser multiplies it to 2/4/6/8/10 GHz for the block converters. FDOA across two satellites needs the difference of the two received frequencies to be known to a fraction of the thermal FDOA error: for the 25 kHz / 100 ms / 10 dB case the thermal σ<sub>f</sub> is ≈ 0.035 Hz, i.e. ≈ 14 m on the ground, and the ground gradient is ≈ 400 m per Hz (research 03 §6.2). So the LOs of two satellites must agree to ≪ 0.1 Hz at 1 GHz — a relative stability of 10<sup>−10</sup> over the snapshot. GNSS-disciplined OCXOs hold 10<sup>−11</sup>–10<sup>−12</sup> short-term; free-running TCXOs (10<sup>−7</sup>) are two to three orders short, which is why the timing unit is a never-off item with CSAC holdover. The baseline requirement in <code>baseline.js</code> is <span id="freqstab"></span> short-term.</p>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Quantity</th><th>Requirement</th><th>Why</th></tr></thead>
+    <tbody>
+      <tr><td>Reference stability (short-term)</td><td>≤ 1e-11 over 0.1–1 s; ≤ 1e-12/day disciplined</td><td>FDOA bias &lt; 0.01 Hz at 1 GHz, below the thermal 0.035 Hz; Doppler-only single-satellite fixes are ≈ 40 m per Hz of frequency error (research 03 §6.1b)</td></tr>
+      <tr><td>Absolute time</td><td>≤ 20 ns to GNSS time (hardware timestamp counter latched at the ADC)</td><td>1 ns = 0.3 m of range difference; HawkEye's assumption for cluster TDOA<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup></td></tr>
+      <tr><td>LO phase noise</td><td>≤ −110 dBc/Hz at 10 kHz offset at the LO frequency (≤ −130 dBc/Hz at the 100 MHz reference, degraded by 20·log(N) in multiplication)</td><td>Close-in phase noise smears narrowband comms in long FFTs and limits the coherence time of a 100 ms snapshot; far-out noise sets reciprocal mixing when a 60 dBm cellular carrier sits next to a −120 dBm target</td></tr>
+      <tr><td>LO distribution</td><td>One synthesiser, matched 8-way splitters and phase-matched cables to the four DF chains</td><td>Interferometric phase is only meaningful if all chains share the same LO phase; a 4 mm path mismatch is 5° at 1 GHz</td></tr>
+      <tr><td>Holdover</td><td>CSAC ADEV ≈ 3e-10 at 1 s; hours without GNSS at &lt; 1 µs drift</td><td>GNSS loss in orbit is plausible for a satellite that monitors GNSS jammers (<a href="risks.html#T-10">T-10</a>)</td></tr>
+    </tbody>
+  </table></div>
+  <p>Multiplication penalty: the 10 GHz LO for the top X block is 100 × the reference, so reference phase noise degrades by 40 dB. A −150 dBc/Hz reference at 10 kHz (space OCXO class, Rakon / AXTAL<sup class="ref"><a href="#ref-R2-x87">[R2-x87]</a></sup>) becomes −110 dBc/Hz at 10 GHz before the PLL's own contribution, which is the specification line in <code>components.js</code> for the LO unit. This is also why the X-band chains carry 1.8 dB of noise figure rather than the 1.2 dB of S/C: the first-stage LNA at 10 GHz is simply noisier.</p>
+
+  <h2>Channel count, mass and power</h2>
+  <p>Rolled up from <code>components.js</code> for the payload RF deck and the digital deck. Collection-mode power is dominated by the RFSoC board (48 W) — consistent with research 02's warning to expect 40–80 W for the full digitiser plus FPGA chain<sup class="ref"><a href="#ref-R2-x82">[R2-x82]</a></sup>. Standby drops the payload to ≈ 20 W by holding the RFSoC in reset and keeping only the timing unit, controller and tuner alive.</p>
+  <div class="grid c2">
+    <div class="table-wrap"><table class="compact" id="rollup"><thead><tr><th>Unit</th><th class="num">Mass (kg)</th><th class="num">Power (W)</th><th class="num">Channels</th></tr></thead><tbody></tbody></table></div>
+    <div id="pwr-chart"></div>
+  </div>
+
+  <h2>EMC, self-interference and thermal rules</h2>
+  <p>These are the design rules the chain imposes on the rest of the spacecraft; they are derived in research 03 §4.5 and expanded on the <a href="environment.html#sec-emc">environment page</a>.</p>
+  <div class="grid c2">
+    <div class="card"><h3>EMC and self-interference</h3><ul class="rules" style="margin:.3rem 0 0 1rem;padding:0;font-size:.95rem">
+      <li>Receive blanking during S-band TT&amp;C and X-band downlink transmission; the payload controller holds the transmit schedule.</li>
+      <li>&gt; 80 dB isolation to the X-band receive path: notch filter at 8.0–8.4 GHz in the X-array feed plus the array on the face opposite the downlink antenna.</li>
+      <li>Conducted-emission filtering on every payload rail to 40 dB below MIL-STD-461 CE102 in 225–512 MHz; converters synchronised so harmonics avoid the UHF pre-select passband.</li>
+      <li>Shielded enclosures for all front-ends; single-point grounding; payload and bus returns separated.</li>
+      <li>A self-test mode that records the spacecraft's own interference "fingerprint" at commissioning (all bus units cycling) so it can be masked or subtracted.</li>
+      <li>Magnetorquer PWM and wheel speed changes scheduled outside UHF collection windows.</li>
+    </ul></div>
+    <div class="card"><h3>Thermal</h3><ul class="rules" style="margin:.3rem 0 0 1rem;padding:0;font-size:.95rem">
+      <li>LNA gain drifts ≈ 0.01 dB/°C and phase ≈ 0.5–1°/°C per stage <span class="tag">est.</span>; four DF chains on one temperature-controlled plate at 20 ± 2 °C keeps the inter-chain differential below the 5° phase budget between calibrations.</li>
+      <li>RFSoC junction ≤ 85 °C with 48 W dissipated: variable-conductance heat pipe to the −X radiator (0.25 m²), separate from the bus radiators.</li>
+      <li>Phase-stable coax (±0.5°/m over −20…+50 °C at 3 GHz) matched to ±2 mm between the DF elements and the bank.</li>
+      <li>Calibration tone injected at every element every orbit removes the residual gain and phase drift.</li>
+      <li>Collection duty cycle over the SAA and during thruster arcs is a thermal as well as a power decision (see <a href="environment.html">environment</a>).</li>
+    </ul></div>
+  </div>
+
+  <h2>Candidate digitiser boards</h2>
+  <p>The digitiser is the architectural fork identified in the supplier survey: a Zynq RFSoC COTS board (or a custom board around a ZU47DR/ZU48DR) versus a Teledyne EV12AQ600 + PolarFire RT design that is more radiation-tolerant and EU-sourced for the ADC but needs far more custom work. Export notes are copied from the supplier catalogue; all RFSoC parts are US EAR (3A001/4A994) and the high-rate ADC thresholds also trigger EU dual-use 3A001.a.5, so even the "EU" ADC needs licences for non-EU end use<sup class="ref"><a href="#ref-R2-x79">[R2-x79]</a></sup>.</p>
+  <div class="table-wrap"><table class="compact" id="digtab">
+    <thead><tr><th>Candidate</th><th>Architecture</th><th>Channels / rate / bits</th><th>IBW per ch</th><th>Power</th><th>Radiation</th><th>Heritage</th><th>Export</th><th>TALOS fit</th></tr></thead>
+    <tbody>
+      <tr><td><b>Xiphos Q8RF</b> (Epiq / Xiphos, CA–US)</td><td>Zynq RFSoC ZU28DR on a 100 × 100 × 20 mm card</td><td>8 RX + 8 TX, 12-bit, 4.096 GSPS; RF input to 4 GHz</td><td>≈ 2 GHz</td><td>20–30 W</td><td>TMR control FPGA, EDAC, scrubbing; Q8/Q8J flying on 24 HawkEye 360 satellites, Q8RF heritage to verify</td><td>Q8/Q8J on Clusters 8–9+<sup class="ref"><a href="#ref-R2-x84">[R2-x84]</a></sup></td><td class="sm" data-x="Q8RF"></td><td class="sm">Fastest path to flight; 12-bit and 4 GHz input mean the X block needs the external converter anyway. $50–150 k per FM (price unverified), 6–9 months.</td></tr>
+      <tr><td><b>Custom board on AMD ZU48DR</b></td><td>Gen-3 RFSoC, EU carrier board (KP Labs / Alén Space class)</td><td>8 × 14-bit ADC 5 GSPS, 8 × DAC 10 GSPS, 930k LC, 4272 DSP<sup class="ref"><a href="#ref-R3-19">[R3-19]</a></sup></td><td>2 GHz</td><td>30–60 W <span class="tag">est.</span></td><td>Commercial 16 nm; SEU mitigation by design (scrubbing, TMR, latch-up trips); XQR space grade exists at high cost</td><td>Device class flown as COTS on many LEO missions</td><td class="sm" data-x="ZU4xDR"></td><td class="sm">The baseline: 14-bit and 5 GSPS match the 2 GHz blocks exactly; NRE for the board and firmware is in the €6–15 M payload NRE.</td></tr>
+      <tr><td><b>Teledyne e2v EV12AQ600 + Microchip PolarFire RT</b></td><td>Discrete quad ADC + rad-tolerant FPGA</td><td>EV12AQ600: 4 × 1.5 GSPS or 1 × 6 GSPS, 12-bit, input BW 4.5–6 GHz; 2.2–6.8 W per device</td><td>0.75 GHz per channel (quad mode) or 3 GHz single</td><td>≈ 4 devices + FPGA ≈ 40–60 W <span class="tag">est.</span></td><td>150 krad, QML-Y ADC; PolarFire RT 100 krad, SEL-immune</td><td>Space-qualified parts; no integrated board</td><td class="sm" data-x="EV12AQ600"></td><td class="sm">The radiation-robust, EU-ADC fallback if US RFSoC licensing fails (<a href="risks.html#T-14">T-14</a>); far more custom design, fewer coherent channels per device.</td></tr>
+      <tr><td><b>ADRV9009 / ADRV904x-class tuner board</b> (Alén Space TOTEM/TREVO, GomSpace NanoCom MK3 lineage, Epiq Sidekiq X4)</td><td>Zero-IF transceiver + Zynq UltraScale+</td><td>4 RX, 16-bit 250 MSPS class, 70 MHz–6 GHz</td><td>200 MHz (up to 450 MHz on ADRV904x)</td><td>5–15 W</td><td>Mature COTS, extensively flown (TOTEM on Lume-1, NanoCom on many)</td><td>TRL 9 boards<sup class="ref"><a href="#ref-R2-x85">[R2-x85]</a></sup><sup class="ref"><a href="#ref-R2-x86">[R2-x86]</a></sup></td><td class="sm" data-x="TOTEM"></td><td class="sm">The comms path. Transceiver silicon is US EAR; the boards are EU. SDRs can fall under 5A001 — classify early.</td></tr>
+      <tr><td><b>AMD Versal RF</b> (VR1602 class)</td><td>Next-generation direct RF</td><td>up to 32 GSPS 14-bit, 7 GHz+ direct input</td><td>&gt; 3 GHz</td><td>high</td><td>No space grade; commercial sampling 2025–26</td><td>TRL 5–6 for space</td><td class="sm" data-x="Versal RF"></td><td class="sm">Watch item for Stage 3: direct sampling of C and X without block conversion.</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout decision"><div class="t">Decision D-02 — ZU48DR-class RFSoC for the radar path, ADRV-class tuner for comms, EV12AQ600 as the export fallback</div><p>The Xiphos precedent de-risks the RFSoC choice; a custom EU carrier board around the ZU48DR is preferred over the Q8RF because the 14-bit, 5 GSPS converters match the 2 GHz block plan and keep the X-band chains on the same die as the DF chains. The decision is revisited at PDR against two facts: whether the US export licence for the RFSoC and the ADI mixers is granted with acceptable re-export conditions, and whether radiation lot tests (ECSS-Q-ST-60-13 style) of the chosen die show SEL thresholds compatible with the latch-up protection design.</p></div>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/components.js"></script>
+<script src="../assets/data/suppliers.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  const B = BASELINE, RF = ORB.RF;
+  document.getElementById('meta-baseline').textContent = 'Baseline: ' + B.version;
+  document.getElementById('freqstab').textContent = B.payload.timing.freqStability.toExponential(0).replace('e-', 'e−');
+  const rfUnits = COMPONENTS.filter(c => c.sub === 'payload-rf'), digUnits = COMPONENTS.filter(c => c.sub === 'payload-digital');
+  const sum = (a, k) => a.reduce((s, c) => s + c[k], 0);
+  const kp = document.getElementById('kpis');
+  [[`${B.payload.channels.tuner} + ${B.payload.channels.rfsoc}`, 'coherent receive channels', 'tuner path + RFSoC path'],
+   [`≤ ${B.payload.nfDb} dB`, 'system noise figure target', 'LNA 0.5–1.8 dB + 1–1.5 dB front losses'],
+   [`${B.payload.dynamicRangeTargetDb} dB`, 'instantaneous dynamic-range target', '−24 dBm pulses vs −120 dBm comms'],
+   [`${sum(rfUnits, 'w') + sum(digUnits.filter(c => !c.optional), 'w')} W`, 'RF + digital decks, collecting', `${(sum(rfUnits, 'kg') + sum(digUnits.filter(c => !c.optional), 'kg')).toFixed(1)} kg core`]]
+  .forEach(k => kp.append(U.el('div', { class: 'kpi' }, U.el('div', { class: 'v' }, k[0]), U.el('div', { class: 'l' }, k[1]), U.el('div', { class: 'd' }, k[2]))));
+
+  // ---- cascade calculator
+  const PRESETS = {
+    scx: { name: 'S/C/X block chain → RFSoC', fs: 1, rate: 5000, enob: 9.5, stages: [['Limiter', -0.3, 0.3], ['Pre-select filter (switched)', -1.2, 1.2], ['LNA S/C (NF 1.2)', 26, 1.2], ['Step attenuator 0–31 dB', -1, 1], ['Block mixer + LO', -7, 8], ['IF amplifier', 18, 3], ['Anti-alias filter', -1, 1], ['ADC driver', 8, 6]] },
+    uhf: { name: 'UHF chain → tuner', fs: -2, rate: 250, enob: 12.5, stages: [['Limiter', -0.2, 0.2], ['UHF pre-select (cavity)', -0.8, 0.8], ['LNA UHF (NF 0.5)', 28, 0.5], ['Step attenuator 0–31 dB', -1, 1], ['Tuner input stage', -2, 6], ['Tuner baseband gain', 20, 10]] },
+    l: { name: 'L-band chain → tuner', fs: -2, rate: 250, enob: 12.5, stages: [['Limiter', -0.3, 0.3], ['Split filter bank', -1.3, 1.3], ['LNA L (NF 0.8)', 26, 0.8], ['Step attenuator 0–31 dB', -1, 1], ['Tuner input stage', -2, 6], ['Tuner baseband gain', 20, 10]] },
+  };
+  const tb = document.getElementById('stages'); let stages = [];
+  function renderStages() {
+    tb.innerHTML = '';
+    let gcum = 0, fcum = 0, gl = 1;
+    stages.forEach((st, i) => {
+      const F = U.lin(st[2]), G = U.lin(st[1]);
+      fcum = i === 0 ? F : fcum + (F - 1) / gl; gl *= G; gcum += st[1];
+      st.cumG = gcum; st.cumNF = U.dB(fcum);
+      const tr = U.el('tr', {}); tr.innerHTML = `<td>${i + 1}</td><td><input type="text" value="${st[0]}" style="width:14rem;text-align:left" data-i="${i}" data-k="0"></td><td class="num"><input type="number" step="0.1" value="${st[1]}" data-i="${i}" data-k="1"></td><td class="num"><input type="number" step="0.1" value="${st[2]}" data-i="${i}" data-k="2"></td><td class="num">${gcum.toFixed(1)}</td><td class="num">${U.dB(fcum).toFixed(2)}</td><td><button class="small ghost" data-del="${i}" title="remove">×</button></td>`; tb.append(tr);
+    });
+    tb.querySelectorAll('input').forEach(inp => inp.addEventListener('change', e => { const i = +e.target.dataset.i, k = +e.target.dataset.k; stages[i][k] = k ? parseFloat(e.target.value) || 0 : e.target.value; renderStages(); }));
+    tb.querySelectorAll('button[data-del]').forEach(b => b.addEventListener('click', () => { stages.splice(+b.dataset.del, 1); renderStages(); }));
+    computeCascade(); drawChain();
+  }
+  function computeCascade() {
+    if (!stages.length || stages[stages.length - 1].cumNF == null) return;
+    const last = stages[stages.length - 1], nf = last.cumNF, g = last.cumG;
+    const fs = +document.getElementById('adc-fs').value, rate = +document.getElementById('adc-fs2').value, enob = +document.getElementById('adc-enob').value, bin = Math.pow(10, +document.getElementById('adc-bin').value);
+    const nyq = rate / 2 * 1e6, nout = RF.kTB(nyq) + nf + g, qf = fs - (6.02 * enob + 1.76), marg = nout - qf, head = fs - nout, maxin = fs - g, pg = 10 * Math.log10(nyq / bin);
+    const set = (id, t, cls) => { const o = document.getElementById(id); o.textContent = t; o.className = 'v' + (cls ? ' ' + cls : ''); };
+    set('c-nf', nf.toFixed(2) + ' dB', nf <= B.payload.nfDb ? 'good' : nf <= B.payload.nfDb + 1 ? 'warn' : 'bad');
+    set('c-g', g.toFixed(1) + ' dB'); set('c-nout', nout.toFixed(1) + ' dBm'); set('c-qf', qf.toFixed(1) + ' dBm');
+    set('c-marg', (marg >= 0 ? '+' : '') + marg.toFixed(1) + ' dB', marg >= 10 && marg <= 15 ? 'good' : marg >= 6 && marg <= 20 ? 'warn' : 'bad');
+    set('c-head', head.toFixed(1) + ' dB', head >= 55 ? 'good' : head >= 45 ? 'warn' : 'bad');
+    set('c-maxin', maxin.toFixed(1) + ' dBm', maxin >= -24 ? 'good' : 'warn'); set('c-maxatt', (maxin + 31).toFixed(1) + ' dBm', maxin + 31 >= -24 ? 'good' : 'bad');
+    set('c-bin', (Math.min(marg >= 0 ? 6.02 * enob + 1.76 + pg : head + pg, head + pg)).toFixed(0) + ' dB');
+    document.getElementById('c-note').textContent = `Thermal floor over the ${(rate / 2).toFixed(0)} MHz Nyquist band at the ADC input is ${nout.toFixed(1)} dBm; the research rule is to put it 10–15 dB above the quantisation floor (currently ${marg.toFixed(1)} dB). A −24 dBm SPY-1 mainlobe pulse (research 03 §2.4g) ${maxin + 31 >= -24 ? 'can be held below full scale with the attenuator engaged' : 'would clip even with 31 dB of attenuation — add a limiter threshold or reduce LNA gain'}; at 0 dB attenuation the chain clips at ${maxin.toFixed(0)} dBm.`;
+  }
+  function loadPreset(id) { const p = PRESETS[id]; stages = p.stages.map(s => [...s]); ['adc-fs', 'adc-fs2', 'adc-enob'].forEach((k, i) => { const el = document.getElementById(k); el.value = [p.fs, p.rate, p.enob][i]; el.dispatchEvent(new Event('input')); }); renderStages(); }
+  document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => loadPreset(b.dataset.preset)));
+  document.getElementById('add-stage').addEventListener('click', () => { stages.push(['New stage', 0, 0]); renderStages(); });
+  ['adc-fs', 'adc-fs2', 'adc-enob'].forEach(id => bindRange(id, computeCascade, v => (id === 'adc-fs' && v > 0 ? '+' : '') + v));
+  bindRange('adc-bin', computeCascade, v => { const b = Math.pow(10, v); return b >= 1e6 ? (b / 1e6).toFixed(1) + ' MHz' : (b / 1e3).toFixed(0) + ' kHz'; });
+
+  // ---- chain SVG from stages
+  const NS = 'http://www.w3.org/2000/svg';
+  function sv(tag, attrs, txt) { const e = document.createElementNS(NS, tag); for (const k in attrs) if (attrs[k] != null) e.setAttribute(k, attrs[k]); if (txt != null) e.textContent = txt; return e; }
+  function drawChain() {
+    const el = document.getElementById('chain-svg'); el.innerHTML = '';
+    const n = stages.length + 2, W = 820, bw = Math.min(92, (W - 40) / n - 6), H = 232;
+    const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img' });
+    const y = 60, gap = (W - 40 - n * bw) / (n - 1);
+    const items = [['Antenna', null], ...stages.map(s => [s[0], s]), ['ADC', null]];
+    items.forEach((it, i) => {
+      const x = 20 + i * (bw + gap);
+      const isAnt = i === 0, isAdc = i === n - 1;
+      if (isAnt) { svg.append(sv('path', { d: `M${x + bw / 2},${y + 60} V${y + 20} M${x + bw / 2 - 16},${y + 20} L${x + bw / 2 + 16},${y + 20} L${x + bw / 2},${y + 44} Z`, class: 'wire rf' })); svg.append(sv('text', { x: x + bw / 2, y: y + 8, class: 'lbl s', 'text-anchor': 'middle' }, 'antenna')); }
+      else {
+        svg.append(sv('rect', { x, y, width: bw, height: 60, rx: 5, class: 'box' + (isAdc ? ' hi' : '') }));
+        const words = it[0].split(' '); const lines = []; let cur = '';
+        words.forEach(w => { if ((cur + ' ' + w).trim().length > 12) { lines.push(cur.trim()); cur = w; } else cur += ' ' + w; }); lines.push(cur.trim());
+        lines.slice(0, 2).forEach((l, k) => svg.append(sv('text', { x: x + bw / 2, y: y + 18 + k * 12, class: 'lbl xs', 'text-anchor': 'middle' }, l)));
+        if (it[1]) { svg.append(sv('text', { x: x + bw / 2, y: y + 46, class: 'lbl s num', 'text-anchor': 'middle' }, `G ${it[1][1] >= 0 ? '+' : ''}${it[1][1]} dB`)); svg.append(sv('text', { x: x + bw / 2, y: y + 57, class: 'lbl xs num', 'text-anchor': 'middle' }, `NF ${it[1][2]} dB`)); }
+        else { svg.append(sv('text', { x: x + bw / 2, y: y + 46, class: 'lbl xs', 'text-anchor': 'middle' }, `${document.getElementById('adc-fs2').value} MSPS`)); svg.append(sv('text', { x: x + bw / 2, y: y + 57, class: 'lbl xs', 'text-anchor': 'middle' }, `ENOB ${document.getElementById('adc-enob').value}`)); }
+        if (it[1]) { svg.append(sv('text', { x: x + bw / 2, y: y + 84, class: 'lbl xs num', 'text-anchor': 'middle' }, `Σ G ${it[1].cumG.toFixed(1)}`)); svg.append(sv('text', { x: x + bw / 2, y: y + 97, class: 'lbl xs num', 'text-anchor': 'middle' }, `Σ NF ${it[1].cumNF.toFixed(2)}`)); }
+      }
+      if (i < n - 1) svg.append(sv('path', { d: `M${x + bw},${y + 30} H${x + bw + gap}`, class: 'wire rf', 'marker-end': 'url(#arr)' }));
+    });
+    const d = sv('defs', {}); const m = sv('marker', { id: 'arr', viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 6, markerHeight: 6, orient: 'auto' }); m.append(sv('path', { d: 'M0,1 L9,5 L0,9 z', fill: 'var(--accent-2)' })); d.append(m); svg.append(d);
+    svg.append(sv('text', { x: 20, y: 30, class: 'lbl s' }, (stages.length ? 'Chain: ' : '') + (document.querySelector('.presets button[aria-pressed="true"]') || {}).textContent || ''));
+    svg.append(sv('text', { x: 20, y: y + 125, class: 'lbl xs' }, 'Σ = cumulative gain and noise figure after each stage (Friis).'));
+    svg.append(sv('text', { x: 20, y: y + 139, class: 'lbl xs' }, 'AGC: the step attenuator responds in µs to the ADC over-range flag; the limiter clamps the LNA input for the strongest pulses.'));
+    svg.append(sv('path', { d: `M${W - 120},${y + 160} H${W - 40}`, class: 'wire time' })); svg.append(sv('text', { x: W - 130, y: y + 164, class: 'lbl xs', 'text-anchor': 'end' }, '100 MHz reference / LO from the timing unit → mixer and ADC clock'));
+    el.append(svg);
+  }
+  document.querySelectorAll('[data-preset]').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('[data-preset]').forEach(x => x.removeAttribute('aria-pressed')); b.setAttribute('aria-pressed', 'true'); drawChain(); }));
+  document.querySelector('[data-preset="scx"]').setAttribute('aria-pressed', 'true');
+  loadPreset('scx');
+
+  // ---- frequency plan SVG
+  (function plan() {
+    const el = document.getElementById('plan-svg');
+    const W = 960, H = 330, labW = 170;
+    const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img');
+    const x = d3.scaleLog().domain([200, 12500]).range([labW, W - 20]);
+    [200, 300, 500, 1000, 2000, 4000, 8000, 12000].forEach(f => { svg.append('line').attr('x1', x(f)).attr('x2', x(f)).attr('y1', 20).attr('y2', H - 30).attr('class', 'grid-line'); svg.append('text').attr('x', x(f)).attr('y', 14).attr('text-anchor', 'middle').attr('class', 'lbl xs').text(f >= 1000 ? f / 1000 + ' GHz' : f + ' MHz'); });
+    const row = (y, lab) => svg.append('text').attr('x', labW - 8).attr('y', y + 15).attr('text-anchor', 'end').attr('class', 'lbl s').text(lab);
+    const bar = (y, f0, f1, col, lab, h = 22, op = .85, stroke) => { svg.append('rect').attr('x', x(f0)).attr('y', y).attr('width', Math.max(2, x(f1) - x(f0))).attr('height', h).attr('rx', 3).attr('fill', stroke ? 'none' : col).attr('stroke', stroke ? col : null).attr('stroke-width', stroke ? 1.5 : null).attr('opacity', op); if (lab) svg.append('text').attr('x', (x(f0) + x(f1)) / 2).attr('y', y + h / 2 + 4).attr('text-anchor', 'middle').attr('class', 'lbl xs').style('fill', stroke ? null : '#fff').text(lab); };
+    // row 1 bands
+    row(28, 'Receiver bands');
+    bar(28, 200, 225, 'var(--ink-faint)', '', 22, .3);
+    B.payload.bands.forEach(b => bar(28, b.fMin, b.fMax, `var(--band-${b.id})`, `${b.name}`));
+    bar(28, 512, 960, 'var(--ink-faint)', 'gap: cellular', 22, .3); bar(28, 1700, 2000, 'var(--ink-faint)', '', 22, .3);
+    // row 2 preselect filters
+    row(68, 'Pre-select filters');
+    const filt = [[225, 512, 'uhf'], [960, 1215, 'l'], [1215, 1300, 'l'], [1525, 1700, 'l'], [2000, 2500, 's'], [2500, 3000, 's'], [3000, 4000, 's'], [4000, 6000, 'c'], [6000, 8000, 'c'], [8000, 10000, 'x'], [10000, 12000, 'x']];
+    filt.forEach(f => bar(68, f[0], f[1], `var(--band-${f[2]})`, '', 20, 1, true));
+    svg.append('text').attr('x', x(960)).attr('y', 104).attr('class', 'lbl xs').text('L split: 960–1215 (IFF, Link-16) · 1215–1300 (GNSS L2/L5) · 1525–1700 (GNSS L1, L-MSS)');
+    // row 3 paths + LO
+    row(116, 'Path / LO');
+    bar(116, 225, 1700, 'var(--accent)', 'comms tuner, 200 MHz IBW agile', 20, 1, true);
+    [2, 4, 6, 8, 10].forEach(lo => { bar(116, lo * 1000, lo * 1000 + 2000, 'var(--accent-2)', `LO ${lo}`, 20, 1, true); });
+    svg.append('text').attr('x', x(2000)).attr('y', 152).attr('class', 'lbl xs').text('LO n GHz → IF 0–2 GHz = RFSoC first Nyquist zone at 5 GSPS');
+    // row 4 own transmitters + threats
+    row(166, 'Own TX / threats');
+    bar(166, 2200, 2290, 'var(--critical)', '', 20, .9); svg.append('text').attr('x', x(2290) + 4).attr('y', 180).attr('class', 'lbl xs').text('S TT&C 2200–2290 (gated)');
+    bar(166, 8025, 8400, 'var(--critical)', '', 20, .9); svg.append('text').attr('x', x(8400) + 4).attr('y', 200).attr('text-anchor', 'end').attr('class', 'lbl xs').text('X downlink 8025–8400 (blanked, >80 dB)');
+    bar(166, 700, 960, 'var(--warn)', '', 20, .8); svg.append('text').attr('x', x(700) - 4).attr('y', 180).attr('text-anchor', 'end').attr('class', 'lbl xs').text('cellular 700–960: >60 dB rejection');
+    bar(166, 1559, 1610, 'var(--warn)', '', 20, .8); svg.append('text').attr('x', x(1610) + 4).attr('y', 180).attr('class', 'lbl xs').text('GNSS L1');
+    // row 5 antennas feeding
+    row(214, 'Fed by');
+    bar(214, 225, 512, 'var(--ink-3)', 'UHF helices', 20, 1, true); bar(214, 2700, 3500, 'var(--ink-3)', 'S 4×4', 20, 1, true); bar(214, 8000, 12000, 'var(--ink-3)', 'X 8×8', 20, 1, true);
+    bar(242, 300, 4000, 'var(--ink-3)', 'wideband CP survey ×2', 20, 1, true);
+    bar(270, 1000, 12000, 'var(--ink-3)', 'DF interferometer (4 coherent chains)', 20, 1, true);
+    svg.append('text').attr('x', 20).attr('y', H - 8).attr('class', 'lbl xs').text('Log frequency axis 200 MHz – 12.5 GHz. Research 03 §4.2; baseline.js bands.');
+  })();
+
+  // ---- ADC range calc
+  function dr() { const bits = +document.getElementById('dr-bits').value, enob = +document.getElementById('dr-enob').value, fs = +document.getElementById('dr-fs').value, bin = Math.pow(10, +document.getElementById('dr-bin').value); const nyq = 6.02 * enob + 1.76, pg = 10 * Math.log10(fs / 2 * 1e6 / bin); document.getElementById('dr-ideal').textContent = (6.02 * bits + 1.76).toFixed(1) + ' dB'; document.getElementById('dr-nyq').textContent = nyq.toFixed(1) + ' dB'; document.getElementById('dr-pg').textContent = (pg >= 0 ? '+' : '') + pg.toFixed(1) + ' dB'; document.getElementById('dr-bin-out').textContent = (nyq + pg).toFixed(0) + ' dB'; }
+  ['dr-bits', 'dr-enob', 'dr-fs'].forEach(id => bindRange(id, dr, v => String(v)));
+  bindRange('dr-bin', dr, v => { const b = Math.pow(10, v); return b >= 1e6 ? (b / 1e6).toFixed(1) + ' MHz' : (b / 1e3).toFixed(0) + ' kHz'; });
+
+  // ---- roll-up
+  (function roll() {
+    const ch = { 'rffe-uhf': 2, 'rffe-l': 2, 'rffe-scx': 8, 'dig-rfsoc': 8, 'dig-tuner': 4 };
+    const tb = document.querySelector('#rollup tbody'); let mk = 0, mw = 0;
+    [...rfUnits, ...digUnits].forEach(c => { const tr = U.el('tr', {}); tr.innerHTML = `<td><a href="payload_explorer.html#${c.id}">${c.name}</a>${c.optional ? ' <span class="tag">option</span>' : ''}</td><td class="num">${c.kg.toFixed(1)}</td><td class="num">${c.w}</td><td class="num">${ch[c.id] || '—'}</td>`; tb.append(tr); if (!c.optional) { mk += c.kg; mw += c.w; } });
+    const tr = U.el('tr', {}); tr.innerHTML = `<td><b>Total (core)</b></td><td class="num"><b>${mk.toFixed(1)}</b></td><td class="num"><b>${mw}</b></td><td class="num"><b>12</b></td>`; tb.append(tr);
+    Charts.bar(document.getElementById('pwr-chart'), { title: 'Collection-mode power by unit (W)', data: [...rfUnits, ...digUnits].filter(c => c.w > 0).sort((a, b) => b.w - a.w).map(c => ({ label: c.name.split(' (')[0].slice(0, 34), value: c.w, color: c.optional ? 'var(--ink-faint)' : c.sub === 'payload-rf' ? 'var(--accent-2)' : 'var(--accent)' })), unit: 'W', horizontal: true, height: 320 });
+  })();
+
+  // ---- export notes from SUPPLIERS D
+  (function exp() {
+    const D = SUPPLIERS.find(c => c.id === 'D');
+    document.querySelectorAll('#digtab td[data-x]').forEach(td => { const key = td.dataset.x; const it = D.items.find(i => (i.product + ' ' + i.supplier).includes(key)) || D.items.find(i => (i.product + ' ' + i.supplier).toLowerCase().includes(key.toLowerCase().split(' ')[0])); td.textContent = it ? it.export : 'see catalogue'; if (it && it.itarRisk) td.innerHTML += ' <span class="tag warn">ITAR risk</span>'; });
+  })();
+
+  function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  renderRefs(['R3-1', 'R3-2', 'R3-19', 'R2-x79', 'R2-x82', 'R2-x84', 'R2-x85', 'R2-x86', 'R2-x87']);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Collection planning — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .small { font-family: var(--font-ui); font-size: 0.82rem; color: var(--ink-2); }
+  select, input[type=number] { font-family: var(--font-ui); font-size: 0.85rem; padding: 0.3rem 0.5rem; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--ink); width: 100%; }
+  .ctl label { font-family: var(--font-ui); font-size: 0.82rem; }
+  .hil li { margin-bottom: 0.35rem; }
+  .fmt td:first-child { white-space: nowrap; font-weight: 600; }
+  pre.deck { font-size: 0.78rem; }
+  .readout .v.txt { font-size: 0.95rem; }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>03 Scenarios &amp; services</b> · Collection planning &amp; data flow</div>
+    <h1>Collection planning &amp; data flow</h1>
+    <p class="lead">How a customer's request becomes minutes on the satellite and how bits on the satellite become an alert on the customer's screen. The page specifies the tasking workflow and its acceptance test (passes, geometry and predicted CEP computed before a task is accepted), the deconfliction rules for the ≈9 minutes of collection per orbit, the L0→L4 pipeline with its formats and latencies, the ground-station contact strategy for the TALOS orbit computed live for Nemea, Svalbard, Dubai and Puertollano, the resulting latency tiers, and the fusion and cueing interfaces with AIS, ADS-B, SAR/EO and ground passive sensors.</p>
+    <div class="meta"><span id="bv">Baseline: TALOS-1 v0.3</span><span>Sources: research notes 03, 04</span><span>Orbit maths: assets/js/orbit.js (live)</span></div>
+  </header>
+
+  <h2>Tasking workflow</h2>
+  <p>HawkEye 360 distinguishes fixed monitoring, reserved and on-demand tasking <sup class="ref"><a href="#ref-R4-2">[R4-2]</a></sup>; Kleos quantified the capacity constraint (≈9 min per orbit per satellite) <sup class="ref"><a href="#ref-R4-8">[R4-8]</a></sup>. TALOS binds the two: every task is scored for feasibility against the pass geometry it will actually get and against the minutes it will consume before the customer is told yes. The acceptance step is the part competitors do not expose — EUSPA's RFI asks explicitly for time-to-localise-and-notify and single- vs multi-satellite accuracy <sup class="ref"><a href="#ref-R4-16">[R4-16]</a></sup>, and a tasking interface that shows predicted CEP and pass times before committing answers the question honestly.</p>
+
+  <figure class="diagram">
+    <svg viewBox="0 0 1000 300" role="img" aria-label="Tasking workflow from request to collection">
+      <defs><marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-3)"/></marker></defs>
+      <g>
+        <rect x="15" y="40" width="140" height="78" rx="6" class="box hi"/><text x="85" y="62" text-anchor="middle" class="lbl" font-weight="600">Request</text>
+        <text x="85" y="79" text-anchor="middle" class="lbl s">AOI polygon · bands</text><text x="85" y="92" text-anchor="middle" class="lbl s">priority · revisit</text><text x="85" y="105" text-anchor="middle" class="lbl s">product level · caveats</text>
+      </g>
+      <g>
+        <rect x="180" y="40" width="140" height="78" rx="6" class="box"/><text x="250" y="62" text-anchor="middle" class="lbl" font-weight="600">Validate</text>
+        <text x="250" y="79" text-anchor="middle" class="lbl s">legal basis · export</text><text x="250" y="92" text-anchor="middle" class="lbl s">customer entitlement</text><text x="250" y="105" text-anchor="middle" class="lbl s">classification line</text>
+      </g>
+      <g>
+        <rect x="345" y="40" width="160" height="78" rx="6" class="box"/><text x="425" y="62" text-anchor="middle" class="lbl" font-weight="600">Feasibility</text>
+        <text x="425" y="79" text-anchor="middle" class="lbl s">pass prediction (ORB)</text><text x="425" y="92" text-anchor="middle" class="lbl s">geometry · dwell · link budget</text><text x="425" y="105" text-anchor="middle" class="lbl s">predicted CEP per pass</text>
+      </g>
+      <g>
+        <rect x="530" y="40" width="140" height="78" rx="6" class="box"/><text x="600" y="62" text-anchor="middle" class="lbl" font-weight="600">Deconflict</text>
+        <text x="600" y="79" text-anchor="middle" class="lbl s">minutes ledger</text><text x="600" y="92" text-anchor="middle" class="lbl s">priority classes P1–P4</text><text x="600" y="105" text-anchor="middle" class="lbl s">tuner / RFSoC channel plan</text>
+      </g>
+      <g>
+        <rect x="695" y="40" width="140" height="78" rx="6" class="box"/><text x="765" y="62" text-anchor="middle" class="lbl" font-weight="600">Deck</text>
+        <text x="765" y="79" text-anchor="middle" class="lbl s">per-orbit tune/record list</text><text x="765" y="92" text-anchor="middle" class="lbl s">SOI list · snapshot rules</text><text x="765" y="105" text-anchor="middle" class="lbl s">signed · versioned</text>
+      </g>
+      <g>
+        <rect x="860" y="40" width="125" height="78" rx="6" class="box"/><text x="922" y="62" text-anchor="middle" class="lbl" font-weight="600">Uplink &amp; collect</text>
+        <text x="922" y="79" text-anchor="middle" class="lbl s">S-band TT&amp;C, Athens</text><text x="922" y="92" text-anchor="middle" class="lbl s">≥1 contact before AOS</text><text x="922" y="105" text-anchor="middle" class="lbl s">execute · report</text>
+      </g>
+      <line x1="155" y1="79" x2="178" y2="79" class="wire" marker-end="url(#a1)"/>
+      <line x1="320" y1="79" x2="343" y2="79" class="wire" marker-end="url(#a1)"/>
+      <line x1="505" y1="79" x2="528" y2="79" class="wire" marker-end="url(#a1)"/>
+      <line x1="670" y1="79" x2="693" y2="79" class="wire" marker-end="url(#a1)"/>
+      <line x1="835" y1="79" x2="858" y2="79" class="wire" marker-end="url(#a1)"/>
+      <!-- decision returns -->
+      <path d="M425,118 L425,170 L85,170 L85,120" class="wire" stroke-dasharray="4 3" marker-end="url(#a1)"/>
+      <text x="255" y="164" text-anchor="middle" class="lbl xs">infeasible → offer: later window, lower product level, cluster stage, or decline</text>
+      <path d="M600,118 L600,200 L85,200 L85,122" class="wire" stroke-dasharray="4 3" marker-end="url(#a1)"/>
+      <text x="340" y="194" text-anchor="middle" class="lbl xs">capacity conflict → customer sees price/priority options or next free pass</text>
+      <!-- gates -->
+      <text x="425" y="30" text-anchor="middle" class="lbl xs">Gate A: customer accepts predicted CEP &amp; latency</text>
+      <text x="765" y="30" text-anchor="middle" class="lbl xs">Gate B: collection manager signs the deck (T−2 h)</text>
+      <!-- timing bar -->
+      <line x1="15" y1="250" x2="985" y2="250" class="axis-line"/>
+      <text x="15" y="242" class="lbl xs">T−∞ (standing) / T−48 h (reserved) / T−6 h (on-demand)</text>
+      <text x="600" y="242" text-anchor="middle" class="lbl xs">T−2 h deck freeze</text>
+      <text x="922" y="242" text-anchor="middle" class="lbl xs">T−1 orbit uplink</text>
+      <text x="985" y="270" text-anchor="end" class="lbl xs">T₀ = AOS over the AOI</text>
+      <text x="15" y="270" class="lbl xs">automated unless flagged · human sign-off at Gate B</text>
+    </svg>
+    <figcaption>The tasking workflow. Feasibility runs the same orbit propagator used on this page to predict passes, dwell and CEP for the requested window; a task is only accepted after the customer has seen those predictions (Gate A). The deck freezes two hours before the pass and goes up on the owned S-band station in Athens on the preceding orbit; dashed returns show what happens when feasibility or capacity fails.</figcaption>
+  </figure>
+
+  <h3>Task inputs</h3>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Input</th><th>Form</th><th>Why it matters to the deck</th></tr></thead>
+    <tbody>
+      <tr><td>AOI</td><td>GeoJSON polygon or multipolygon; area and centroid derived</td><td>Decides which passes qualify (elevation at centroid, dwell over the polygon) and how many tuner channels can be shared with neighbours in the same footprint</td></tr>
+      <tr><td>Frequency plan</td><td>List of bands/channels with bandwidths and a signal-class hint (e.g. GNSS L1 ± 10 MHz, "GNSS jammer"; 225–400 MHz, "tactical PTT"; 9.3–9.5 GHz, "marine radar")</td><td>Maps to the two receiver paths: comms tuner (4 coherent channels × 200 MHz, 70 MHz–6 GHz) or RFSoC radar path (8 channels × 2 GHz, S/C/X block converters); sets snapshot sizes and the detection recipe</td></tr>
+      <tr><td>Priority</td><td>P1 safety/defence standing, P2 reserved, P3 subscription, P4 trial/best-effort</td><td>Pre-emption order in the minutes ledger; P1 can displace P3/P4 up to T−2 h</td></tr>
+      <tr><td>Revisit / window</td><td>Every usable pass; N passes per day; one-off window; or "next pass above X° elevation"</td><td>Converts to a count of orbits and a minutes budget; low-elevation passes may be excluded for comms classes</td></tr>
+      <tr><td>Product level</td><td>L1 detections · L2 geolocations · L3 catalogue update · L4 alert rule; optional IQ snapshots (tasking tier)</td><td>Snapshots cost data volume (research 03 §5.3: 20 kB per 25 kHz/100 ms, 1–5 MB per radar snapshot); L2 at Stage 1 means multi-pass accumulation and a declared CEP</td></tr>
+      <tr><td>Caveats</td><td>Release caveat, classification line (commercial/national), exclusivity, retention period</td><td>Determines whether the collection can be shared with other subscribers (fixed monitoring economics) or is exclusive (tasking premium)</td></tr>
+    </tbody></table></div>
+
+  <h3>Feasibility before acceptance: passes, geometry and predicted CEP</h3>
+  <p>The panel below is the acceptance test as the customer would see it. It propagates the baseline orbit (and the Stage-2 cluster of three satellites 150 km apart along-track, ±20 km cross-track) over the next 24 hours from the reference epoch, lists the passes over the selected AOI, and computes the thermal-noise-plus-clock CRLB ellipse for the best pass using the emitter class's bandwidth and a 100 ms snapshot at 10 dB SNR (research 03 §6.2, Stein form) <sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>. Clock (20 ns) and ephemeris (5 m) errors are added in quadrature; FDOA assumes a 0.05 Hz oscillator floor. Stage 1 figures come from the baseline planning values (5–20 km single pass, 1–5 km multi-pass on fixed emitters) because single-satellite accuracy is dominated by factors the CRLB does not capture (mirror ambiguity, emitter frequency stability, attitude knowledge).</p>
+  <div class="panel"><h3>Task feasibility check <span class="tag">est.</span></h3>
+    <div class="controls grid c3">
+      <div class="ctl"><label for="f-aoi">Area of interest</label><select id="f-aoi"></select></div>
+      <div class="ctl"><label for="f-em">Emitter class</label><select id="f-em"></select></div>
+      <div class="ctl"><label for="f-minel">Minimum elevation for comms classes <output for="f-minel">15</output>°</label><input type="range" id="f-minel" min="5" max="40" step="5" value="15"></div>
+    </div>
+    <div class="readout">
+      <div><div class="k">Passes in next 24 h (el ≥ 5°)</div><div class="v" id="f-r1">—</div></div>
+      <div><div class="k">Usable passes for this class</div><div class="v" id="f-r2">—</div></div>
+      <div><div class="k">Best pass</div><div class="v txt" id="f-r3">—</div></div>
+      <div><div class="k">Received SNR at best pass (25 kHz / class BW)</div><div class="v" id="f-r4">—</div></div>
+      <div><div class="k">Stage 1 CEP (planning)</div><div class="v" id="f-r5">—</div></div>
+      <div><div class="k">Stage 2 cluster CEP, TDOA only</div><div class="v txt" id="f-r6">—</div></div>
+      <div><div class="k">Stage 2 cluster CEP, TDOA + FDOA</div><div class="v txt" id="f-r7">—</div></div>
+      <div><div class="k">Minutes consumed / day (all usable passes, 3 min each)</div><div class="v" id="f-r8">—</div></div>
+      <div><div class="k">Verdict</div><div class="v txt" id="f-r9">—</div></div>
+    </div>
+    <div class="table-wrap"><table class="compact" id="f-passes"><thead><tr><th>Pass (UTC)</th><th>Max el.</th><th>Slant range at TCA</th><th>Dwell above min. el.</th><th>Cluster TDOA CEP</th><th>Cluster TDOA+FDOA CEP</th><th>Usable</th></tr></thead><tbody></tbody></table></div>
+    <p class="small">Radars and jammers are accepted down to 5° because their EIRP makes SNR irrelevant (research 03 §1); communications classes need the elevation you set. SNR uses the class's typical EIRP from <code>EMITTERS</code>, the baseline antenna gain for its band (helix/survey 5–10 dBi at UHF/L, arrays 15–25 dBi at S/C/X), 2.5 dB noise figure and the class bandwidth. FDOA is only credited for classes whose emitters hold frequency (radars, fixed-frequency comms, SATCOM); frequency-hopping nets and cheap jammers get TDOA only.</p>
+  </div>
+
+  <h3>Deconfliction rules</h3>
+  <p>The collection manager runs a ledger per satellite per orbit. The rules below are the ones the planning software applies automatically; anything they cannot resolve goes to the human at Gate B.</p>
+  <ol>
+    <li><strong>Budget.</strong> Collection time per orbit ≤ 9 min baseline (power and data), raised to 12 min when the downlink forecast for the next 24 h exceeds the data forecast by 30% (see the capacity calculator in the <a href="index.html#capacity-the-minutes-ledger">CONOPS</a>).</li>
+    <li><strong>Sharing first.</strong> Two tasks whose AOIs fall in the same footprint and whose frequency plans fit the same channel configuration are merged into one collection; both customers are billed, one set of minutes is spent. This is the economics of HawkEye's regional subscriptions <sup class="ref"><a href="#ref-R4-13">[R4-13]</a></sup>.</li>
+    <li><strong>Channel fit.</strong> Four tuner channels and the RFSoC path are allocated by band; a task that needs a fifth simultaneous comms channel waits for the next pass or is time-sliced within the dwell (each slice ≥ 20 s so that Doppler fits remain possible).</li>
+    <li><strong>Priority pre-emption.</strong> P1 displaces P3/P4 until T−2 h; P2 reserved minutes are guaranteed but return to the pool at T−12 h if the customer has not placed an AOI.</li>
+    <li><strong>Geometry gate.</strong> A pass is only charged to a task if the predicted CEP (Stage 2) or the elevation (Stage 1) meets the acceptance shown at Gate A; otherwise it is not scheduled and the customer is not billed.</li>
+    <li><strong>Downlink awareness.</strong> Snapshot-heavy tasks (IQ tier) are scheduled on orbits that end at a ground contact, so that their data do not age behind lighter products.</li>
+    <li><strong>Self-interference.</strong> X-band receive is blanked during the satellite's own X-band downlink (BASELINE payload band note), so X-band radar tasks are not scheduled on downlink passes over Nemea unless the contact is S-band only.</li>
+    <li><strong>Formation (Stage 2).</strong> The cluster executes the same deck; the lead satellite's deck is authoritative and followers inherit it with a time offset equal to the along-track separation (≈20 s for 150 km).</li>
+  </ol>
+
+  <h2>The L0→L4 data pipeline</h2>
+  <p>The pipeline follows what the operators practise (04 §4.3) and what the payload design forces: raw IQ cannot be downlinked (four 100 MHz channels at 12 bits are 9.6 Gbit/s, two orders of magnitude above the link), so reduction to pulse descriptors, signal reports and selected snapshots happens on board (research 03 §5) <sup class="ref"><a href="#ref-R4-29">[R4-29]</a></sup>. Each level has a defined format and a latency contribution; the sum is the latency tier.</p>
+
+  <figure class="diagram">
+    <svg viewBox="0 0 1000 470" role="img" aria-label="L0 to L4 data pipeline with formats and latency">
+      <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/></marker></defs>
+      <rect x="10" y="10" width="300" height="440" rx="8" fill="none" stroke="var(--accent-2)" stroke-dasharray="5 4" opacity="0.7"/><text x="20" y="28" class="lbl xs">ON BOARD</text>
+      <rect x="320" y="10" width="670" height="440" rx="8" fill="none" stroke="var(--accent)" stroke-dasharray="5 4" opacity="0.7"/><text x="330" y="28" class="lbl xs">GROUND (sovereign enclave)</text>
+      <!-- L0 -->
+      <rect x="25" y="45" width="270" height="110" rx="6" class="box"/>
+      <text x="35" y="65" class="lbl" font-weight="600">L0 — Raw / reduced capture</text>
+      <text x="35" y="83" class="lbl s">Tuner: 4 ch × 200 MHz · RFSoC: 8 ch × 2 GHz</text>
+      <text x="35" y="97" class="lbl s">PFB channelisation → CFAR energy detection</text>
+      <text x="35" y="111" class="lbl s">IQ snapshots on SOI hit: 20 kB–5 MB, stamped ≤20 ns</text>
+      <text x="35" y="125" class="lbl s">Format: CCSDS packets, IQ16 + PVT/attitude header</text>
+      <text x="35" y="141" class="lbl s" fill="var(--accent-2)">Latency: real time · volume: Gbit/s before reduction</text>
+      <!-- L1 on board -->
+      <rect x="25" y="175" width="270" height="130" rx="6" class="box"/>
+      <text x="35" y="195" class="lbl" font-weight="600">L1 — Detections (on-board)</text>
+      <text x="35" y="213" class="lbl s">Radar: PDW (TOA, f, PW, PA, AOA, MOP) 128–256 bit</text>
+      <text x="35" y="227" class="lbl s">→ deinterleave → emitter report 1–2 kB per dwell</text>
+      <text x="35" y="241" class="lbl s">Comms: signal report (f, BW, t₀/t₁, P, AOA, mod class)</text>
+      <text x="35" y="255" class="lbl s">Library match → downlink priority · alert flag</text>
+      <text x="35" y="269" class="lbl s">Format: protobuf/CBOR report stream</text>
+      <text x="35" y="291" class="lbl s" fill="var(--accent-2)">Latency: seconds · ≈30 GB/day incl. snapshots</text>
+      <!-- store & downlink -->
+      <rect x="25" y="325" width="270" height="105" rx="6" class="box hi"/>
+      <text x="35" y="345" class="lbl" font-weight="600">Store &amp; forward</text>
+      <text x="35" y="363" class="lbl s">2 TB NAND buffer (1–2 weeks)</text>
+      <text x="35" y="377" class="lbl s">X-band 1 Gbit/s at next contact (3 KSAT sites)</text>
+      <text x="35" y="391" class="lbl s">Alert flags: S-band TT&amp;C or ISL (Stage 3) in minutes</text>
+      <text x="35" y="415" class="lbl s" fill="var(--accent-2)">Latency: 0–14 h (53°, one site) · ≤1 orbit (SSO polar)</text>
+      <!-- ground L1 -->
+      <rect x="335" y="45" width="310" height="120" rx="6" class="box"/>
+      <text x="345" y="65" class="lbl" font-weight="600">L1+ — Ingest, calibrate, cross-correlate</text>
+      <text x="345" y="83" class="lbl s">Decode · time/phase calibration against reference emitters</text>
+      <text x="345" y="97" class="lbl s">Snapshot CAF across satellites → TDOA/FDOA</text>
+      <text x="345" y="111" class="lbl s">Classifier re-run on snapshots (modulation, rate)</text>
+      <text x="345" y="125" class="lbl s">Format: Parquet detection records · snapshot store</text>
+      <text x="345" y="151" class="lbl s" fill="var(--accent)">Latency: minutes after downlink</text>
+      <!-- L2 -->
+      <rect x="665" y="45" width="320" height="120" rx="6" class="box"/>
+      <text x="675" y="65" class="lbl" font-weight="600">L2 — Geolocations</text>
+      <text x="675" y="83" class="lbl s">Stage 1: Doppler/AOA fit over pass · multi-pass</text>
+      <text x="675" y="97" class="lbl s">Stage 2: TDOA/FDOA NLLS, Earth-surface constraint</text>
+      <text x="675" y="111" class="lbl s">Output: lat/lon, 95% ellipse (a, b, θ), CEP, GDOP,</text>
+      <text x="675" y="125" class="lbl s">method, terrain flag · Format: GeoJSON Feature</text>
+      <text x="675" y="151" class="lbl s" fill="var(--accent)">Latency: minutes · ~1 kB per fix</text>
+      <!-- L3 -->
+      <rect x="335" y="190" width="310" height="112" rx="6" class="box"/>
+      <text x="345" y="210" class="lbl" font-weight="600">L3 — Identification, association, tracks</text>
+      <text x="345" y="228" class="lbl s">Gate vs catalogue (k·ellipse, class, parametric dist.)</text>
+      <text x="345" y="242" class="lbl s">Platform: AIS/MMSI, ADS-B/ICAO24, known site</text>
+      <text x="345" y="256" class="lbl s">Track formation over passes · maturity update</text>
+      <text x="345" y="270" class="lbl s">Format: catalogue API · STANAG 4676 · 4559 export</text>
+      <text x="345" y="296" class="lbl s" fill="var(--accent)">Latency: minutes (auto) · hours (analyst review)</text>
+      <!-- L4 -->
+      <rect x="665" y="190" width="320" height="112" rx="6" class="box"/>
+      <text x="675" y="210" class="lbl" font-weight="600">L4 — Pattern-of-life, anomalies, alerts</text>
+      <text x="675" y="228" class="lbl s">Baselines per AOI × class × cell × hour-of-week</text>
+      <text x="675" y="242" class="lbl s">z-score vs rolling baseline · streak confirmation</text>
+      <text x="675" y="256" class="lbl s">Rules: new emitter · jammer · mode change · dark vessel</text>
+      <text x="675" y="270" class="lbl s">Format: alert feed (JSON/CoT/e-mail) · dashboard · reports</text>
+      <text x="675" y="296" class="lbl s" fill="var(--accent)">Latency: minutes after L3 · weekly baselines</text>
+      <!-- delivery -->
+      <rect x="335" y="335" width="650" height="95" rx="6" class="box hi"/>
+      <text x="345" y="355" class="lbl" font-weight="600">Delivery</text>
+      <text x="345" y="373" class="lbl s">GeoJSON via REST · OGC API Features · STANAG 4676 · 4559/NSILI catalogue · CoT for TAK/COP · archive · API keys</text>
+      <text x="345" y="387" class="lbl s">Classification banner and release caveat on every record; audit log of every read</text>
+      <text x="345" y="411" class="lbl s" fill="var(--accent)">Standard tier &lt; 6 h · NRT tier &lt; 90 min · ISL alerts in minutes (Stage 3+)</text>
+      <!-- arrows -->
+      <line x1="160" y1="155" x2="160" y2="173" class="wire data" marker-end="url(#a2)"/>
+      <line x1="160" y1="305" x2="160" y2="323" class="wire data" marker-end="url(#a2)"/>
+      <path d="M295,377 L320,377 L320,105 L333,105" class="wire data" marker-end="url(#a2)"/>
+      <line x1="645" y1="105" x2="663" y2="105" class="wire data" marker-end="url(#a2)"/>
+      <path d="M825,165 L825,178 L490,178 L490,188" class="wire data" marker-end="url(#a2)"/>
+      <line x1="645" y1="250" x2="663" y2="250" class="wire data" marker-end="url(#a2)"/>
+      <path d="M490,302 L490,333" class="wire data" marker-end="url(#a2)"/>
+      <path d="M825,302 L825,333" class="wire data" marker-end="url(#a2)"/>
+      <!-- alert shortcut -->
+      <path d="M295,400 C330,400 330,322 660,322 L825,322" class="wire time"/>
+      <text x="600" y="318" text-anchor="middle" class="lbl xs">on-board alert flag → L4 directly (minutes)</text>
+    </svg>
+    <figcaption>The L0→L4 pipeline. Left: what happens on the satellite — channelisation, detection, pulse descriptors, signal reports, library matching and snapshot capture — with the store-and-forward step whose waiting time dominates latency. Right: the ground levels with their formats. The dotted green shortcut is the alert path: an on-board library hit raises a flag that can travel over the S-band link or the inter-satellite link and reach L4 without waiting for the X-band bulk downlink.</figcaption>
+  </figure>
+
+  <h2>Ground-segment contact strategy</h2>
+  <p>The orbit choice decides the ground segment. The table and charts below are computed on page load with <code>ORB.siteStats</code> over three days (5° minimum elevation, 20 s steps) for the four candidate KSAT sites <sup class="ref"><a href="#ref-R4-33">[R4-33]</a></sup> and two orbits: the baseline <span id="gs-orb"></span> and a sun-synchronous orbit at the same altitude. Mean gap is the average time between the end of one contact and the start of the next at that site; max gap is the worst wait, i.e. the worst-case data age for a collection made just after a contact.</p>
+  <div class="table-wrap"><table class="compact" id="gs-table">
+    <thead><tr><th>Site</th><th>Lat / lon</th><th colspan="4">530 km / 53° (baseline)</th><th colspan="4">530 km / SSO</th></tr>
+    <tr><th></th><th></th><th>passes/day</th><th>min/day</th><th>mean gap</th><th>max gap</th><th>passes/day</th><th>min/day</th><th>mean gap</th><th>max gap</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+  <div class="grid c2">
+    <div id="gs-chart1"></div>
+    <div id="gs-chart2"></div>
+  </div>
+  <p class="small">Charts: passes per day per site (left) and maximum gap between contacts in hours (right), for the baseline 53° orbit and the SSO alternative. Blue bars are the baseline 53° orbit, orange the SSO alternative; a 72-hour gap means the site never sees the satellite in the three-day run.</p>
+
+  <div class="callout decision"><div class="t">Contact strategy that follows from the numbers</div>
+  <p>At 53° the polar sites never see the satellite; Nemea alone gives about <span id="gs-n53">—</span> contacts a day but a worst gap of about <span id="gs-g53">—</span> hours, because the Earth rotates the ground track away for half a day. Adding Dubai and Puertollano — both at latitudes the 53° orbit crosses on every revolution — brings the network to roughly <span id="gs-net53">—</span> contacts a day with a worst gap of about <span id="gs-netg53">—</span> hours (computed). On SSO the picture inverts: Svalbard alone sees <span id="gs-sv">—</span> contacts a day and the worst wait is one orbit for most collections, but the regional revisit falls to 3–5 passes a day. The baseline therefore books Nemea as primary, Dubai and Puertollano as contracted complements for the NRT tier, and keeps the S-band TT&amp;C station near Athens for tasking and alert flags; Svalbard and Troll are only in the plan if the first launch forces an SSO ride. Per-pass GSaaS pricing (€40–250 per pass, est.) makes this a few hundred thousand euro per year per satellite (research 05 §1.2).</p></div>
+
+  <h3>Latency tiers</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Tier</th><th>Promise</th><th>How it is met</th><th>Stage</th><th>Typical customer</th></tr></thead>
+    <tbody>
+      <tr><td><b>Standard</b></td><td>&lt; 6 h from collection to product (L1–L3)</td><td>Nemea X-band contacts only; store-and-forward; automated L1–L3; analyst review within the window for L3 changes</td><td>1</td><td>Regional awareness subscriptions, EW database feed, spectrum products</td></tr>
+      <tr><td><b>Near real time</b></td><td>&lt; 90 min</td><td>Nemea + Dubai + Puertollano contacts on every orbit crossing the region; priority downlink queue for flagged emitters; L4 rules auto-release</td><td>1–2 (with contracted complements)</td><td>GNSS-interference alerts for aviation and maritime platforms, MoD regional picture</td></tr>
+      <tr><td><b>Tactical</b></td><td>Minutes</td><td>On-board library hit → alert flag via S-band contact or inter-satellite link to whichever satellite is in contact; later a relay service; content follows in the next bulk pass</td><td>3+ (ISL)</td><td>Sovereign customer, NATO APSS contribution, cueing of airborne assets</td></tr>
+      <tr><td><b>Archive</b></td><td>Days (batch re-processing)</td><td>Snapshot re-correlation with improved ephemeris and calibration; catalogue back-fill; model retraining</td><td>1</td><td>Analysts, library builders, EUSPA/EDF studies</td></tr>
+    </tbody></table></div>
+  <p>These tiers are the ones HawkEye 360 describes as its trajectory ("hours" today, "minutes" with direct downlink, crosslinks and on-board processing, "seconds" as the goal) <sup class="ref"><a href="#ref-R4-2">[R4-2]</a></sup>; Unseenlabs reported a threefold cut in delivery time through KSAT network integration (research 03 §5.4) <sup class="ref"><a href="#ref-R3-6">[R3-6]</a></sup>. The independent CYGNSS analysis measured median detection latency for GNSS-interference hotspots of 3 h 46 min with one satellite and 48 min with seven, which brackets what a Stage 1 and a Stage 3 TALOS can promise for that signal class <sup class="ref"><a href="#ref-R4-17">[R4-17]</a></sup>.</p>
+
+  <h2>Fusion and cueing</h2>
+  <h3>AIS and ADS-B</h3>
+  <p>Every L2 geolocation at sea or in the air is joined against cooperative-tracking data before it becomes a product: ship radar fixes against AIS (MMSI, position within the ellipse at ±60 min, as in the Galápagos analysis <sup class="ref"><a href="#ref-R4-7">[R4-7]</a></sup>), IFF/Link-16 and AEW fixes against ADS-B (ICAO24). HawkEye added MMSI matching to RFGeo in 2019 <sup class="ref"><a href="#ref-R4-14">[R4-14]</a></sup>; Windward infers jamming from AIS corruption without any RF and would consume a source layer <sup class="ref"><a href="#ref-R4-19">[R4-19]</a></sup>; ADS-B-based maps (EASA, gpsjam) show the effect of GNSS interference on receivers and TALOS adds the emitter position <sup class="ref"><a href="#ref-R4-18">[R4-18]</a></sup>. The join produces three outcomes: <em>matched</em> (identity attached, confidence raised), <em>unmatched</em> (dark-vessel or non-cooperative candidate), <em>inconsistent</em> (AIS position outside the ellipse — spoofing or AIS error flag). Greece's own AIS/VDES receivers on the national EO microsatellites and terrestrial AIS are the natural feeds <sup class="ref"><a href="#ref-R4-25">[R4-25]</a></sup>.</p>
+
+  <h3>SAR / EO cueing — the Galápagos template</h3>
+  <p>The 2020 HawkEye 360–Airbus collection over the Galápagos EEZ remains the reference workflow: RF detections of marine radars and VHF not matching AIS defined the search box, a SAR collection found 58 vessels of which only 16 matched AIS within ±60 min, and the two layers together produced the dark-fleet picture <sup class="ref"><a href="#ref-R4-7">[R4-7]</a></sup>. Galwan (2020) is the land analogue: an RF surge tasked EO imagery that showed the build-up <sup class="ref"><a href="#ref-R4-14">[R4-14]</a></sup>; Spire exposes it as a "trigger third-party imagery" action <sup class="ref"><a href="#ref-R4-9">[R4-9]</a></sup>. For TALOS the partner is in Athens: ICEYE Hellas SAR and the Open Cosmos optical microsats of the national programme <sup class="ref"><a href="#ref-R4-25">[R4-25]</a></sup>.</p>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Step</th><th>Actor</th><th>Content</th><th>Time (Stage 2, NRT tier)</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>TALOS L3</td><td>Unmatched radar fix(es) with ellipse; "dark vessel with radar on" rule fires in an AOI with a SAR cue entitlement</td><td>T₀ + 60–90 min</td></tr>
+      <tr><td>2</td><td>Cue engine</td><td>Builds a SAR tasking request: search box = union of ellipses inflated by vessel speed × time-to-image (10 kn × 2 h ≈ 37 km); mode (Stripmap/Spot); latest acceptable time</td><td>+5 min</td></tr>
+      <tr><td>3</td><td>Analyst (optional HIL)</td><td>Approves or edits the cue when the customer requires human release</td><td>+15 min</td></tr>
+      <tr><td>4</td><td>SAR operator API</td><td>Accepts, returns the planned imaging time and footprint</td><td>next SAR pass (1–6 h)</td></tr>
+      <tr><td>5</td><td>Fusion</td><td>SAR ship detections joined to the RF fix and to AIS; confidence updated; catalogue maturity may rise to Confirmed</td><td>SAR + 30 min</td></tr>
+      <tr><td>6</td><td>Product</td><td>Combined GeoJSON (RF ellipse + SAR detections + AIS state) and a report to the customer; feedback into the next deck (re-task TALOS on the SAR position)</td><td>SAR + 60 min</td></tr>
+    </tbody></table></div>
+
+  <h3>Ground passive sensors (ERA-style)</h3>
+  <p>HawkEye 360's European strategy pairs its space RF with ERA's ground-based passive emitter tracking <sup class="ref"><a href="#ref-R4-23">[R4-23]</a></sup>; the model for TALOS is integration with the Hellenic Air Force's passive surveillance over the Aegean. Ground passive systems give continuous, metre-class tracks of airborne emitters inside their coverage; the satellite gives coverage where there are no ground sensors (sea, foreign territory) and the parametric library that both can share. The interface is a two-way exchange of STANAG 4676 tracks and emitter parametric records in the classified line, and a one-way flow of cueing geometry from the ground network into the TALOS deck (which sector an AEW platform is working in, so the satellite dwells there).</p>
+
+  <h3>Human-in-the-loop points</h3>
+  <ul class="hil">
+    <li><strong>Gate A — task acceptance</strong> when predicted CEP or dwell is below the customer's minimum, or the request touches an export/legal flag.</li>
+    <li><strong>Gate B — deck signature</strong> at T−2 h: the collection manager signs every deck; conflicts the rules could not resolve are decided here.</li>
+    <li><strong>L3 promotion</strong>: an analyst confirms every catalogue transition to <em>Confirmed</em> or <em>Characterised</em> and every new signal class (see <a href="ew_database.html">EW database</a>).</li>
+    <li><strong>Alert release</strong> for customers who require human release (default for MoD alerts; automated for GNSS-interference feeds to aviation/maritime platforms with a confidence threshold).</li>
+    <li><strong>Cue approval</strong> when a SAR/EO tasking spends the customer's imagery budget.</li>
+    <li><strong>Classified annex edits</strong>: only cleared staff, four-eyes principle, audit-logged.</li>
+  </ul>
+
+  <h2>Interfaces and formats</h2>
+  <p>Commercial operators deliver GeoJSON and JSON over REST <sup class="ref"><a href="#ref-R4-13">[R4-13]</a></sup><sup class="ref"><a href="#ref-R4-8">[R4-8]</a></sup>; none advertises native STANAG 4676 tracks or a 4559 catalogue, while NATO ISR interoperability relies on exactly those <sup class="ref"><a href="#ref-R4-44">[R4-44]</a></sup>. TALOS offers both from the start because the anchor customers are NATO and EU bodies.</p>
+  <div class="table-wrap"><table class="compact fmt">
+    <thead><tr><th>Format / API</th><th>Used for</th><th>Level</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>GeoJSON (RFC 7946)</td><td>Detections, geolocations with ellipse polygons, AOI definitions</td><td>L1–L2</td><td>Default delivery; properties carry frequency, bandwidth, SNR, method, CEP, maturity, caveat</td></tr>
+      <tr><td>OGC API – Features</td><td>Query by bbox/time/class; paging; GIS ingestion (ArcGIS, QGIS)</td><td>L1–L3</td><td>Replaces bespoke REST; collections per product tier</td></tr>
+      <tr><td>STANAG 4676 (NATO ISR Tracking Standard)</td><td>Emitter and platform tracks for COPs (SitaWare, NATO systems)</td><td>L3</td><td>Export from the track entity; identity and classification fields from the catalogue</td></tr>
+      <tr><td>STANAG 4559 / NSILI</td><td>Library/catalogue metadata exchange with national and NATO ISR libraries</td><td>L3</td><td>One-way contribution to national EW databases; 4559-compatible catalogue view</td></tr>
+      <tr><td>STANAG 4607 (GMTI)</td><td>Moving-emitter detections rendered as MTI-like dots for consumers that only ingest 4607</td><td>L2</td><td>Optional; useful for maritime/air COPs built around radar GMTI feeds</td></tr>
+      <tr><td>Cursor-on-Target (CoT) XML</td><td>Alerts and fixes into TAK/ATAK</td><td>L4</td><td>Lightweight tactical path for cued units</td></tr>
+      <tr><td>KML / CSV / PDF</td><td>Analyst exports, reports</td><td>any</td><td>Report templates carry classification banners</td></tr>
+      <tr><td>IQ snapshot files (SigMF)</td><td>Tasking-tier raw IQ deliveries with metadata</td><td>L0</td><td>Export-controlled; EULA and licence check before release</td></tr>
+      <tr><td>Tasking API (REST/JSON)</td><td>AOI submission, feasibility response, deck status, cancellation</td><td>—</td><td>Returns the Gate A prediction object (passes, CEP, minutes, price)</td></tr>
+    </tbody></table></div>
+
+  <h2>Sequence: a customer tasks an AOI and gets an alert</h2>
+  <figure class="diagram">
+    <svg viewBox="0 0 1000 560" role="img" aria-label="Sequence diagram from AOI tasking to alert delivery">
+      <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink-2)"/></marker></defs>
+      <g id="lifelines"></g>
+      <g id="messages"></g>
+    </svg>
+    <figcaption>Sequence for an on-demand GNSS-interference task over the western Black Sea in the NRT tier at Stage 2. The customer sees the predicted passes and CEP before accepting; the deck goes up through the Athens S-band station; the cluster collects; the Dubai or Nemea contact brings the snapshots down; the ground pipeline produces the fix and the alert within about 90 minutes of the pass; a SAR cue is optional. Time annotations on the right are typical, not guaranteed.</figcaption>
+  </figure>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/emitters.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  const B = BASELINE; document.getElementById('bv').textContent = 'Baseline: ' + B.version;
+  const epoch = new Date('2031-03-18T00:00:00Z');
+  const orb = ORB.makeOrbit({ alt: B.orbit.altKm, inc: B.orbit.incDeg, raan: 40, ta: 0, epoch, name: B.satName });
+  const sso = ORB.makeOrbit({ alt: B.orbit.ssoAlt, inc: ORB.ssoInclination(B.orbit.ssoAlt), raan: 40, ta: 0, epoch, name: 'SSO' });
+  const cl = ORB.cluster({ alt: B.orbit.altKm, inc: B.orbit.incDeg, raan: 40, ta: 0, name: 'C', epoch }, 3, B.constellation.cluster.alongTrackKm, B.constellation.cluster.crossTrackKm, epoch);
+  const hhmm = d => d.toISOString().slice(11, 16);
+
+  // ---------- feasibility ----------
+  const AOIS = [
+    { id: 'aeg', name: 'Central Aegean (38.0° N, 25.0° E)', lat: 38.0, lon: 25.0 },
+    { id: 'bsw', name: 'Western Black Sea (44.0° N, 31.0° E)', lat: 44.0, lon: 31.0 },
+    { id: 'lev', name: 'Cyprus / Levant (34.5° N, 33.5° E)', lat: 34.5, lon: 33.5 },
+    { id: 'cmed', name: 'Central Med / Libya (33.5° N, 15.0° E)', lat: 33.5, lon: 15.0 },
+    { id: 'rsea', name: 'Southern Red Sea (13.5° N, 43.0° E)', lat: 13.5, lon: 43.0 },
+    { id: 'gulf', name: 'Gulf / Hormuz (26.0° N, 52.0° E)', lat: 26.0, lon: 52.0 },
+    { id: 'balt', name: 'Baltic (57.0° N, 20.0° E) — outside design region', lat: 57.0, lon: 20.0 },
+  ];
+  const selA = document.getElementById('f-aoi'), selE = document.getElementById('f-em');
+  AOIS.forEach(a => selA.append(new Option(a.name, a.id)));
+  EMITTERS.forEach(e => selE.append(new Option(e.name, e.id)));
+  selE.value = 'gnss-jam';
+  const gainFor = e => { const b = e.bands[0]; return b === 'uhf' ? 7 : b === 'l' ? 9 : b === 's' ? 15 : b === 'c' ? 20 : 25; };
+  const holdsFreq = e => !['tac-vhf-uhf', 'link16', 'uas-mil', 'uas-consumer'].includes(e.id) && !(e.id === 'gnss-jam');
+  function feas() {
+    const a = AOIS.find(x => x.id === selA.value), e = EMITTERS.find(x => x.id === selE.value), minEl = +document.getElementById('f-minel').value;
+    const strong = e.group === 'radar' || e.group === 'ew';
+    const need = strong ? 5 : minEl;
+    const ps = ORB.passes(orb, a.lat, a.lon, 0, epoch, 86400, 5, 10);
+    const tb = document.querySelector('#f-passes tbody'); tb.innerHTML = '';
+    let usable = 0, best = null, bestRow = null;
+    ps.forEach(p => {
+      const sats = cl.map(o => ORB.stateEcef(o, p.tca));
+      const d = ORB.slantRange(B.orbit.altKm, p.maxEl);
+      const eirp = strong && e.eirpSl ? e.eirpSl : e.eirp;
+      const pr = ORB.RF.rxPower(eirp, d, e.fTyp, gainFor(e), 1);
+      const snr = pr - ORB.RF.sensitivity(e.bw, B.payload.nfDb, 0);
+      const snrLin = Math.pow(10, Math.max(snr, 0) / 10);
+      const T = e.group === 'radar' ? 1e-4 : 0.1;
+      const sT = Math.sqrt(ORB.RF.sigmaTdoa(e.bw, T, Math.max(snrLin, 1.1)) ** 2 + (B.payload.timing.syncNs * 1e-9) ** 2 + (B.payload.timing.gnssPosM / 3e8) ** 2);
+      const sF = Math.sqrt(ORB.RF.sigmaFdoa(e.bw, T, Math.max(snrLin, 1.1)) ** 2 + 0.05 ** 2);
+      const g1 = ORB.geoAccuracy(a.lat, a.lon, sats, { sigmaT: sT, useTdoa: true });
+      const g2 = holdsFreq(e) ? ORB.geoAccuracy(a.lat, a.lon, sats, { sigmaT: sT, useFdoa: true, sigmaF: sF, f0: e.fTyp * 1e6 }) : null;
+      const dwell = p.samples.filter(s => s.el >= need).length * 10 / 60;
+      const ok = p.maxEl >= need && (snr >= 6 || strong);
+      if (ok) usable++;
+      const row = { p, d, snr, g1, g2, dwell, ok };
+      if (ok && (!best || p.maxEl > best.maxEl)) { best = p; bestRow = row; }
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="tnum">${hhmm(p.aos)}–${hhmm(p.los)}</td><td class="num">${p.maxEl.toFixed(0)}°</td><td class="num">${d.toFixed(0)} km</td><td class="num">${dwell.toFixed(1)} min</td><td class="num">${g1 ? fmtKm(g1.ellipse.cep) : '—'}</td><td class="num">${g2 ? fmtKm(g2.ellipse.cep) : 'n/a (FH / unstable)'}</td><td>${ok ? '<span class="tag ok">yes</span>' : '<span class="tag warn">no</span>'}</td>`;
+      tb.append(tr);
+    });
+    document.getElementById('f-r1').textContent = ps.length;
+    document.getElementById('f-r2').textContent = usable;
+    document.getElementById('f-r3').textContent = best ? `${hhmm(best.aos)} UTC, ${best.maxEl.toFixed(0)}°` : 'none';
+    document.getElementById('f-r4').innerHTML = bestRow ? bestRow.snr.toFixed(0) + ' <small>dB (' + (strong && e.eirpSl ? 'sidelobe EIRP' : 'typ. EIRP') + ')</small>' : '—';
+    const s1 = B.constellation.stages[0].cep;
+    document.getElementById('f-r5').innerHTML = `<small>${e.mobility.includes('fixed') || e.group === 'radar' && e.mobility !== 'air' ? s1 : '5–20 km single pass; multi-pass not applicable to moving emitters'}</small>`;
+    document.getElementById('f-r6').textContent = bestRow && bestRow.g1 ? fmtKm(bestRow.g1.ellipse.cep) + ' (95% semi-major ' + fmtKm(bestRow.g1.ellipse.semiMajor) + ')' : '—';
+    document.getElementById('f-r7').textContent = bestRow && bestRow.g2 ? fmtKm(bestRow.g2.ellipse.cep) : (bestRow ? 'FDOA not credited for this class' : '—');
+    document.getElementById('f-r8').innerHTML = (usable * 3) + ' <small>of ≈' + (9 * ps.length) + ' regional min</small>';
+    const v = document.getElementById('f-r9');
+    if (e.verdict === 'no') { v.textContent = 'Decline: class below the thermal floor from LEO (sell activity-level product only)'; v.className = 'v bad'; }
+    else if (!usable) { v.textContent = 'Infeasible in this window: offer next day or lower elevation threshold'; v.className = 'v bad'; }
+    else if (e.verdict === 'marginal') { v.textContent = 'Accept with caveat: marginal class, detection depends on dwell/EIRP'; v.className = 'v warn'; }
+    else { v.textContent = 'Accept: ' + usable + ' usable passes, CEP as predicted'; v.className = 'v good'; }
+  }
+  function fmtKm(k) { return k >= 10 ? k.toFixed(0) + ' km' : k >= 1 ? k.toFixed(1) + ' km' : (k * 1000).toFixed(0) + ' m'; }
+  selA.addEventListener('change', feas); selE.addEventListener('change', feas); bindRange('f-minel', feas, v => v);
+  feas();
+
+  // ---------- ground segment ----------
+  document.getElementById('gs-orb').textContent = B.orbit.altKm + ' km / ' + B.orbit.incDeg + '°';
+  const sites = ['nemea', 'svalbard', 'dubai', 'puertollano'].map(id => B.ground.stations.find(s => s.id === id));
+  const DAYS = 3, opts = { durationS: 86400 * DAYS, minEl: B.ground.minElDeg, t0: epoch, stepS: 20 };
+  const st53 = sites.map(s => ORB.siteStats([orb], s.lat, s.lon, opts));
+  const stSso = sites.map(s => ORB.siteStats([sso], s.lat, s.lon, opts));
+  const tb = document.querySelector('#gs-table tbody');
+  const g = m => m >= 4000 ? 'no contact' : (m / 60).toFixed(1) + ' h';
+  sites.forEach((s, i) => {
+    const a = st53[i], b = stSso[i]; const tr = document.createElement('tr');
+    tr.innerHTML = `<td><b>${s.name}</b><br><span class="small">${s.role}</span></td><td class="tnum">${s.lat.toFixed(1)}° / ${s.lon.toFixed(1)}°</td><td class="num">${(a.count / DAYS).toFixed(1)}</td><td class="num">${(a.totalMin / DAYS).toFixed(0)}</td><td class="num">${a.count ? g(a.meanGapMin) : '—'}</td><td class="num">${a.count ? g(a.maxGapMin) : 'no contact'}</td><td class="num">${(b.count / DAYS).toFixed(1)}</td><td class="num">${(b.totalMin / DAYS).toFixed(0)}</td><td class="num">${g(b.meanGapMin)}</td><td class="num">${g(b.maxGapMin)}</td>`;
+    tb.append(tr);
+  });
+  // network stats for 53°: Nemea+Dubai+Puertollano
+  function netStats(o, list) { let all = []; list.forEach(s => all.push(...ORB.passes(o, s.lat, s.lon, 0, epoch, 86400 * DAYS, B.ground.minElDeg, 20))); all.sort((x, y) => x.aos - y.aos); const gaps = []; for (let i = 1; i < all.length; i++) gaps.push(Math.max(0, (all[i].aos - all[i - 1].los) / 60000)); return { perDay: all.length / DAYS, maxGap: Math.max(...gaps), meanGap: gaps.reduce((p, c) => p + c, 0) / gaps.length }; }
+  const net = netStats(orb, [sites[0], sites[2], sites[3]]);
+  document.getElementById('gs-n53').textContent = (st53[0].count / DAYS).toFixed(0);
+  document.getElementById('gs-g53').textContent = (st53[0].maxGapMin / 60).toFixed(0);
+  document.getElementById('gs-net53').textContent = net.perDay.toFixed(0);
+  document.getElementById('gs-netg53').textContent = (net.maxGap / 60).toFixed(0);
+  document.getElementById('gs-sv').textContent = (stSso[1].count / DAYS).toFixed(0);
+  const names = sites.map(s => s.name.split(' (')[0]);
+  const c1 = Charts.css('--s1'), c2 = Charts.css('--s2'); const pairs = f => names.flatMap((n, i) => [{ label: n + ' · 53°', value: f(st53[i]), color: c1 }, { label: n + ' · SSO', value: f(stSso[i]), color: c2 }]);
+  Charts.bar(document.getElementById('gs-chart1'), { title: 'Contacts per day by site and orbit', data: pairs(s => +(s.count / DAYS).toFixed(1)), unit: 'passes/day', horizontal: true, height: 280 });
+  Charts.bar(document.getElementById('gs-chart2'), { title: 'Maximum gap between contacts (h; 72 = no contact)', data: pairs(s => +(s.maxGapMin / 60).toFixed(1)), unit: 'h', horizontal: true, height: 280 });
+
+  // ---------- sequence diagram ----------
+  (function seq() {
+    const svg = d3.select('svg[aria-label^="Sequence"]');
+    const actors = ['Customer', 'Tasking API', 'Collection manager', 'TALOS cluster', 'Ground station', 'Processing L1–L4', 'Catalogue & alerts', 'SAR partner'];
+    const x0 = 90, dx = 119, yTop = 40, yBot = 530;
+    const L = svg.select('#lifelines'), M = svg.select('#messages');
+    actors.forEach((a, i) => { const x = x0 + i * dx; L.append('rect').attr('x', x - 55).attr('y', yTop - 26).attr('width', 110).attr('height', 30).attr('rx', 5).attr('class', i === 3 ? 'box hi' : 'box'); L.append('text').attr('x', x).attr('y', yTop - 6).attr('text-anchor', 'middle').attr('class', 'lbl s').text(a); L.append('line').attr('x1', x).attr('x2', x).attr('y1', yTop + 6).attr('y2', yBot).attr('class', 'grid-line').attr('stroke-dasharray', '3 3'); });
+    const msgs = [
+      [0, 1, 'POST /tasks {AOI Black Sea W, L1/E1 ±10 MHz, P3, L2+alert}', 'T−6 h'],
+      [1, 2, 'feasibility: 3 passes/24 h, best 63°, CEP 1.2 km (TDOA+FDOA)', '+10 s'],
+      [1, 0, 'offer: passes, predicted CEP, minutes, price', ''],
+      [0, 1, 'accept (Gate A)', ''],
+      [2, 2, 'deconflict · merge with standing MoD AOI · sign deck (Gate B)', 'T−2 h'],
+      [2, 3, 'uplink deck via Athens S-band (preceding orbit)', 'T−95 min'],
+      [3, 3, 'collect: tune L1, detect chirp jammer, 100 ms snapshots ×3 sats', 'T₀ … T₀+8 min'],
+      [3, 4, 'X-band downlink at Dubai (next contact)', 'T₀+40 min'],
+      [4, 5, 'ingest · calibrate · CAF → TDOA/FDOA → fix + 95% ellipse', '+15 min'],
+      [5, 6, 'gate against catalogue: new emitter → Candidate; rule "jammer active in AOI"', '+2 min'],
+      [6, 0, 'alert (JSON/e-mail/CoT): position, ellipse, class, confidence, caveat', 'T₀+60–90 min'],
+      [6, 7, 'optional SAR cue: box = ellipse ⊕ motion', '+5 min'],
+      [7, 6, 'SAR detections → fusion → maturity Provisional/Confirmed', 'next SAR pass'],
+      [6, 2, 'feedback: re-task next pass on fix position', ''],
+    ];
+    let y = yTop + 30;
+    msgs.forEach(m => {
+      const xa = x0 + m[0] * dx, xb = x0 + m[1] * dx;
+      if (m[0] === m[1]) { M.append('path').attr('d', `M${xa},${y - 6} L${xa + 22},${y - 6} L${xa + 22},${y + 8} L${xa + 2},${y + 8}`).attr('class', 'wire').attr('marker-end', 'url(#a3)'); M.append('text').attr('x', xa + 28).attr('y', y + 4).attr('class', 'lbl xs').text(m[2]); }
+      else { M.append('line').attr('x1', xa).attr('x2', xb).attr('y1', y).attr('y2', y).attr('class', m[0] === 3 || m[1] === 3 ? 'wire rf' : 'wire').attr('marker-end', 'url(#a3)'); const lo = Math.min(xa, xb), hi = Math.max(xa, xb); const right = lo > 560; M.append('text').attr('x', right ? hi - 8 : lo + 8).attr('y', y - 5).attr('text-anchor', right ? 'end' : 'start').attr('class', 'lbl xs').text(m[2]); }
+      if (m[3]) M.append('text').attr('x', 996).attr('y', y + 13).attr('text-anchor', 'end').attr('class', 'lbl xs').attr('fill', 'var(--accent)').text(m[3]);
+      y += 34;
+    });
+  })();
+
+  function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  renderRefs(['R3-2','R3-6','R4-2','R4-7','R4-8','R4-9','R4-13','R4-14','R4-16','R4-17','R4-18','R4-19','R4-23','R4-25','R4-29','R4-33','R4-44']);
+})();
+</script>
+</body>
+</html>

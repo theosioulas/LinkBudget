@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ground segment assumptions — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+.zone{ fill:none; stroke-width:1.2; stroke-dasharray:6 4; rx:8; }
+.zone.z-pub{ stroke:var(--band-c); } .zone.z-corp{ stroke:var(--accent); } .zone.z-cls{ stroke:var(--critical); }
+.zlbl{ font-family:var(--font-ui); font-size:10.5px; font-weight:600; }
+.zlbl.pub{ fill:var(--band-c); } .zlbl.corp{ fill:var(--accent); } .zlbl.cls{ fill:var(--critical); }
+.tier{ display:grid; grid-template-columns:auto 1fr; gap:.2rem 1rem; font-family:var(--font-ui); font-size:.88rem; }
+.tier dt{ font-weight:600; } .tier dd{ margin:0 0 .4rem; color:var(--ink-2); }
+@media (max-width:700px){ .tier{ grid-template-columns:1fr; } }
+@media (max-width:900px){ .chart svg{ overflow:hidden !important; } .chart .chart-table .body{ overflow-x:auto; } }
+.legend-inline{ display:flex; gap:1rem; font-family:var(--font-ui); font-size:.78rem; color:var(--ink-2); margin:.3rem 0 .6rem; }
+.legend-inline span::before{ content:""; display:inline-block; width:10px; height:10px; border-radius:2px; background:var(--c); margin-right:.4em; vertical-align:-1px; }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>04 Service demo</b> · Ground segment</div>
+    <h1>Ground segment assumptions</h1>
+    <p class="lead">TALOS does not need to own a ground network. It needs one owned S-band TT&C and tasking station on Greek soil, X-band data reception bought per pass from KSAT's Nemea site a few kilometres away, two complementary GSaaS sites for latency, an EU sovereign cloud for the data platform and a small classified enclave for government products. This page sets out what other operators do, computes the contact statistics for the baseline orbit, sizes the data volume and compares service against ownership costs.</p>
+    <div class="meta"><span>Baseline: TALOS-1 v0.3 (530 km / 53°, SSO alternative)</span><span>Sources: research notes 02 §K, 03 §5, 04 §4, 05 §1–§3</span><span>Contact statistics computed live with <code>ORB.siteStats</code></span></div>
+  </header>
+
+  <div class="callout decision"><div class="t">Decisions carried into the baseline</div>
+    <p>1. Buy X-band passes (GSaaS) from KSAT Nemea for the demonstrator; add X-band to the owned Greek station in the cluster phase, when the pass count makes it pay and sovereignty makes it necessary. 2. Own the S-band TT&C and tasking uplink near Athens so that command authority and crypto keys never leave Greek control. 3. Book KSAT Dubai and Puertollano as latency complements for the 53° orbit; Svalbard and Troll only if the first launch is sun-synchronous. 4. Host the data platform in an EU sovereign cloud with an on-premises classified enclave, designed to NIS2 from day one<sup class="ref"><a href="#ref-R5-12">[R5-12]</a></sup>.</p></div>
+
+  <h2>What other operators do</h2>
+  <p>Space-RF operators treat the ground network as a commodity bought per antenna-minute and keep their differentiation in processing. KSAT's KSATlite network — twenty-plus sites including Svalbard at 78°N, Troll in Antarctica and Nemea in the Peloponnese — covers S-band up/down, X-band down at 8.0–8.4 GHz and Ka-band, with per-pass pricing and a dedicated-antenna option<sup class="ref"><a href="#ref-R4-33">[R4-33]</a></sup>. AWS Ground Station bills per antenna-minute, on demand or reserved with a twelve-month commitment, in narrowband (&lt;40 MHz) and wideband (≥40 MHz) classes, with data landing directly in S3<sup class="ref"><a href="#ref-R4-32">[R4-32]</a></sup><sup class="ref"><a href="#ref-R2-x101">[R2-x101]</a></sup>. Leaf Space runs a European S/X network of fifteen-plus sites with up to 1 Gbit/s X-band on its larger dishes<sup class="ref"><a href="#ref-R2-x103">[R2-x103]</a></sup>. Unseenlabs cut its delivery time threefold by integrating KSAT's network rather than building its own<sup class="ref"><a href="#ref-R3-6">[R3-6]</a></sup>.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Provider / pattern</th><th>What it offers</th><th>Relevance to TALOS</th></tr></thead>
+    <tbody>
+      <tr><td>KSAT / KSATlite</td><td>20+ sites incl. Svalbard, Troll, Tromsø, Dubai, Puertollano, <b>Nemea (Greece)</b>; S up 2025–2110 MHz, S down 2200–2300 MHz, X down 8000–8400 MHz; X-band 1–2 Gbit/s on 3.7–7.3 m dishes; per-pass or monthly; market range $150–500 per X-band pass (price unverified)<sup class="ref"><a href="#ref-R4-33">[R4-33]</a></sup><sup class="ref"><a href="#ref-R2-x100">[R2-x100]</a></sup></td><td>Primary X/S site on Greek soil; polar complements for the SSO alternative; Dubai for Gulf/Red Sea latency</td></tr>
+      <tr><td>AWS Ground Station</td><td>Antenna-minute billing; historical list $3/min narrowband and $10/min wideband on demand, $2/$7 reserved (page now says "contact sales")<sup class="ref"><a href="#ref-R2-x101">[R2-x101]</a></sup><sup class="ref"><a href="#ref-R5-20">[R5-20]</a></sup>; sites in Ireland, Bahrain, Sweden and others</td><td>Overflow and surge capacity; data residency selectable but US terms of service — not for classified products</td></tr>
+      <tr><td>Leaf Space (IT)</td><td>Leaf Line shared S/X network (Italy, Spain, Ireland, Nova Scotia, Chile, Australia), Leaf Key dedicated; pay-per-pass<sup class="ref"><a href="#ref-R2-x103">[R2-x103]</a></sup></td><td>EU second source; removes single-provider dependency (risk T-16)</td></tr>
+      <tr><td>SSC, Viasat RTE, Atlas, Infostellar</td><td>Polar and high-rate networks, aggregators<sup class="ref"><a href="#ref-R2-x102">[R2-x102]</a></sup></td><td>Options only; not in the baseline</td></tr>
+      <tr><td>Sovereign cloud (HawkEye 360 Europe, Luxembourg; Spire "sovereign-ready")</td><td>European MoDs want data processing, integration and security controls inside European borders; HawkEye set up a Luxembourg entity for localised data management with Leonardo and ERA as partners<sup class="ref"><a href="#ref-R4-23">[R4-23]</a></sup>; Spire offers sovereign deployments<sup class="ref"><a href="#ref-R4-9">[R4-9]</a></sup></td><td>A Greek/EU-hosted platform is a selling point, not a cost — the EUSPA RFI asks explicitly about classified handling and national security clearances<sup class="ref"><a href="#ref-R4-16">[R4-16]</a></sup></td></tr>
+      <tr><td>Classified enclaves</td><td>HawkEye's platform is "fully vetted for operations within classified enclaves"; nearly half its workforce is cleared<sup class="ref"><a href="#ref-R4-2">[R4-2]</a></sup></td><td>Government tier needs a NATO/EU SECRET facility with a Facility Security Clearance from the Greek NSA (research 05 §3.7)</td></tr>
+      <tr><td>Greek assets</td><td>Thermopylae teleport (OTE/COSMOTE), ESA Greek Connectivity ground segment, Libre Space SatNOGS nodes, HAITF at Schimatari<sup class="ref"><a href="#ref-R2-x110">[R2-x110]</a></sup></td><td>Co-location candidates for the owned S-band station; SatNOGS for TT&C rehearsal</td></tr>
+    </tbody></table></div>
+
+  <h2>TALOS ground architecture</h2>
+  <p>The architecture separates three security zones. The <em>public / provider</em> zone holds the GSaaS antennas and the encrypted bulk transport from them; nothing in that zone can read the data. The <em>corporate</em> zone holds the owned TT&C station, mission control, the data platform and the unclassified product APIs. The <em>classified</em> zone is an air-gapped enclave fed by a one-way diode, where ELNOT mappings, national platform associations and government-only products live. Telecommand authority and the HSM-protected keys stay in the corporate zone in Greece; GSaaS providers only ever see AES-256 ciphertext.</p>
+  <figure class="diagram">
+    <svg viewBox="0 0 980 540" role="img" aria-label="TALOS ground architecture: stations, network, mission control, data platform, product APIs and customers, with three security zones">
+      <!-- zones -->
+      <rect class="zone z-pub" x="12" y="62" width="250" height="455"/><text class="zlbl pub" x="22" y="80">Public / provider zone (ciphertext only)</text>
+      <rect class="zone z-corp" x="276" y="62" width="470" height="455"/><text class="zlbl corp" x="286" y="80">Corporate zone — Greece / EU sovereign cloud (NIS2)</text>
+      <rect class="zone z-cls" x="760" y="62" width="208" height="455"/><text class="zlbl cls" x="770" y="80">Classified enclave (air-gapped)</text>
+      <!-- satellite -->
+      <g transform="translate(118,22)"><rect class="box hi" x="-60" y="-8" width="120" height="20" rx="4"/><text class="lbl s" x="0" y="6" text-anchor="middle">TALOS satellites</text></g>
+      <!-- stations -->
+      <g transform="translate(70,110)"><rect class="box" x="-50" y="-22" width="100" height="44" rx="5"/><text class="lbl s" x="0" y="-4" text-anchor="middle">KSAT Nemea</text><text class="lbl xs" x="0" y="10" text-anchor="middle">X 1 Gbit/s + S</text></g>
+      <g transform="translate(190,110)"><rect class="box" x="-50" y="-22" width="100" height="44" rx="5"/><text class="lbl s" x="0" y="-4" text-anchor="middle">KSAT Dubai /</text><text class="lbl xs" x="0" y="10" text-anchor="middle">Puertollano · X/S</text></g>
+      <g transform="translate(130,190)"><rect class="box" x="-80" y="-22" width="160" height="44" rx="5"/><text class="lbl s" x="0" y="-4" text-anchor="middle">Svalbard / Troll (SSO only)</text><text class="lbl xs" x="0" y="10" text-anchor="middle">every-orbit contact</text></g>
+      <g transform="translate(130,290)"><rect class="box" x="-95" y="-26" width="190" height="52" rx="5"/><text class="lbl s" x="0" y="-8" text-anchor="middle">Provider cloud landing / VPN</text><text class="lbl xs" x="0" y="6" text-anchor="middle">AES-256 TM ciphertext, CCSDS frames</text><text class="lbl xs" x="0" y="19" text-anchor="middle">no keys, no plaintext</text></g>
+      <path class="wire rf" d="M118 34 L70 88"/><path class="wire rf" d="M118 34 L190 88"/><path class="wire rf" d="M118 34 L130 168"/>
+      <path class="wire data" d="M70 132 L110 264"/><path class="wire data" d="M190 132 L150 264"/><path class="wire data" d="M130 212 L130 264"/>
+      <!-- owned station -->
+      <g transform="translate(360,110)"><rect class="box hi" x="-70" y="-26" width="140" height="52" rx="5"/><text class="lbl s" x="0" y="-8" text-anchor="middle">Owned S-band TT&amp;C</text><text class="lbl xs" x="0" y="6" text-anchor="middle">Athens area · 2 Mbit/s</text><text class="lbl xs" x="0" y="19" text-anchor="middle">TC uplink, tasking, ranging</text></g>
+      <path class="wire rf" d="M118 34 L360 84"/>
+      <!-- mission control -->
+      <g transform="translate(360,215)"><rect class="box" x="-75" y="-40" width="150" height="80" rx="5"/><text class="lbl s" x="0" y="-22" text-anchor="middle">Mission control (MCS)</text><text class="lbl xs" x="0" y="-7" text-anchor="middle">flight dynamics · formation</text><text class="lbl xs" x="0" y="6" text-anchor="middle">pass scheduling · TM/TC</text><text class="lbl xs" x="0" y="19" text-anchor="middle">anomaly detection · HSM keys</text><text class="lbl xs" x="0" y="32" text-anchor="middle">tasking executor uplink</text></g>
+      <path class="wire data" d="M360 136 L360 175"/>
+      <!-- data platform -->
+      <g transform="translate(590,215)"><rect class="box" x="-110" y="-40" width="220" height="80" rx="5"/><text class="lbl s" x="0" y="-22" text-anchor="middle">Data platform (sovereign cloud)</text><text class="lbl xs" x="0" y="-7" text-anchor="middle">ingest · L0→L4 processing · CAF/TDOA</text><text class="lbl xs" x="0" y="6" text-anchor="middle">catalogue · pattern-of-life · alerts</text><text class="lbl xs" x="0" y="19" text-anchor="middle">PostgreSQL/PostGIS · TimescaleDB · S3</text><text class="lbl xs" x="0" y="32" text-anchor="middle">IQ object store (TB-class)</text></g>
+      <path class="wire data" d="M225 290 L520 290 L520 255"/><text class="lbl xs" x="290" y="284">bulk TM (1 Gbit/s passes, encrypted)</text>
+      <path class="wire data" d="M435 215 L480 215"/><text class="lbl xs" x="437" y="208">schedule</text>
+      <!-- product apis -->
+      <g transform="translate(590,340)"><rect class="box" x="-110" y="-30" width="220" height="60" rx="5"/><text class="lbl s" x="0" y="-12" text-anchor="middle">Product APIs &amp; console</text><text class="lbl xs" x="0" y="3" text-anchor="middle">OGC API Features / GeoJSON · webhooks</text><text class="lbl xs" x="0" y="16" text-anchor="middle">STANAG 4676 export · 4559 catalogue</text></g>
+      <path class="wire data" d="M590 255 L590 310"/>
+      <!-- customers -->
+      <g transform="translate(440,440)"><rect class="box" x="-70" y="-24" width="140" height="48" rx="5"/><text class="lbl s" x="0" y="-6" text-anchor="middle">Commercial customers</text><text class="lbl xs" x="0" y="9" text-anchor="middle">maritime platforms, insurers, operators</text></g>
+      <g transform="translate(640,440)"><rect class="box" x="-70" y="-24" width="140" height="48" rx="5"/><text class="lbl s" x="0" y="-6" text-anchor="middle">EU / institutional</text><text class="lbl xs" x="0" y="9" text-anchor="middle">EUSPA, Frontex, EMSA, regulators</text></g>
+      <path class="wire data" d="M560 370 L460 416"/><path class="wire data" d="M610 370 L640 416"/>
+      <!-- classified -->
+      <g transform="translate(864,215)"><rect class="box" x="-90" y="-40" width="180" height="80" rx="5"/><text class="lbl s" x="0" y="-22" text-anchor="middle">Classified processing</text><text class="lbl xs" x="0" y="-7" text-anchor="middle">ELNOT / platform annex</text><text class="lbl xs" x="0" y="6" text-anchor="middle">national EW database feed</text><text class="lbl xs" x="0" y="19" text-anchor="middle">government-only analytics</text><text class="lbl xs" x="0" y="32" text-anchor="middle">cleared analysts, SECRET</text></g>
+      <g transform="translate(864,340)"><rect class="box" x="-90" y="-30" width="180" height="60" rx="5"/><text class="lbl s" x="0" y="-12" text-anchor="middle">Government delivery</text><text class="lbl xs" x="0" y="3" text-anchor="middle">accredited link to MoD COP</text><text class="lbl xs" x="0" y="16" text-anchor="middle">NATO APSS / national library</text></g>
+      <path class="wire data" d="M864 255 L864 310"/>
+      <g transform="translate(753,215)"><polygon points="-12,-10 12,0 -12,10" fill="var(--critical)"/><text class="lbl xs" x="0" y="-16" text-anchor="middle">one-way diode</text></g>
+      <path class="wire data" d="M700 215 L741 215"/><path class="wire data" d="M765 215 L774 215"/>
+      <g transform="translate(864,440)"><rect class="box" x="-80" y="-24" width="160" height="48" rx="5"/><text class="lbl s" x="0" y="-6" text-anchor="middle">Hellenic MoD / NATO</text><text class="lbl xs" x="0" y="9" text-anchor="middle">sovereign tasking board</text></g>
+      <path class="wire data" d="M864 370 L864 416"/>
+      <!-- tasking return path -->
+      <path class="wire time" d="M784 440 L580 490 L360 490 L360 255"/><text class="lbl xs" x="470" y="506">tasking requests (reviewed, logged) → collection deck → TC uplink</text>
+    </svg>
+    <figcaption><b>Signal and data flow across the three zones.</b> RF links (orange) reach four kinds of station; only the owned S-band station carries telecommand. Bulk X-band telemetry lands encrypted at the provider and is decrypted only inside the corporate zone. Government products cross into the classified enclave through a one-way diode; tasking requests from government users return through a reviewed, logged path (green dashed) to the collection deck and the TC uplink.</figcaption>
+  </figure>
+
+  <h2>Contact analysis for the baseline orbit</h2>
+  <p>The table and chart below are computed at load time with <code>ORB.siteStats</code> over 24 h for every station in <code>BASELINE.ground.stations</code>, at a 5° minimum elevation, for the baseline 530 km / 53° orbit and for the sun-synchronous alternative at the same altitude (inclination <span id="sso-inc">—</span>°). The numbers are for one satellite; a cluster moves together and sees the same windows, while additional planes add their own.</p>
+  <div class="grid c4" id="kpis"></div>
+  <div class="legend-inline"><span style="--c:var(--s1)">530 km / 53° (baseline)</span><span style="--c:var(--s2)">530 km SSO (alternative)</span></div>
+  <div class="grid c2"><div id="ch-passes"></div><div id="ch-minutes"></div></div>
+  <div class="table-wrap"><table id="contacts"><thead><tr><th>Station</th><th>Bands</th><th class="num" data-sort="num" title="passes per day, 53° orbit">53° passes</th><th class="num" data-sort="num" title="contact minutes per day, 53° orbit">53° min</th><th class="num" data-sort="num" title="longest gap in hours, 53° orbit">53° gap h</th><th class="num" data-sort="num" title="passes per day, SSO">SSO passes</th><th class="num" data-sort="num" title="contact minutes per day, SSO">SSO min</th><th class="num" data-sort="num" title="longest gap in hours, SSO">SSO gap h</th></tr></thead><tbody></tbody></table></div>
+  <figcaption>Passes and contact minutes per day above 5° elevation for one satellite, 24 h window starting at the baseline epoch; max gap is the longest interval with no contact at that site. Svalbard and Troll never see a 53° orbit, which is why the mid-inclination baseline needs a mid-latitude network. The 5° count includes short, low passes; above 10° it reduces to the 4–6 usable Nemea passes per day for 53° against 3–5 for SSO that the research note quotes<sup class="ref"><a href="#ref-R3-27">[R3-27]</a></sup>.</figcaption>
+
+  <h3>Resulting latency tiers</h3>
+  <p>Latency from collection to product is the sum of the wait for the next downlink contact, the pass itself and processing. The contact statistics above give the first term directly: with Nemea alone the worst-case wait is the site's maximum gap; adding Dubai and Puertollano shortens it because the three sites' windows interleave around the 53° ground track; a polar site makes it one orbit for an SSO. Processing adds about 25 min from loss of signal to a Level 2 product in the demo console's assumption, and HawkEye's own target is to move from "hours" to "minutes" with direct downlink, crosslinks and on-board processing<sup class="ref"><a href="#ref-R4-2">[R4-2]</a></sup>.</p>
+  <dl class="tier" id="tiers"></dl>
+
+  <h2>Data volume per pass</h2>
+  <p>At the baseline 1 Gbit/s X-band rate<sup class="ref"><a href="#ref-R3-27">[R3-27]</a></sup> a single pass moves tens of gigabytes — far more than the 30 GB/day of reduced products (reports plus selected IQ snapshots) that the payload is sized to produce, and far less than the raw IQ of even the four-channel comms path, which is why reduction happens on board (see <a href="../02_Technical_Understanding/processing_data.html">on-board processing &amp; data</a>). The calculator uses the live contact minutes from the table above.</p>
+  <div class="panel"><h3>Downlink volume calculator</h3>
+    <div class="controls">
+      <div class="ctl"><label>X-band rate <output for="rate">1000</output> Mbit/s</label><input type="range" id="rate" min="100" max="1500" step="50" value="1000"></div>
+      <div class="ctl"><label>Usable fraction of each pass <output for="eff">80</output> %</label><input type="range" id="eff" min="40" max="95" step="5" value="80"></div>
+      <div class="ctl"><label>Reduced product rate <output for="prod">30</output> GB/day/sat</label><input type="range" id="prod" min="5" max="120" step="5" value="30"></div>
+      <div class="ctl"><label>Satellites <output for="nsat">1</output></label><input type="range" id="nsat" min="1" max="12" step="1" value="1"></div>
+    </div>
+    <div class="readout">
+      <div><div class="k">Volume per 7-min pass</div><div class="v" id="v-pass">—</div></div>
+      <div><div class="k">Nemea capacity per day (53°)</div><div class="v" id="v-nemea">—</div></div>
+      <div><div class="k">Nemea + Dubai + Puertollano</div><div class="v" id="v-three">—</div></div>
+      <div><div class="k">Product volume to move</div><div class="v" id="v-need">—</div></div>
+      <div><div class="k">Margin (3 sites)</div><div class="v" id="v-margin">—</div></div>
+      <div><div class="k">Raw IQ, 4 ch × 200 MHz × 16 bit</div><div class="v" id="v-raw">—</div></div>
+    </div>
+  </div>
+
+  <h2>GSaaS cost versus an owned station</h2>
+  <p>The research prices GSaaS at €40–250 per pass (est.) with KSAT's X-band market range at $150–500 per pass and AWS's historical $3–10 per antenna-minute<sup class="ref"><a href="#ref-R5-20">[R5-20]</a></sup><sup class="ref"><a href="#ref-R2-x100">[R2-x100]</a></sup><sup class="ref"><a href="#ref-R2-x101">[R2-x101]</a></sup>; an owned dual-band X/S station in Greece (3.7–5 m) costs €1.0–2.5 M capex plus about €0.2 M/yr to run (est.)<sup class="ref"><a href="#ref-R5-20">[R5-20]</a></sup>, with 3.7 m X-band systems quoted at €300–800 k and 5 m Safran Cortex-class stations at €0.5–2 M (prices unverified). The chart draws annual cost against the number of X-band passes bought per day. At the chosen price the owned station breaks even at roughly <span id="be">—</span> passes a day: the single demonstrator stays below that line, so it buys passes; a 3-satellite cluster downlinking separately crosses it at mid-range prices. That is why the baseline buys GSaaS for TALOS-1 and plans the X-band upgrade of the owned Athens-area station for the cluster phase — justified by sovereignty, with the cost argument as support rather than as the driver. An owned site still needs GSaaS complements for latency because it only sees the passes visible from one place.</p>
+  <div class="panel"><div class="controls">
+    <div class="ctl"><label>GSaaS price per pass <output for="ppp">150</output> €</label><input type="range" id="ppp" min="40" max="400" step="10" value="150"></div>
+    <div class="ctl"><label>Owned station capex <output for="capex">1.8</output> M€</label><input type="range" id="capex" min="1" max="3" step="0.1" value="1.8"></div>
+    <div class="ctl"><label>Amortisation <output for="years">5</output> years</label><input type="range" id="years" min="3" max="10" step="1" value="5"></div>
+  </div><div id="ch-cost" style="margin-top:.8rem"></div></div>
+  <div class="table-wrap"><table class="compact"><thead><tr><th>Scenario</th><th class="num">X-band passes/day</th><th class="num">GSaaS €/yr (low–high)</th><th class="num">Owned station €/yr (amortised)</th><th>Note</th></tr></thead><tbody id="cost-rows"></tbody></table></div>
+  <figcaption>Passes per day per scenario use the live Nemea count for 53° from the contact table times the number of satellites (clusters share windows but each satellite downlinks separately). Owned-station cost = capex / amortisation + €0.2 M/yr operations; it serves at most the passes visible from one site, so GSaaS complements remain for latency. All values are estimates.</figcaption>
+
+  <h2>Mission control functions</h2>
+  <p>The build-versus-buy analysis classes mission control software as a commodity to be licensed and customised<sup class="ref"><a href="#ref-R4-8">[R4-8]</a></sup>, at €0.2–0.6 M/yr for licences and cloud or €1–3 M to build<sup class="ref"><a href="#ref-R5-20">[R5-20]</a></sup>. What TALOS adds on top of a commercial MCS is specific to a formation-flying RF mission:</p>
+  <div class="grid c2">
+    <div class="card"><h3>Flight dynamics and formation keeping</h3><p>Orbit determination from GNSS state vectors in telemetry (metre-class), TLE cross-checks and conjunction screening via EU SST; propagation with J2 and drag; manoeuvre planning for the 150 km along-track / ±20 km cross-track cluster with a ±5 km control box (<code>BASELINE.constellation.cluster</code>). The FEEP budget reserves 60 m/s for formation acquisition and maintenance, 40 m/s for drag make-up and 100 m/s for low-thrust disposal, so every manoeuvre is accounted against a ≈235 m/s total (26 kN·s at ~110 kg).</p></div>
+    <div class="card"><h3>Pass scheduling and contact management</h3><p>Automated scheduling of TT&C (owned) and X-band (GSaaS) contacts against the collection deck: a downlink pass over Nemea blanks the X-band receiver, so the scheduler must weigh collection against downlink for every Mediterranean pass. Bookings go to KSAT through their API; the schedule is re-planned when a provider cancels (risk T-16).</p></div>
+    <div class="card"><h3>Telemetry monitoring and anomaly detection</h3><p>Limit checking, trend analysis and model-based anomaly detection on bus and payload telemetry: RFSoC temperature and SEU counters, LNA currents, OCXO/CSAC lock status, storage fill, battery depth of discharge against the 30 % limit. Rules escalate to the on-call engineer; the automated layer is what keeps staffing sub-linear from 1 to 12 satellites.</p></div>
+    <div class="card"><h3>Tasking executor and key management</h3><p>Collection decks are compiled on the ground, signed and uplinked over the owned S-band link; the executor on board applies them per orbit. Telecommand and telemetry are AES-256 encrypted end to end with keys in an HSM under Greek control; a key-rotation and emergency-command procedure is part of the security accreditation.</p></div>
+  </div>
+
+  <h2>Security and accreditation</h2>
+  <p>A SIGINT constellation is a target. The risk register scores a cyber-attack on the ground segment at 15 (likelihood 3 × severity 5) with mitigations that define the architecture: zero-trust network design, AES-256 on TC and TM, HSM key management, NIS2 compliance, regular red-team exercises and a segregated classified enclave (research 05, risk T-17). The draft EU Space Act proposes either a bespoke resilience chapter or full NIS2 applicability for operators, and while a 2030 demonstrator is likely to be grandfathered, the cluster and constellation will fall under it<sup class="ref"><a href="#ref-R5-12">[R5-12]</a></sup>. Government products attract NATO and EU classification, which requires a Facility Security Clearance from the Greek National Security Authority, cleared personnel and an air-gapped SECRET processing enclave, run in parallel with an unclassified commercial line (research 05 §3.7). The EUSPA RFI's questions about classified handling and NSA clearances show that EU institutional buyers will audit this before contracting<sup class="ref"><a href="#ref-R4-16">[R4-16]</a></sup>.</p>
+  <div class="table-wrap"><table class="compact"><thead><tr><th>Control</th><th>Implementation in the TALOS ground segment</th><th>Driver</th></tr></thead><tbody>
+    <tr><td>Zero trust</td><td>Per-service identities, mutual TLS on the message bus, no flat network between stations, MCS and platform; GSaaS providers reach only the ciphertext landing zone</td><td>T-17; NIS2</td></tr>
+    <tr><td>Crypto</td><td>AES-256 TC/TM and payload data; EU-sourced crypto modules; keys generated and held in an HSM in Greece; national-security-grade crypto involves the national authority</td><td>R2 §J observation; T-17</td></tr>
+    <tr><td>Enclave</td><td>One-way diode into an air-gapped SECRET enclave; cleared analysts; separate build pipeline; no cloud dependency</td><td>EUSPA RFI; NATO/EU customers</td></tr>
+    <tr><td>Assurance</td><td>Annual red-team, continuous vulnerability scanning, SBOM for flight and ground software, incident reporting per NIS2 timelines</td><td>NIS2; EU Space Act</td></tr>
+    <tr><td>Audit</td><td>Every tasking request, maturity transition and product release logged with identity and classification caveat</td><td>Government demos; export control</td></tr>
+  </tbody></table></div>
+
+  <h2>Staffing</h2>
+  <p>Operations staffing is 4–6 FTE for one satellite (€0.5–0.8 M/yr), 6–9 for three and 10–15 for twelve, including RF analysts and the tasking desk (est.), with automated scheduling and anomaly detection keeping the growth sub-linear<sup class="ref"><a href="#ref-R5-20">[R5-20]</a></sup>. The roles the research identifies map onto the ground segment as follows<sup class="ref"><a href="#ref-R4-2">[R4-2]</a></sup>:</p>
+  <div class="table-wrap"><table class="compact" id="staff"><thead><tr><th>Role</th><th class="num">1 sat</th><th class="num">3 sats</th><th class="num">12 sats</th><th>Where</th></tr></thead><tbody>
+    <tr><td>Spacecraft operations (on-call, formation keeping)</td><td class="num">2</td><td class="num">3</td><td class="num">5</td><td>MCS, corporate zone</td></tr>
+    <tr><td>Ground network and platform engineering</td><td class="num">1</td><td class="num">2</td><td class="num">3</td><td>Cloud, stations, security</td></tr>
+    <tr><td>Collection manager / tasking desk</td><td class="num">1</td><td class="num">1</td><td class="num">2</td><td>Console, customer interface</td></tr>
+    <tr><td>RF / ELINT analysts and EW database manager</td><td class="num">1</td><td class="num">2</td><td class="num">4</td><td>Unclassified line + enclave</td></tr>
+    <tr><td>Security officer (facility clearance, accreditation)</td><td class="num">0.5</td><td class="num">1</td><td class="num">1</td><td>Enclave, NIS2</td></tr>
+  </tbody></table></div>
+  <p>HawkEye 360 notes that training and services can compress margins if under-scoped — the analyst layer is a real cost, not overhead<sup class="ref"><a href="#ref-R4-2">[R4-2]</a></sup>. The phase-by-phase headcount for the whole programme is on the <a href="../02_Technical_Understanding/roadmap_cost.html">roadmap, cost and schedule</a> page; the link and data budgets that size the downlink are on the <a href="../02_Technical_Understanding/budgets.html">budgets</a> page, and the processing chain that produces the 30 GB/day is on the <a href="../02_Technical_Understanding/processing_data.html">on-board processing</a> page. The software that runs in these zones is described in the <a href="software_architecture.html">software architecture</a>.</p>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/programmatics.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+renderRefs(['R5-12','R4-33','R4-32','R2-x101','R2-x103','R3-6','R2-x100','R5-20','R2-x102','R4-23','R4-9','R4-16','R4-2','R2-x110','R3-27','R4-8']);
+const $=id=>document.getElementById(id);
+const ALT=BASELINE.orbit.altKm, EPOCH=new Date(Date.UTC(2032,4,18,6,0,0));
+const o53=ORB.makeOrbit({alt:ALT,inc:BASELINE.orbit.incDeg,raan:210,ta:129,epoch:EPOCH,name:'53'});
+const ssoInc=ORB.ssoInclination(ALT); $('sso-inc').textContent=ssoInc.toFixed(1);
+const oSSO=ORB.makeOrbit({alt:ALT,inc:ssoInc,raan:60,ta:0,epoch:EPOCH,name:'SSO'});
+const stats={};
+BASELINE.ground.stations.forEach(g=>{ stats[g.id]={g, a:ORB.siteStats([o53],g.lat,g.lon,{durationS:86400,minEl:BASELINE.ground.minElDeg,t0:EPOCH,stepS:20}), b:ORB.siteStats([oSSO],g.lat,g.lon,{durationS:86400,minEl:BASELINE.ground.minElDeg,t0:EPOCH,stepS:20})}; });
+const gap=s=>s.count? (s.count>1? s.maxGapMin/60 : 24) : 24;
+const tb=$('contacts').tBodies[0];
+BASELINE.ground.stations.forEach(g=>{ const s=stats[g.id]; const tr=document.createElement('tr'); tr.innerHTML=`<td title="${g.role}">${g.id==='athens'?'Athens area (owned TT&C)':g.name}</td><td>${g.bands.join('/')}</td><td class="num">${s.a.count}</td><td class="num">${s.a.totalMin.toFixed(0)}</td><td class="num">${gap(s.a).toFixed(1)}</td><td class="num">${s.b.count}</td><td class="num">${s.b.totalMin.toFixed(0)}</td><td class="num">${gap(s.b).toFixed(1)}</td>`; tb.append(tr); });
+const nem=stats.nemea, sv=stats.svalbard;
+$('kpis').innerHTML=`<div class="kpi"><div class="v">${nem.a.count}<small>passes/day</small></div><div class="l">Nemea, 53° orbit, ≥5°</div><div class="d">${nem.a.totalMin.toFixed(0)} min/day · mean ${nem.a.meanDurMin.toFixed(1)} min</div></div><div class="kpi"><div class="v">${gap(nem.a).toFixed(1)}<small>h</small></div><div class="l">Longest gap, Nemea alone (53°)</div><div class="d">worst-case data age before processing</div></div><div class="kpi"><div class="v">${nem.b.count}<small>passes/day</small></div><div class="l">Nemea, SSO alternative</div><div class="d">${nem.b.totalMin.toFixed(0)} min/day</div></div><div class="kpi"><div class="v">${sv.b.count}<small>passes/day</small></div><div class="l">Svalbard, SSO</div><div class="d">${sv.a.count} for 53° — polar sites are useless for the baseline</div></div>`;
+const S1=U.css('--s1'), S2=U.css('--s2');
+const bars=(key,unit,title,id)=>{ const data=[]; BASELINE.ground.stations.forEach(g=>{ const s=stats[g.id]; const nm=g.id==='athens'?'Athens TT&C':g.name.split(' (')[0]; data.push({label:nm+' · 53°',value:+s.a[key].toFixed(key==='count'?0:0),color:S1}); data.push({label:nm+' · SSO',value:+s.b[key].toFixed(0),color:S2}); }); Charts.bar($(id),{title,data,unit,horizontal:true,height:330}); };
+bars('count','passes/day','Contacts per day by station and orbit','ch-passes'); bars('totalMin','min/day','Contact minutes per day','ch-minutes');
+// latency tiers
+const combo=(ids,orb)=>{ const all=[]; ids.forEach(id=>{ const g=stats[id].g; ORB.passes(orb,g.lat,g.lon,0,EPOCH,86400,BASELINE.ground.minElDeg,20).forEach(p=>all.push(p)); }); all.sort((a,b)=>a.aos-b.aos); let mg=0; for(let i=1;i<all.length;i++) mg=Math.max(mg,(all[i].aos-all[i-1].los)/60000); return {n:all.length,maxGapH:all.length>1?mg/60:24}; };
+const t1=combo(['nemea'],o53), t2=combo(['nemea','dubai','puertollano'],o53), t3=combo(['nemea','svalbard','troll'],oSSO);
+$('tiers').innerHTML=`<dt>Standard (Nemea only, 53°)</dt><dd>${t1.n} contacts/day, longest wait ${t1.maxGapH.toFixed(1)} h → product within ~${(t1.maxGapH+0.6).toFixed(0)} h worst case, typically under 6 h — the research's "standard &lt;6 h" tier</dd><dt>Near-real-time (Nemea + Dubai + Puertollano, 53°)</dt><dd>${t2.n} contacts/day, longest wait ${t2.maxGapH.toFixed(1)} h → regional collections over the Eastern Mediterranean, Black Sea and Gulf are usually down within one or two orbits (~90 min target)</dd><dt>Every orbit (SSO with Svalbard/Troll)</dt><dd>${t3.n} contacts/day, longest wait ${t3.maxGapH.toFixed(1)} h → one-orbit data age for the sun-synchronous alternative, at the cost of ~40 % fewer mid-latitude passes</dd><dt>Minutes (Stage 3+)</dt><dd>S-band ISL within the cluster plus on-board catalogue matching and a low-rate alert channel; the store-and-forward latency only applies to the bulk products</dd>`;
+// volume calculator
+function vol(){ const rate=+$('rate').value, eff=+$('eff').value/100, prod=+$('prod').value, n=+$('nsat').value; const perPass=rate*420*eff/8/1000; const nemea=nem.a.totalMin*60*rate*eff/8/1000; const three=(nem.a.totalMin+stats.dubai.a.totalMin+stats.puertollano.a.totalMin)*60*rate*eff/8/1000; const need=prod*n; const raw=2*200e6*16*4/8/1e9*86400; $('v-pass').innerHTML=perPass.toFixed(1)+' <small>GB</small>'; $('v-nemea').innerHTML=(nemea*n).toFixed(0)+' <small>GB/day ('+n+' sat)</small>'; $('v-three').innerHTML=(three*n).toFixed(0)+' <small>GB/day</small>'; $('v-need').innerHTML=need.toFixed(0)+' <small>GB/day</small>'; const m=three*n/need; const el=$('v-margin'); el.innerHTML=m.toFixed(1)+'<small>× capacity / need</small>'; el.className='v '+(m>=2?'good':m>=1?'warn':'bad'); $('v-raw').innerHTML=(raw/1000).toFixed(0)+' <small>TB/day — never downlinked</small>'; }
+['rate','eff','prod','nsat'].forEach(id=>bindRange(id,vol));
+// cost model
+function cost(){ const ppp=+$('ppp').value, capex=+$('capex').value, yrs=+$('years').value; const owned=capex/yrs+0.2; const pts=d3.range(0,61,2); Charts.line($('ch-cost'),{title:'Annual ground-segment cost vs X-band passes bought per day (M€/yr)',xLabel:'X-band passes per day (all satellites)',yLabel:'M€ / yr',series:[{name:`GSaaS at €${ppp}/pass`,points:pts.map(p=>[p,p*365*ppp/1e6])},{name:'GSaaS €40/pass (low)',points:pts.map(p=>[p,p*365*40/1e6]),dash:true},{name:'GSaaS €250/pass (high)',points:pts.map(p=>[p,p*365*250/1e6]),dash:true},{name:`Owned station (€${capex} M over ${yrs} yr + €0.2 M/yr)`,points:pts.map(p=>[p,owned])}],height:300}); const be=owned*1e6/(365*ppp); $('be').textContent=be.toFixed(0); const rows=[['1 demonstrator',1],['3-satellite cluster',3],['12-satellite constellation',12]]; $('cost-rows').innerHTML=rows.map(([n,k])=>{ const ppd=nem.a.count*k; return `<tr><td>${n}</td><td class="num">${ppd}</td><td class="num">${(ppd*365*40/1e6).toFixed(2)} – ${(ppd*365*250/1e6).toFixed(2)} M€</td><td class="num">${owned.toFixed(2)} M€</td><td>${ppd*365*ppp/1e6<owned?'GSaaS cheaper at €'+ppp+'/pass':'owned station cheaper at €'+ppp+'/pass; still needs complements for latency'}</td></tr>`; }).join(''); }
+['ppp','capex','years'].forEach(id=>bindRange(id,cost,v=>id==='capex'?v.toFixed(1):v));
+})();
+</script>
+</body>
+</html>

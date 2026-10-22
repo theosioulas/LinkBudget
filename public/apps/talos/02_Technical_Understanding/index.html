@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System architecture — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .katex-display { overflow-x:auto; overflow-y:hidden; padding:.2rem 0; }
+  .legend-inline { display:flex; flex-wrap:wrap; gap:.4rem 1.1rem; font-family:var(--font-ui); font-size:.8rem; color:var(--ink-2); margin:.4rem 0 0; }
+  .legend-inline span::before { content:""; display:inline-block; width:22px; height:0; border-top:2px solid var(--c); margin-right:.4rem; vertical-align:middle; }
+  .legend-inline span.dash::before { border-top-style:dashed; }
+  .drivers .card p { margin:.3rem 0 0; font-size:.95rem; }
+  .drivers .card .n { font-family:var(--font-ui); font-size:.75rem; color:var(--ink-3); }
+  table.sub tr.subtotal td { font-weight:600; background:var(--surface-2); }
+  table.sub td.sup { font-size:.78rem; color:var(--ink-2); max-width:34ch; }
+  .req td:first-child { font-weight:600; white-space:nowrap; }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>02 Technical understanding</b> · System architecture</div>
+    <h1>System architecture</h1>
+    <p class="lead">TALOS-1 is a 530 km / 53° ESPA-class satellite whose payload is a dual-path passive receiver: a high-dynamic-range comms tuner for UHF and L-band and a direct-sampling RFSoC for the S/C/X radar bands, fed by a survey-plus-interferometer antenna suite and tied to GNSS time at the 20 ns level. This page shows the whole system end-to-end, explains the one architectural decision that shapes everything else, and lists the design drivers and top-level requirements that the following chapters justify.</p>
+    <div class="meta"><span id="meta-baseline">Baseline: TALOS-1 v0.3</span><span>Sources: research notes 02, 03</span><span>Numbers computed from components.js at page load</span></div>
+  </header>
+
+  <div class="grid c4" id="kpis"></div>
+
+  <h2>The system in one diagram</h2>
+  <p>The figure follows a signal from an emitter on the ground to a product on an analyst's screen. Everything left of the X-band transmitter flies; everything right of the ground station is software. Wire colours follow the study convention: RF in orange, data and commands in blue, timing and reference in dotted green, power in dashed yellow. Component names match <a href="payload_explorer.html">the payload explorer</a>, where each box can be opened for mass, power, suppliers and interfaces.</p>
+  <figure class="diagram">
+    <div id="arch-svg"></div>
+    <div class="legend-inline"><span style="--c:var(--accent-2)">RF signal</span><span style="--c:var(--accent)">Data / command</span><span class="dash" style="--c:var(--band-s)">Timing / reference</span><span class="dash" style="--c:var(--band-c)">Power</span><span style="--c:var(--ink-faint)">Growth option (dotted box)</span></div>
+    <figcaption><b>End-to-end TALOS-1 architecture.</b> Six antenna groups feed three front-end assemblies; UHF and L-band go to the 4-channel comms tuner, the S/C/X block downconverters feed the 8-channel RFSoC. Both digitisers share one GNSS-disciplined 100 MHz reference. The payload controller reduces everything to reports and prioritised IQ snapshots in the 2 TB store, which the 1 Gbit/s X-band link empties over KSAT Nemea. Ground software does the cross-correlation, catalogue matching and product generation. Note that the X-band transmitter (8.025–8.4 GHz) sits 200 MHz below the X-band receive window — the receive array is blanked during downlink passes.</figcaption>
+  </figure>
+
+  <h2>Space, ground and user segments</h2>
+  <p>The second view groups the same elements by who owns and operates them. The space segment grows from one satellite to clusters of three; the ground segment is a mix of leased KSAT antennas (Nemea in the Peloponnese as the primary X/S site, polar and Gulf complements) and an owned S-band TT&amp;C station near Athens that keeps command authority on national soil; the user segment is where the EW database, signature catalogue and alerting products live. The dashed box marks the cluster-phase additions: the S-band inter-satellite link and on-board cross-ambiguity processing that turn Kleos-style ground correlation into HawkEye-style on-orbit geolocation<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup><sup class="ref"><a href="#ref-R3-10">[R3-10]</a></sup>.</p>
+  <figure class="diagram">
+    <div id="seg-svg"></div>
+    <figcaption><b>Segmentation.</b> TALOS-1 (Stage 1, 2030) works alone with store-and-forward; the Stage 2 cluster (2032) adds two satellites 150 km along-track and the ISL. The owned TT&amp;C station is the only ground element that must exist before launch; data downlink can start on leased antennas and migrate to an owned X-band dish later (research 05 puts an owned dual-band station at €1.0–2.5 M capex).</figcaption>
+  </figure>
+
+  <h2>The dual-path receiver decision</h2>
+  <p>A single receiver type cannot serve both halves of the mission. Comms signals (25 kHz voice, TETRA, Link-16 hops, GNSS jammers) are weak, narrow and long; they need high dynamic range in narrow bins and long integration. Radar pulses are strong, wide and short (0.08–1 µs for a magnetron marine radar); they need gigahertz of instantaneous bandwidth and nanosecond time-of-arrival, and the ADC must survive a −24 dBm mainlobe pulse from an AN/SPY-1 without clipping<sup class="ref"><a href="#ref-R3-16">[R3-16]</a></sup>. Research 03 §4.1 compares the two technology families; the table below reproduces it with the TALOS allocation added.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th></th><th>Direct-sampling RFSoC</th><th>Superheterodyne / zero-IF tuner + ADC</th></tr></thead>
+    <tbody>
+      <tr><td><b>Example part</b></td><td>AMD Zynq UltraScale+ RFSoC ZU48DR: 8 × 14-bit ADC up to 5 GSPS, 930k logic cells, 4272 DSP slices<sup class="ref"><a href="#ref-R3-19">[R3-19]</a></sup>; Xiphos Q8RF board (ZU28DR, 12-bit 4.096 GSPS) as flown-class on HawkEye 360<sup class="ref"><a href="#ref-R2-x82">[R2-x82]</a></sup></td><td>AD9361-class (70 MHz–6 GHz, 56 MHz IBW, 12-bit) as flown on HawkEye Pathfinder<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup>; ADRV9009/ADRV904x-class (200–450 MHz IBW); discrete LO + 16-bit 250 MSPS ADC</td></tr>
+      <tr><td><b>Instantaneous bandwidth</b></td><td>≈ 2 GHz Nyquist per ADC; sub-bands via digital down-converters</td><td>56–450 MHz per tuner; agile hopping across bands</td></tr>
+      <tr><td><b>Coherent channels</b></td><td>8 phase-coherent ADCs on one die — ideal for interferometry and digital beamforming</td><td>Multi-tuner coherence needs shared LO distribution and calibration</td></tr>
+      <tr><td><b>Dynamic range</b></td><td>ENOB ≈ 9–10 at GHz input → 56–62 dB over Nyquist, plus processing gain in narrow bins</td><td>16-bit ADCs, ENOB 12–13 → 75–80 dB; analogue pre-selection protects from out-of-band radars</td></tr>
+      <tr><td><b>Power</b></td><td>30–60 W for a full 8-channel board at high sample rate <span class="tag">est.</span></td><td>5–15 W for 2–4 tuner channels</td></tr>
+      <tr><td><b>Radiation</b></td><td>Commercial 16 nm FinFET; needs SEU mitigation; space-grade XQR variants exist at high cost</td><td>Mature COTS, extensively flown</td></tr>
+      <tr><td><b>TALOS allocation</b></td><td class="hi"><b>Radar path:</b> 8 ch × 2 GHz IBW, 14-bit 5 GSPS, fed by S/C/X block downconverters (2–12 GHz)</td><td class="hi"><b>Comms path:</b> 4 coherent ch × 200 MHz IBW, 16-bit, 70 MHz–6 GHz (used 225–512 MHz and 960–1700 MHz; S-band as backup)</td></tr>
+    </tbody>
+  </table></div>
+  <div class="callout decision"><div class="t">Decision D-01 — dual-path receiver</div><p>TALOS-1 carries both. The comms tuner is the HawkEye Pathfinder lineage grown from 56 MHz to 200 MHz of instantaneous bandwidth; the RFSoC is the Xiphos Q8RF / ZU48DR class that HawkEye adopted for its later clusters<sup class="ref"><a href="#ref-R2-x84">[R2-x84]</a></sup>. The split mirrors how modern ESM suites separate "comms ESM" from "radar ESM" and, crucially, it is also a dynamic-range split: a saturating S-band pulse cannot desensitise the UHF channel because they never share an ADC (research 03 §2.6). The cost is two firmware stacks and ≈ 14 W + 48 W of digitiser power; the EU-sourced alternative for the radar path (Teledyne EV12AQ600 + PolarFire RT) is kept as the export-control fallback<sup class="ref"><a href="#ref-R2-x79">[R2-x79]</a></sup>. Details: <a href="rf_chain.html">RF chain &amp; digitiser</a>.</p></div>
+
+  <h2>Design drivers</h2>
+  <p>Six physical facts shape the payload more than any customer requirement does. Each is developed on its own page; the summary here is what a reviewer should hold in mind when reading the budgets.</p>
+  <div class="grid c2 drivers">
+    <div class="card"><div class="n">Driver 1 · radars</div><h3>Dynamic range, not sensitivity</h3><p>At 2000 km an AN/SPY-1 mainlobe (≈ 140 dBm EIRP) arrives at −24 dBm while its −35 dB sidelobes still give 43 dB SNR in 10 MHz; a 25 kHz tactical radio at the same range sits near −105 dBm. The receiver must hold ≈ 95–100 dB of instantaneous range, which no single ADC does. Hence band segregation, limiters, microsecond step attenuators, ADC over-range blanking and headroom set so the thermal floor is only 10–15 dB above the LSB (research 03 §2.6). See <a href="emitters.html#sec-dynamic-range">emitters</a>.</p></div>
+    <div class="card"><div class="n">Driver 2 · comms</div><h3>Frequency coverage and instantaneous bandwidth</h3><p>Narrowband comms are comfortably above the floor with 5–10 dBi of gain; what limits them is being tuned to the right place at the right time. Link-16 hops over 255 MHz, a TETRA network uses 25 kHz slots, a PTT burst lasts seconds. The tuner's 200 MHz IBW with a 4096-bin polyphase filter bank is the answer: stare at a whole band, detect in matched 25 kHz bins (26 dB better than a 10 MHz bin), then snapshot.</p></div>
+    <div class="card"><div class="n">Driver 3 · geometry</div><h3>Field of regard versus gain</h3><p>Seeing the whole footprint above 10° elevation from 530 km needs a ±66° cone about nadir, which caps a staring antenna at 4–8 dBi. A 27 dBi beam covers 1/100 of that solid angle. TALOS therefore pairs wide-FOV survey elements (alarm) with nadir-pointing S/X arrays and a 4-element interferometer (characterise and locate), and keeps a 0.7 m reflector as a cued "zoom" growth option. See <a href="antennas.html">antenna trade study</a>.</p></div>
+    <div class="card"><div class="n">Driver 4 · timing</div><h3>Nanoseconds for TDOA, 10<sup>−11</sup> for FDOA</h3><p>1 ns of clock error is 30 cm of range difference; HawkEye budgets 20 ns between satellites<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>. FDOA on a 1 GHz carrier needs the two LOs to agree to ≪ 0.1 Hz over a 100 ms snapshot, i.e. 10<sup>−10</sup>–10<sup>−11</sup>. A GNSS-disciplined OCXO with CSAC holdover and raw GNSS observables logged with every snapshot (common-view time transfer) meets this without an inter-satellite link. See <a href="geolocation.html">geolocation theory</a>.</p></div>
+    <div class="card"><div class="n">Driver 5 · EMC</div><h3>A quiet bus around a −120 dBm receiver</h3><p>The satellite's own S-band TT&amp;C, X-band downlink, DC/DC converters, wheel drivers and clocks are 100+ dB stronger than the signals of interest, and the X-band transmitter is only 200 MHz from the X-band receive window. Transmitters and receive arrays sit on opposite faces, the payload has its own filtered PCDU, receive is blanked during transmission, and a "UHF-quiet" rule is written into the bus specification. See <a href="environment.html#sec-emc">environment &amp; EMC</a>.</p></div>
+    <div class="card"><div class="n">Driver 6 · data</div><h3>Reduce on board or drown</h3><p>Four tuner channels at 100 MHz and 12 bits produce 9.6 Gbit/s of raw IQ (≈ 104 TB/day); the downlink moves ≈ 100–500 GB/day. Everything must become pulse descriptor words, emitter reports, signal reports and prioritised 20 kB–5 MB snapshots on orbit, which is why the payload carries a controller, a 2 TB store and (optionally) an ML co-processor. See <a href="processing_data.html">on-board processing &amp; data</a>.</p></div>
+  </div>
+
+  <h2>Subsystem summary</h2>
+  <p>The table is generated from the component model and therefore agrees with the <a href="budgets.html">budgets page</a> and the <a href="payload_explorer.html">explorer</a>. Mass is dry mass per component; power is the collection-mode allocation. Items tagged <span class="tag">option</span> are not in the TALOS-1 core budget (reflector, ML co-processor, ISL) but are carried in the layout so that the Stage 2 upgrade needs no structural change. TRL is the study's assessment for the specific configuration, not the vendor's claim for the product family.</p>
+  <div class="table-wrap"><table class="sub" id="subsys"><thead><tr><th data-sort="str">Component</th><th data-sort="num" class="num">Mass (kg)</th><th data-sort="num" class="num">Power (W)</th><th data-sort="num" class="num">TRL</th><th>Candidate suppliers</th></tr></thead><tbody></tbody></table></div>
+  <div class="grid c3" id="roll"></div>
+  <p class="muted" style="font-family:var(--font-ui);font-size:.85rem">Core dry mass excludes the 20 % system margin; with margin the TALOS-1 core is ≈ <span id="m-margin"></span> kg against the 150 kg allocation (baseline.js). Research 03 §4.4 gives 25–45 kg and 90–160 W for the payload envelope; TALOS-1 sits at the lean end because the reflector is an option and the DF array uses four, not six, elements.</p>
+
+  <h2>Top-level requirements and rationale</h2>
+  <p>These are the requirements a Phase A would baseline. They are written as the payload sees them; bus-level derived requirements (pointing, power, EMC, thermal) are in <a href="bus.html">bus subsystems</a>. Where a number is an engineering estimate rather than a sourced figure, it is marked.</p>
+  <div class="table-wrap"><table class="req">
+    <thead><tr><th>Requirement</th><th>Value</th><th>Rationale</th></tr></thead>
+    <tbody>
+      <tr><td>Frequency coverage</td><td id="req-bands"></td><td>Spans tactical VHF/UHF radios and UHF SATCOM (225–512 MHz), Link-16 / IFF / GNSS-band jammers / L-MSS (960–1700 MHz) and the AEW&amp;C, naval, air-defence and maritime radar bands up to 12 GHz (research 03 §1). 30–225 MHz (VHF, Nebo-class radars) is excluded from TALOS-1 because a 2.5 m-class deployable would be needed; it is a growth item.</td></tr>
+      <tr><td>Instantaneous bandwidth</td><td>200 MHz × 4 ch (tuner); 2 GHz × 8 ch (RFSoC)</td><td>Link-16 spans 255 MHz (full hop-following is a stretch goal with 200 MHz); 0.08–1 µs radar pulses need ≥ 20–50 MHz per channel for TOA; 2 GHz blocks let one ADC cover each sub-band of the frequency plan (§4.2).</td></tr>
+      <tr><td>System noise figure</td><td>≤ 2.5 dB (UHF ≤ 2 dB)</td><td>Earth-facing antennas see ≈ 290 K, so sky-noise tricks do not apply; LNA 0.5–1.2 dB plus 1–2 dB of filter/switch/cable loss. Lower NF buys little once the receiver is clutter-limited over cities (research 03 §2.3).</td></tr>
+      <tr><td>Instantaneous dynamic range</td><td>≥ 95 dB target <span class="tag">est.</span>; step attenuation 0–31 dB in ≤ 5 µs</td><td>−24 dBm radar mainlobe vs −120 dBm comms (research 03 §2.6); recovery within a few µs preserves TOA of the next pulse.</td></tr>
+      <tr><td>Time-stamp accuracy</td><td>≤ 20 ns to GNSS time; 10<sup>−11</sup> short-term frequency stability</td><td>HawkEye's 20 ns assumption<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>; Leiter &amp; Gurfil show 100 ns clocks degrade 3-sat CRLB to 1–15 km<sup class="ref"><a href="#ref-R3-11">[R3-11]</a></sup>. FDOA bias &lt; 0.1 Hz at 1 GHz.</td></tr>
+      <tr><td>Attitude knowledge / control</td><td>0.02° / 0.05°</td><td>1 mrad of attitude error is 1 km of AOA ground error at 1000 km; gain arrays with 8–20° beams tolerate 0.05° easily. Far tighter than HawkEye Pathfinder's 2.1° (2σ)<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup> because TALOS sells an AOA product.</td></tr>
+      <tr><td>Phase stability (DF chains)</td><td>≤ 5° residual phase error at 1 GHz after calibration</td><td>Gives ≈ 2 km AOA error at nadir with a 1.2 m baseline; requires path matching to ≈ 4 mm, a ±2 °C front-end plate and an injected calibration tone (research 03 §3.4, §4.5).</td></tr>
+      <tr><td>Data products and volume</td><td>≈ 30 GB/day of reports + snapshots; 2 TB store; ≥ 1 Gbit/s X-band</td><td>2000 comms + 500 radar snapshots per orbit ≈ 1–3 GB/orbit (research 03 §5.3); 5 mid-latitude passes × 6 min at 1 Gbit/s ≈ 200 GB/day leaves headroom for tasked raw-IQ captures.</td></tr>
+      <tr><td>Field of regard</td><td>Survey channels ±66° about nadir; gain arrays nadir ±4–10°; DF ±45° usable</td><td>±66° sees the footprint above 10° elevation at 530 km (ORB geometry); radar gain arrays rely on sidelobe detection anywhere in the footprint, mainlobe hits are bonus.</td></tr>
+      <tr><td>Lifetime and environment</td><td>3 yr design, 5 yr goal; 20 krad(Si) TID behind 2.5 mm Al; disposal ≤ 5 yr after end of mission</td><td>CAMELOT-class LEO dose spec<sup class="ref"><a href="#ref-R3-20">[R3-20]</a></sup>; FCC 5-year rule<sup class="ref"><a href="#ref-R3-21">[R3-21]</a></sup> and ESA Zero Debris<sup class="ref"><a href="#ref-R3-22">[R3-22]</a></sup>; 100 m/s of the ≈235 m/s FEEP budget is reserved for low-thrust controlled lowering.</td></tr>
+      <tr><td>Payload mass and power</td><td id="req-mp"></td><td>Rolled up from components.js; fits a 150 kg ESPA-class bus with 35–45 kg of unallocated mass for growth.</td></tr>
+      <tr><td>Export posture</td><td>No ITAR content; EAR-only US parts (RFSoC, ADI mixers/PLLs), EU alternatives identified</td><td>Keeps the satellite an EU dual-use item (5A001.e applies to the DF capability regardless)<sup class="ref"><a href="#ref-R3-24">[R3-24]</a></sup>; see <a href="risks.html#T-14">risk T-14</a>.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>How this chapter is organised</h2>
+  <div class="grid c3">
+    <div class="card"><h3><a href="emitters.html">Target emitters</a></h3><p>What TALOS can and cannot detect, with a link-budget calculator and the nine worked examples.</p></div>
+    <div class="card"><h3><a href="antennas.html">Antennas</a></h3><p>The trade study behind the suite: gain vs field of regard, interferometer geometry, deployables, suppliers.</p></div>
+    <div class="card"><h3><a href="rf_chain.html">RF chain &amp; digitiser</a></h3><p>Frequency plan, cascade noise figure, ADC dynamic range, LO requirements, digitiser candidates.</p></div>
+    <div class="card"><h3><a href="processing_data.html">Processing &amp; data</a></h3><p>From 9.6 Gbit/s of IQ to 30 GB/day of products; downlink passes computed for Nemea and Svalbard.</p></div>
+    <div class="card"><h3><a href="geolocation.html">Geolocation</a></h3><p>Single-satellite AOA/Doppler and cluster TDOA/FDOA theory and error budgets.</p></div>
+    <div class="card"><h3><a href="environment.html">Environment</a></h3><p>Radiation, thermal seasons at 53°, EMC budget, debris and launch loads.</p></div>
+  </div>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/components.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  const B = BASELINE, C = COMPONENTS;
+  document.getElementById('meta-baseline').textContent = 'Baseline: ' + B.version;
+  const sum = (arr, k) => arr.reduce((s, c) => s + (c[k] || 0), 0);
+  const core = C.filter(c => !c.optional), pl = core.filter(c => c.sub.startsWith('payload')), plAll = C.filter(c => c.sub.startsWith('payload'));
+
+  // ---- KPIs
+  const kpis = [
+    ['225 MHz – 12 GHz', 'frequency coverage', '5 sub-bands, 2 receiver paths'],
+    [`${B.payload.channels.tuner} + ${B.payload.channels.rfsoc}`, 'coherent channels', `${B.payload.channels.tunerIbwMHz} MHz and ${B.payload.channels.rfsocIbwMHz/1000} GHz IBW`],
+    [`${sum(pl,'kg').toFixed(1)} kg · ${sum(pl,'w')} W`, 'payload core, collecting', `${sum(plAll,'kg').toFixed(1)} kg / ${sum(plAll,'w')} W with options`],
+    [`≤ ${B.payload.timing.syncNs} ns`, 'time-stamp accuracy', 'GNSS-disciplined OCXO + CSAC holdover'],
+  ];
+  const kp = document.getElementById('kpis');
+  kpis.forEach(k => { kp.append(U.el('div', { class: 'kpi' }, U.el('div', { class: 'v' }, k[0]), U.el('div', { class: 'l' }, k[1]), U.el('div', { class: 'd' }, k[2]))); });
+
+  // ---- SVG helpers
+  const NS = 'http://www.w3.org/2000/svg';
+  function sv(tag, attrs, txt) { const e = document.createElementNS(NS, tag); for (const k in attrs) if (attrs[k] != null) e.setAttribute(k, attrs[k]); if (txt != null) e.textContent = txt; return e; }
+  function defs(svg) {
+    const d = sv('defs', {});
+    [['rf', 'var(--accent-2)'], ['data', 'var(--accent)'], ['time', 'var(--band-s)'], ['pwr', 'var(--band-c)'], ['plain', 'var(--ink-3)']].forEach(([id, col]) => {
+      const m = sv('marker', { id: 'arr-' + id, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' });
+      m.append(sv('path', { d: 'M0,1 L9,5 L0,9 z', fill: col })); d.append(m);
+    });
+    svg.append(d);
+  }
+  function box(g, x, y, w, h, lines, opt = {}) {
+    const r = sv('rect', { x, y, width: w, height: h, rx: 4, class: 'box' + (opt.hi ? ' hi' : ''), 'stroke-dasharray': opt.dotted ? '4 3' : null });
+    if (opt.fill) r.setAttribute('fill', opt.fill);
+    if (opt.href) { const a = sv('a', { href: opt.href }); a.append(r); g.append(a); } else g.append(r);
+    const n = lines.length, lh = opt.lh || 12.5;
+    lines.forEach((t, i) => g.append(sv('text', { x: x + w / 2, y: y + h / 2 + (i - (n - 1) / 2) * lh, 'text-anchor': 'middle', 'dominant-baseline': 'middle', class: i === 0 ? 'lbl s' : 'lbl xs' }, t)));
+    return { x, y, w, h, cx: x + w / 2, cy: y + h / 2, r: x + w, b: y + h };
+  }
+  function wire(g, d, cls, arrow = true) { g.append(sv('path', { d, class: 'wire ' + cls, 'marker-end': arrow ? `url(#arr-${cls || 'plain'})` : null })); }
+  function label(g, x, y, t, cls = 'lbl xs', anchor = 'start') { g.append(sv('text', { x, y, class: cls, 'text-anchor': anchor }, t)); }
+  function group(g, x, y, w, h, title) { g.append(sv('rect', { x, y, width: w, height: h, rx: 8, fill: 'none', class: 'grid-line', 'stroke-dasharray': '3 4' })); label(g, x + 8, y + 14, title, 'lbl s'); }
+
+  // ---- Architecture diagram (two rows: space segment above, ground & user below)
+  (function arch() {
+    const W = 930, H = 700;
+    const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'TALOS-1 end-to-end block diagram' }); defs(svg);
+    const g = sv('g', {}); svg.append(g);
+    group(g, 6, 6, 914, 436, 'Space segment — TALOS-1 (530 km, 53°)');
+    group(g, 6, 450, 914, 244, 'Ground & user segments');
+    const ex = id => 'payload_explorer.html#' + id;
+    // column A: antennas
+    label(g, 16, 40, 'Antennas', 'lbl s');
+    const aU = box(g, 16, 52, 140, 40, ['UHF helices ×2', '225–512 MHz, 8–10 dBi'], { href: ex('ant-uhf') });
+    const aW = box(g, 16, 104, 140, 40, ['Wideband CP survey ×2', '0.3–4 GHz, ≤3 dBi'], { href: ex('ant-wb') });
+    const aD = box(g, 16, 156, 140, 52, ['DF interferometer', '4 sinuous, 1–12 GHz', '1.2 m cross-boom'], { href: ex('ant-df') });
+    const aS = box(g, 16, 220, 140, 40, ['S-band 4×4 array', '2.7–3.5 GHz, 18 dBi'], { href: ex('ant-sarr') });
+    const aX = box(g, 16, 272, 140, 40, ['X-band 8×8 array', '8–12 GHz, 22 dBi'], { href: ex('ant-xarr') });
+    const aR = box(g, 16, 324, 140, 40, ['0.7 m reflector', 'growth option, cued'], { dotted: true, href: ex('ant-refl') });
+    // column B: front-ends
+    label(g, 176, 40, 'RF front-ends', 'lbl s');
+    const fU = box(g, 176, 52, 140, 40, ['UHF front-end (2 ch)', 'NF 0.5 dB, pre-select'], { href: ex('rffe-uhf') });
+    const fL = box(g, 176, 104, 140, 40, ['L / wideband FE (2 ch)', 'split filters, NF 0.8 dB'], { href: ex('rffe-l') });
+    const fS = box(g, 176, 170, 140, 130, ['S/C/X block', 'downconverter bank', '8 coherent chains', 'limiter · LNA · filter', 'mix to 0–2 GHz IF'], { href: ex('rffe-scx'), lh: 13 });
+    const lo = box(g, 176, 330, 140, 40, ['LO synthesiser', '2/4/6/8/10 GHz, 8-way'], { href: ex('lo') });
+    const cal = box(g, 176, 382, 140, 36, ['Calibration tone', '1–12 GHz comb, −60 dBm'], { href: ex('cal') });
+    // column C: digitisers
+    label(g, 336, 40, 'Digitisers & timing', 'lbl s');
+    const tun = box(g, 336, 52, 150, 92, ['Comms tuner receiver', '4 coherent ch, 16-bit', '200 MHz IBW, 70 MHz–6 GHz', '4096 × 25 kHz PFB'], { hi: true, href: ex('dig-tuner'), lh: 13 });
+    const rf = box(g, 336, 170, 150, 130, ['RFSoC digitiser', '8 × 14-bit @ 5 GSPS', '2 GHz IBW per channel', '64 × 31 MHz PFB, CFAR', 'PDW extractor, blanking'], { hi: true, href: ex('dig-rfsoc'), lh: 13 });
+    const tm = box(g, 336, 330, 150, 52, ['Timing unit', 'GNSS-disciplined OCXO', 'CSAC holdover, ≤20 ns'], { href: ex('time') });
+    const gn = box(g, 336, 394, 150, 40, ['Payload GNSS receiver', 'raw observables, PPS'], { href: ex('gnss-p') });
+    // column D: control & data
+    label(g, 516, 40, 'Payload control & data', 'lbl s');
+    const ai = box(g, 516, 52, 150, 44, ['ML co-processor', 'classification (option)'], { dotted: true, href: ex('proc-ai') });
+    const sup = box(g, 516, 110, 150, 92, ['Payload controller', 'rad-tolerant supervisor', 'tasking · catalogue match', 'prioritisation · AES-256'], { hi: true, href: ex('proc-sup'), lh: 13 });
+    const st = box(g, 516, 226, 150, 52, ['Mass memory 2 TB', 'reports + snapshots', '≈ 1–3 GB per orbit'], { href: ex('stor') });
+    const pp = box(g, 516, 330, 150, 52, ['Payload PCDU', 'filtered rails, latch-up trip', 'never-off timing rail'], { href: ex('pld-pcdu') });
+    const th = box(g, 516, 394, 150, 40, ['Thermal plate ±2 °C', 'heat pipe → −X radiator'], { href: ex('pld-therm') });
+    // column E: bus
+    label(g, 700, 40, 'Bus', 'lbl s');
+    const ob = box(g, 700, 52, 60, 150, ['Bus', 'OBC', '', 'ADCS', 'EPS', 'GNSS'], { href: ex('obc'), lh: 14 });
+    const isl = box(g, 700, 226, 60, 52, ['ISL', 'S-band', 'cluster'], { dotted: true, href: ex('isl') });
+    const xt = box(g, 700, 380, 100, 52, ['X-band TX', '1 Gbit/s, 45 W', '8025–8400 MHz'], { href: ex('xtx') });
+    const tt = box(g, 810, 380, 100, 52, ['S-band TT&C', '2.2–2.29 GHz', '2 Mbit/s'], { href: ex('ttc') });
+    label(g, 780, 24, 'links to ground ↓', 'lbl xs');
+    // ground row
+    const gs = box(g, 700, 470, 100, 52, ['KSAT Nemea', 'X/S 3.7 m', '+ polar / Gulf']);
+    const ts = box(g, 810, 470, 100, 52, ['Owned TT&C', 'Athens area', 'command authority']);
+    const p1 = box(g, 16, 470, 330, 34, ['Ingest, decrypt, time-align (GNSS common-view)']);
+    const p2 = box(g, 16, 512, 330, 34, ['Cross-ambiguity TDOA/FDOA, Doppler & AOA fixes']);
+    const p3 = box(g, 16, 554, 330, 34, ['Deinterleave, classify, match to signature library']);
+    const p4 = box(g, 16, 596, 330, 34, ['Emitter tracks, activity patterns, anomaly flags']);
+    label(g, 360, 464, 'Products', 'lbl s');
+    const pr1 = box(g, 360, 470, 150, 48, ['EW database &', 'signature catalogue'], { hi: true });
+    const pr2 = box(g, 520, 470, 150, 48, ['Geolocated emitter', 'reports (95 % ellipse)'], { hi: true });
+    const pr3 = box(g, 360, 526, 150, 48, ['GNSS-interference &', 'activity maps'], { hi: true });
+    const pr4 = box(g, 520, 526, 150, 48, ['Alerts & ISR cueing', '(minutes with ISL)'], { hi: true });
+    const tk = box(g, 360, 590, 310, 34, ['Mission ops: tasking & signature-library uploads']);
+    label(g, 16, 660, 'Section 04 shows the console these products feed; section 03 the services built on them.', 'lbl xs');
+    // RF wires
+    wire(g, `M${aU.r},${aU.cy} H${fU.x}`, 'rf');
+    wire(g, `M${aW.r},${aW.cy} H${fL.x}`, 'rf');
+    [aD, aS, aX].forEach(a => wire(g, `M${a.r},${a.cy} H${fS.x}`, 'rf'));
+    wire(g, `M${aR.r},${aR.cy} H${fS.x}`, 'rf');
+    wire(g, `M${fU.r},${fU.cy} H${tun.x}`, 'rf');
+    wire(g, `M${fL.r},${fL.cy} H${tun.x}`, 'rf');
+    wire(g, `M${fS.r},${fS.cy} H${rf.x}`, 'rf');
+    label(g, 318, fS.cy - 5, '8 × IF', 'lbl xs');
+    wire(g, `M${cal.x},${cal.cy} H164 V214 H${aD.cx} V${aD.b}`, 'rf');
+    // timing wires
+    wire(g, `M${tm.cx},${tm.y} V${rf.b}`, 'time');
+    wire(g, `M${tm.x},${tm.cy} H326 V134 H${tun.x}`, 'time');
+    wire(g, `M${tm.x},${tm.cy + 12} H${lo.r}`, 'time');
+    wire(g, `M${lo.cx},${lo.y} V${fS.b}`, 'time');
+    wire(g, `M${lo.x},${lo.cy} H170 V${fU.cy + 12} H${fU.x}`, 'time');
+    wire(g, `M170,${fL.cy + 12} H${fL.x}`, 'time');
+    wire(g, `M${gn.cx},${gn.y} V${tm.b}`, 'time');
+    wire(g, `M${tm.r},${tm.cy + 10} H500 V440 H690 V300 H${isl.cx} V${isl.b}`, 'time');
+    label(g, 694, 296, 'PPS / two-way time transfer', 'lbl xs');
+    // data wires
+    wire(g, `M${tun.r},${tun.cy} H500 V${sup.cy - 20} H${sup.x}`, 'data');
+    wire(g, `M${rf.r},${rf.cy} H500 V${sup.cy + 20} H${sup.x}`, 'data');
+    wire(g, `M${rf.r},${rf.cy + 40} H506 V${st.cy} H${st.x}`, 'data');
+    label(g, 488, 292, 'snapshots', 'lbl xs');
+    wire(g, `M${sup.cx},${sup.b} V${st.y}`, 'data');
+    wire(g, `M${ai.cx},${ai.b} V${sup.y}`, 'data');
+    wire(g, `M${sup.r},${sup.cy} H${ob.x}`, 'data');
+    wire(g, `M${ob.x},${sup.cy - 12} H${sup.r}`, 'data');
+    wire(g, `M${sup.r},${sup.cy + 30} H681 V${isl.cy - 10} H${isl.x}`, 'data');
+    wire(g, `M${st.r},${st.cy} H676 V${xt.cy} H${xt.x}`, 'data');
+    label(g, 600, 300, 'playback 1 Gbit/s', 'lbl xs');
+    wire(g, `M${ob.r},${ob.cy} H865 V${tt.y}`, 'data');
+    wire(g, `M${xt.cx},${xt.b} V${gs.y}`, 'data');
+    wire(g, `M${tt.cx},${tt.b} V${ts.y}`, 'data');
+    wire(g, `M${tt.cx + 12},${ts.y} V${tt.b}`, 'data');
+    wire(g, `M${gs.x},${gs.cy} H690 V456 H180 V${p1.y}`, 'data');
+    label(g, 190, 466, 'products + housekeeping', 'lbl xs');
+    wire(g, `M${p1.cx},${p1.b} V${p2.y}`, 'data'); wire(g, `M${p2.cx},${p2.b} V${p3.y}`, 'data'); wire(g, `M${p3.cx},${p3.b} V${p4.y}`, 'data');
+    wire(g, `M${p4.r},${p4.cy} H352 V${pr1.cy} H${pr1.x}`, 'data');
+    wire(g, `M352,${pr3.cy} H${pr3.x}`, 'data');
+    wire(g, `M${tk.r},${tk.cy} H${ts.cx} V${ts.b}`, 'data');
+    // power wires
+    wire(g, `M${ob.cx},${ob.b} V215 H686 V${pp.cy} H${pp.r}`, 'pwr');
+    label(g, 690, 350, '28 V', 'lbl xs');
+    wire(g, `M${pp.x},${pp.cy} H500 V${rf.b - 8} H${rf.r}`, 'pwr');
+    wire(g, `M${pp.x},${pp.cy - 12} H496 V${tun.b - 8} H${tun.r}`, 'pwr');
+    label(g, 494, 324, 'filtered rails', 'lbl xs', 'end');
+    document.getElementById('arch-svg').append(svg);
+  })();
+
+  // ---- Segments diagram
+  (function seg() {
+    const W = 960, H = 440;
+    const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Space, ground and user segments' }); defs(svg);
+    const g = sv('g', {}); svg.append(g);
+    group(g, 6, 6, 300, 428, 'Space segment');
+    group(g, 316, 6, 316, 428, 'Ground segment');
+    group(g, 642, 6, 312, 428, 'User segment');
+    const s1 = box(g, 16, 30, 280, 92, ['TALOS-1 (Stage 1, 2030)', '530 km / 53°, ≈ 104 kg with margin', 'dual-path payload, single-sat AOA + Doppler', 'store-and-forward'], { hi: true, lh: 14 });
+    g.append(sv('rect', { x: 16, y: 132, width: 280, height: 104, rx: 6, fill: 'none', class: 'wire', 'stroke-dasharray': '4 3' }));
+    label(g, 24, 146, 'Stage 2 cluster additions (2032)', 'lbl xs');
+    const s2 = box(g, 24, 154, 128, 70, ['TALOS-2 and -3', '150 km along-track', '±20 km cross-track'], { dotted: true });
+    const s3 = box(g, 160, 154, 128, 70, ['S-band ISL', 'two-way time transfer', 'on-board CAF alerts'], { dotted: true });
+    const s4 = box(g, 16, 246, 280, 44, ['Owned-key crypto', 'AES-256 TC authentication, payload data encryption'], {});
+    const s5 = box(g, 16, 300, 280, 56, ['Links', 'X-band 1 Gbit/s products · S-band TT&C 2 Mbit/s', 'GNSS L1/L5 time & orbit · ISL 0.1–1 Mbit/s'], { lh: 14 });
+    const s6 = box(g, 16, 366, 280, 58, ['Growth path', 'Stage 3: 9 sats / 3 planes (2034) · Stage 4: 12–24 (2036)', '0.7 m reflector, optical ISL, ML co-processor'], { lh: 14 });
+    const g1 = box(g, 326, 30, 296, 48, ['KSAT Nemea (Greece) — primary X/S', 'leased GSaaS, 3.7 m class, per-pass pricing'], { hi: true });
+    const g2 = box(g, 326, 88, 143, 48, ['KSAT Svalbard / Troll', 'polar (SSO only)'], {});
+    const g3 = box(g, 479, 88, 143, 48, ['KSAT Dubai, Puertollano', 'Gulf / W. Med latency'], {});
+    const g4 = box(g, 326, 146, 296, 48, ['Owned S-band TT&C — Athens area', 'command, tasking uplink, key management'], { hi: true });
+    const g5 = box(g, 326, 204, 296, 64, ['Mission operations centre (Greece)', 'flight dynamics · scheduling · collection planning', 'payload health · formation keeping (Stage 2)'], { lh: 14 });
+    const g6 = box(g, 326, 278, 296, 64, ['Processing centre (sovereign cloud / on-prem)', 'time alignment · CAF · deinterleave · classify', 'signature library · geolocation · QA'], { lh: 14 });
+    const g7 = box(g, 326, 352, 296, 72, ['Security', 'NIS2-grade segregation, HSM key custody,', 'air-gapped classified enclave for MoD products'], { lh: 14 });
+    const u1 = box(g, 652, 30, 292, 48, ['Hellenic MoD / HNDGS (anchor)', 'EW database, order of battle, indicators'], { hi: true });
+    const u2 = box(g, 652, 88, 292, 48, ['Coast guard, Frontex-type maritime users', 'dark vessels, radar-on ships, GNSS jamming'], {});
+    const u3 = box(g, 652, 146, 292, 48, ['Allied / NATO ISR consumers', 'STANAG-formatted tracks and reports'], {});
+    const u4 = box(g, 652, 204, 292, 48, ['Satellite operators, aviation, insurers', 'interference hunting, jamming maps'], {});
+    const u5 = box(g, 652, 262, 292, 90, ['Delivery', 'web console (section 04) · API · STANAG 4607/4676', 'alert push with ISL (Stage 2+)', 'latency tiers: NRT < 1 h · standard < 6 h · archive'], { lh: 14 });
+    const u6 = box(g, 652, 362, 292, 62, ['Feedback into the system', 'areas of interest, SOI lists, priorities', 'validated signatures back to the library'], { lh: 14 });
+    wire(g, `M${s1.r},${s1.cy - 18} H${g1.x}`, 'data'); label(g, 300, s1.cy - 24, 'X', 'lbl xs');
+    wire(g, `M${g4.x},${g4.cy} H306 V${s4.cy} H${s4.r}`, 'data'); label(g, 309, 186, 'TC', 'lbl xs');
+    wire(g, `M${g1.cx},${g1.b} V${g4.y}`, 'data');
+    wire(g, `M${g4.cx},${g4.b} V${g5.y}`, 'data');
+    wire(g, `M${g5.cx},${g5.b} V${g6.y}`, 'data');
+    wire(g, `M${g6.r},${g6.cy} H${u5.x}`, 'data'); label(g, 632, g6.cy - 6, 'products', 'lbl xs');
+    wire(g, `M${u5.cx},${u5.y} V${u4.b}`, 'data', false);
+    wire(g, `M${u6.x},${u6.cy} H636 V${g5.cy + 20} H${g5.r}`, 'data'); label(g, 640, 380, 'AOIs, priorities', 'lbl xs', 'end');
+    wire(g, `M${s3.cx},${s3.y} V${s1.b}`, 'time', false);
+    document.getElementById('seg-svg').append(svg);
+  })();
+
+  // ---- Subsystem table
+  (function table() {
+    const tb = document.querySelector('#subsys tbody');
+    let total = { kg: 0, w: 0 }, totalOpt = { kg: 0, w: 0 };
+    SUBSYSTEMS.forEach(s => {
+      const items = C.filter(c => c.sub === s.id); if (!items.length) return;
+      const hdr = U.el('tr', { class: 'subtotal' }); hdr.innerHTML = `<td colspan="5" style="color:${s.color}">${s.name}</td>`; tb.append(hdr);
+      let sk = 0, sw = 0;
+      items.forEach(c => {
+        const tr = U.el('tr', {});
+        tr.innerHTML = `<td><a href="payload_explorer.html#${c.id}">${c.name}</a>${c.optional ? ' <span class="tag">option</span>' : ''}</td><td class="num">${c.kg.toFixed(1)}</td><td class="num">${c.w}</td><td class="num"><span class="tag trl ${c.trl >= 8 ? 'ok' : c.trl >= 6 ? 'warn' : 'critical'}">TRL ${c.trl}</span></td><td class="sup">${c.suppliers}</td>`;
+        tb.append(tr);
+        if (c.optional) { totalOpt.kg += c.kg; totalOpt.w += c.w; } else { sk += c.kg; sw += c.w; total.kg += c.kg; total.w += c.w; }
+      });
+      const st = U.el('tr', { class: 'subtotal' }); st.innerHTML = `<td style="text-align:right">subtotal (core)</td><td class="num">${sk.toFixed(1)}</td><td class="num">${sw}</td><td></td><td></td>`; tb.append(st);
+    });
+    const roll = document.getElementById('roll');
+    const payloadKg = sum(pl, 'kg'), payloadW = sum(pl, 'w'), busKg = total.kg - payloadKg;
+    [[`${total.kg.toFixed(1)} kg`, 'core dry mass (no margin)', `payload ${payloadKg.toFixed(1)} kg · bus ${busKg.toFixed(1)} kg`],
+     [`${(total.kg + totalOpt.kg).toFixed(1)} kg`, 'with reflector, ML and ISL options', `+${totalOpt.kg.toFixed(1)} kg, +${totalOpt.w} W`],
+     [`${payloadW} W`, 'payload, collection mode', `bus ${B.power.modes.collect.bus} W; X-band TX +${B.power.modes.collectDownlink.downlink} W in passes`]]
+    .forEach(k => roll.append(U.el('div', { class: 'kpi' }, U.el('div', { class: 'v' }, k[0]), U.el('div', { class: 'l' }, k[1]), U.el('div', { class: 'd' }, k[2]))));
+    document.getElementById('m-margin').textContent = (total.kg * (1 + B.mass.marginPct / 100)).toFixed(0);
+    document.getElementById('req-mp').innerHTML = `≤ ${sum(plAll, 'kg').toFixed(1)} kg incl. options (${payloadKg.toFixed(1)} kg core); ${payloadW} W collecting, ${B.power.modes.standby.payload} W standby`;
+    document.getElementById('req-bands').innerHTML = B.payload.bands.map(b => `<span class="band-chip ${b.id}">${b.name}</span> ${b.fMin >= 1000 ? (b.fMin / 1000) + '–' + (b.fMax / 1000) + ' GHz' : b.fMin + '–' + b.fMax + ' MHz'}`).join('<br>');
+  })();
+
+  // ---- refs
+  function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  renderRefs(['R3-1', 'R3-2', 'R3-10', 'R3-11', 'R3-16', 'R3-19', 'R3-20', 'R3-21', 'R3-22', 'R3-24', 'R2-x79', 'R2-x82', 'R2-x84']);
+})();
+</script>
+</body>
+</html>

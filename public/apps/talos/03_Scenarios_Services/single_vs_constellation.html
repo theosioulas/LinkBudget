@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Single satellite vs constellation — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .stage-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.8rem; margin: 1rem 0 1.4rem; }
+  @media (max-width: 1100px) { .stage-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 640px) { .stage-cards { grid-template-columns: 1fr; } }
+  .stage-cards .card { padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.35rem; font-family: var(--font-ui); font-size: 0.86rem; }
+  .stage-cards .card .n { font-size: 1.9rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
+  .stage-cards .card .n small { font-size: 0.8rem; font-weight: 500; color: var(--ink-3); margin-left: 0.3em; }
+  .stage-cards .card .yr { color: var(--ink-3); font-size: 0.78rem; }
+  .stage-cards .card .row { display: flex; justify-content: space-between; gap: 0.5rem; border-top: 1px dashed var(--line); padding-top: 0.3rem; }
+  .stage-cards .card .row span:first-child { color: var(--ink-3); }
+  .stage-cards .card .row span:last-child { text-align: right; font-weight: 600; }
+  .map { height: 520px; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface-2); }
+  .map-tools { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin: 0.6rem 0; font-family: var(--font-ui); font-size: 0.82rem; }
+  .map-tools button { font: inherit; padding: 0.25rem 0.7rem; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); cursor: pointer; }
+  .map-tools button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .strip svg { width: 100%; height: auto; display: block; }
+  .strip .win { fill: var(--s1); }
+  .strip .win.cl { fill: var(--s3); }
+  .strip .rowlbl { font-family: var(--font-ui); font-size: 11px; fill: var(--ink-2); }
+  .strip .tick { font-family: var(--font-ui); font-size: 10px; fill: var(--ink-3); }
+  .method-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+  @media (max-width: 900px) { .method-grid { grid-template-columns: 1fr; } }
+  svg .sat { fill: var(--ink); }
+  svg .earth { fill: var(--surface-2); stroke: var(--line-strong); }
+  svg .lop { fill: none; stroke: var(--accent-2); stroke-width: 1.3; }
+  svg .lop.alt { stroke: var(--band-s); stroke-dasharray: 4 3; }
+  svg .ell { fill: color-mix(in srgb, var(--band-ku) 25%, transparent); stroke: var(--band-ku); stroke-width: 1.2; }
+  svg .trk { fill: none; stroke: var(--ink-3); stroke-width: 1; stroke-dasharray: 3 3; }
+  svg .emit { fill: var(--band-ku); }
+  .status { font-family: var(--font-ui); font-size: 0.8rem; color: var(--ink-3); }
+  .page-head .meta { flex-wrap: wrap; }
+  .grid > * { min-width: 0; }
+</style>
+</head>
+<body>
+<div class="content wide">
+  <header class="page-head">
+    <div class="kicker"><b>03 Scenarios &amp; services</b> · Single satellite vs constellation</div>
+    <h1>Single satellite vs constellation</h1>
+    <p class="lead">One TALOS satellite is a <em>monitoring</em> instrument: it sees a mid-latitude area of interest a handful of times a day, characterises what transmits there and can place persistent emitters to a few kilometres after several passes. The first three-satellite cluster is a different product class: instantaneous TDOA/FDOA fixes with confidence ellipses on single bursts. More clusters then buy revisit, not accuracy. This page quantifies each step with live simulations for an Athens-area AOI and sets out what to sell at each stage.</p>
+    <div class="meta"><span id="meta-baseline">Baseline: TALOS-1</span><span>Sources: research notes 03 §6, 04 §6</span><span>Simulations: orbit.js (circular + J2)</span></div>
+  </header>
+
+  <div class="callout decision"><div class="t">Bottom line</div>
+    <p>The step from one satellite to the first cluster changes <b>what</b> can be sold (geolocation with ellipses instead of presence maps); every later step changes <b>how often</b>. Because a cluster counts as a single revisit node, nine satellites flown as three clusters give the revisit of three satellites, not nine. The programme should therefore treat the Stage&nbsp;2 cluster as the real product launch and design TALOS-1 so that it is the first member of that cluster rather than a stand-alone demonstrator.</p>
+  </div>
+
+  <h2>What each stage delivers</h2>
+  <p>The baseline roadmap grows in four stages (<code>BASELINE.constellation.stages</code>). The cards are generated from the baseline file so they stay consistent with the roadmap and cost pages; the table below merges them with the stage comparison of research note 04 §6.2, which was assembled from what HawkEye 360, Kleos and Unseenlabs actually delivered at each size<sup class="ref"><a href="#ref-R4-2">[R4-2]</a><a href="#ref-R4-8">[R4-8]</a><a href="#ref-R4-10">[R4-10]</a></sup>.</p>
+  <div class="stage-cards" id="stage-cards"></div>
+
+  <div class="table-wrap"><table>
+    <thead><tr><th>Stage</th><th>Satellites</th><th>What the customer gets</th><th>Geolocation method</th><th>Accuracy class</th><th>Revisit, mid-latitude AOI</th><th>Comparable operators</th></tr></thead>
+    <tbody>
+      <tr><td><b>1 — demonstrator</b><br><span class="tag">2030</span></td><td class="num">1</td><td>Snapshot detection and characterisation; spectrum occupancy by band; GNSS-jammer presence and intensity maps per pass; radar-presence indicators; catalogue seeding for a national EW database</td><td>Single-satellite: Doppler/FOA curve fit over tens of seconds, interferometric AOA with the 1.2 m DF cross-boom, multi-pass accumulation for fixed emitters</td><td>5–30 km single pass for bursts; 1–5 km after several passes for persistent emitters (Unseenlabs claims sub-km on ships from monosatellites<sup class="ref"><a href="#ref-R4-10">[R4-10]</a></sup>)</td><td>2–4 useful passes/day (≈7 at 5° elevation on a 53° orbit, see simulation); worst gap 10–14 h</td><td>Unseenlabs BRO; HawkEye spectrum satellites</td></tr>
+      <tr><td><b>2 — first cluster</b><br><span class="tag">2032</span></td><td class="num">3</td><td>Instantaneous TDOA/FDOA fixes on single bursts with 95 % confidence ellipses; dark-vessel correlation with AIS; GNSS jammer and spoofer positions; air-defence radar order of battle</td><td>Cluster TDOA/FDOA, 150 km along-track, ±20 km cross-track, GNSS-disciplined clocks (≤20 ns), ground cross-correlation first, ISL later</td><td>0.3–3 km (95 %) narrowband comms; 100–500 m wideband radars<sup class="ref"><a href="#ref-R3-11">[R3-11]</a><a href="#ref-R3-2">[R3-2]</a></sup></td><td><b>Same as one satellite</b> — the cluster moves as one node</td><td>HawkEye Pathfinder / Cluster 2; Kleos 4-sat cluster</td></tr>
+      <tr><td><b>3 — three clusters</b><br><span class="tag">2034</span></td><td class="num">9</td><td>Morning/evening gaps filled; several fixes per day on the same emitter → tracks and pattern-of-life; alerting within hours; STANAG 4676 track products</td><td>As Stage 2 plus inter-cluster track smoothing</td><td>As Stage 2; track-smoothed for persistent emitters</td><td>≈3–6 h typical gap; daily revisit anywhere on Earth (three independent nodes)</td><td>Kleos plan at 3 clusters; HawkEye in 2021</td></tr>
+      <tr><td><b>4 — regional persistence</b><br><span class="tag">2036</span></td><td class="num">12–24</td><td>Sub-hour revisit at mid-latitudes; near-persistent watch on chokepoints; cueing of SAR/EO within the hour; near-real-time GNSS-interference alerts with ISL or polar downlink</td><td>Cluster TDOA/FDOA; density of fixes improves emitter positions by averaging</td><td>As Stage 2 per fix</td><td>&lt; 1 h with 8 clusters in 4 planes (HawkEye claims &lt; 45 min globally with 13+ clusters<sup class="ref"><a href="#ref-R4-2">[R4-2]</a><a href="#ref-R4-40">[R4-40]</a></sup>)</td><td>HawkEye 360 today (Clusters 1–15)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Revisit arithmetic for a mid-latitude AOI</h2>
+  <p>A 530 km circular orbit has a period of <span id="period">—</span> minutes, so a satellite completes <span id="orbits-day">—</span> orbits a day while the Earth turns <span id="shift-deg">—</span>° of longitude under each one. The visibility circle at 5° minimum elevation has a radius of <span id="fp5">—</span> km (<span id="fp10">—</span> km at 10°), so the ground tracks of two or three consecutive orbits pass within the circle of a point at 38°N on each side of the day. That is the whole story of single-satellite revisit: a group of 2–4 passes about 95 minutes apart, then a gap of 10–14 hours until the orbit plane comes round again on the other side of the Earth. For a sun-synchronous orbit the two groups are the fixed local-time morning and evening crossings; for the baseline 53° orbit they drift through the day over about two months<sup class="ref"><a href="#ref-R4-8">[R4-8]</a></sup>.</p>
+  <p>Two independent data points anchor the scaling. The CYGNSS GNSS-interference study used seven satellites in one inclined plane (±38° latitude) and measured a median revisit on the top-50 interference hotspots of 23 h with one satellite and 1 h 49 min with seven, with detection latency falling from 3 h 46 min to 48 min; the largest marginal gain was from one to three satellites<sup class="ref"><a href="#ref-R4-17">[R4-17]</a></sup>. HawkEye 360 claims global revisit under 45 minutes with more than 30 satellites in 13–15 tri-satellite clusters across sun-synchronous and 40–46° planes<sup class="ref"><a href="#ref-R4-2">[R4-2]</a><a href="#ref-R4-40">[R4-40]</a></sup>; Kleos promised daily revisit of any AOI with 3–4 clusters<sup class="ref"><a href="#ref-R4-8">[R4-8]</a></sup>. Our simulations below reproduce this scaling with the TALOS baseline orbit.</p>
+
+  <h3>Simulation (a): passes and gaps over Athens</h3>
+  <p>Computed at page load with <code>orbit.js</code> for a point at 38.0°N 23.7°E, 530 km, 53°, minimum elevation 5°, over three days from the baseline epoch (statistics are per day). "Access windows" merge overlapping passes of all satellites, which is the correct revisit measure: a three-satellite cluster spans only 300 km along-track and its three passes overlap into one window. Each constellation is shown twice — flown as independent singles (monitoring-only nodes) and as three-satellite clusters (geolocation-capable nodes, one third as many).</p>
+  <div class="status" id="sim-status">Computing…</div>
+  <div class="table-wrap"><table id="rev-table">
+    <thead><tr><th>Configuration</th><th data-sort="num">Revisit nodes</th><th data-sort="num">Satellite passes / day</th><th data-sort="num">Access windows / day</th><th data-sort="num">Mean gap (min)</th><th data-sort="num">Max gap (min)</th><th data-sort="num">Access minutes / day</th><th data-sort="num">Mean window (min)</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+  <div class="grid c2">
+    <figure><div id="chart-gap"></div><figcaption><b>Mean (left end) to maximum (right end) gap between access windows over Athens, per configuration.</b> The first cluster adds no revisit; the step from one node to three cuts the maximum gap from half a day to about an hour; eight clusters approach the sub-hour HawkEye regime.</figcaption></figure>
+    <figure><div id="chart-min"></div><figcaption><b>Access minutes per day over the AOI.</b> Minutes scale almost linearly with satellite count; because a cluster's three satellites see the AOI simultaneously, the extra minutes of a cluster are useful for geolocation geometry, not for revisit.</figcaption></figure>
+  </div>
+
+  <h3>Simulation (b): ground tracks and footprints</h3>
+  <p>One orbit (<span id="period2">—</span> min) of ground track for every satellite from the epoch, with the 5° footprints drawn at the epoch instant. Pick a configuration; drag to pan, wheel to zoom. The footprint of a single satellite covers the whole Eastern Mediterranean at once — sensitivity, not footprint, is the limit on what it sees in one pass.</p>
+  <div class="map-tools" id="map-tools"></div>
+  <div class="map" id="map"></div>
+  <figure style="margin-top:0.4rem"><figcaption><b>Ground tracks over one orbital period.</b> Satellites in the same plane trace parallel tracks offset by the Earth's rotation during their phase delay; satellites in different planes cross the AOI at different local times, which is what fills the gaps. The Athens AOI is marked in red.</figcaption></figure>
+
+  <h3>Simulation (c): a day of access windows</h3>
+  <p>The same three-day simulation, first day only, as a 24-hour strip. Each bar is an access window above 5° elevation over Athens. The eye picks out the structure immediately: one node produces two clumps of windows; three nodes in three planes interleave; eight clusters leave no gap longer than an hour.</p>
+  <figure class="strip"><div id="strip"></div><figcaption><b>Access windows over Athens on day 1 of the simulation (UTC).</b> Blue rows are constellations flown as independent satellites, green rows as three-satellite clusters. Note how identical satellite counts give very different revisit depending on how they are grouped.</figcaption></figure>
+
+  <h2>Geolocation: one satellite vs a cluster</h2>
+  <p>Revisit is only half the comparison. The product that customers pay most for — a position with a confidence ellipse on a single transmission — needs simultaneous measurements from several receivers. One satellite can only substitute time for receivers: it watches the emitter change position in its own frame as it flies past. The four geometries below are the complete menu; the <a href="geolocation_sim.html">TDOA/FDOA simulator</a> computes the cluster cases exactly.</p>
+
+  <div class="method-grid">
+    <figure class="diagram">
+      <svg viewBox="0 0 460 260" role="img" aria-label="Single-satellite interferometric angle of arrival">
+        <ellipse class="earth" cx="230" cy="330" rx="330" ry="110"/>
+        <text class="lbl xs" x="12" y="250">Earth surface (local tangent plane)</text>
+        <g transform="translate(230,48)">
+          <rect class="box hi" x="-22" y="-10" width="44" height="20" rx="3"/>
+          <line class="wire" x1="-60" y1="0" x2="60" y2="0"/>
+          <circle class="sat" cx="-60" cy="0" r="3.5"/><circle class="sat" cx="60" cy="0" r="3.5"/>
+          <text class="lbl s" x="0" y="-18" text-anchor="middle">interferometer baseline D = 1.2 m</text>
+        </g>
+        <line class="wire rf" x1="160" y1="232" x2="170" y2="48"/>
+        <line class="wire rf" x1="160" y1="232" x2="290" y2="48"/>
+        <path class="lop" d="M60 236 Q160 196 260 236" />
+        <path class="lop alt" d="M150 238 Q160 230 170 238"/>
+        <circle class="emit" cx="160" cy="232" r="4"/>
+        <text class="lbl s" x="300" y="150">phase difference Δφ = 2πD sinθ / λ</text>
+        <text class="lbl s" x="300" y="168">→ cone of arrival angle θ</text>
+        <text class="lbl xs" x="268" y="236">cone ∩ ground = arc of ambiguity</text>
+        <text class="lbl xs" x="20" y="226">error ≈ d·σ_θ ≈ 1–10 km per snapshot</text>
+      </svg>
+      <figcaption><b>AOA from one satellite.</b> Two or more antenna elements measure the phase difference of the incoming wavefront, giving a cone of arrival; its intersection with the ground is an arc, and a second orthogonal baseline reduces it to a point plus a mirror. Error grows with range and with the phase and attitude errors: 1 mrad of attitude knowledge is 1 km at 1,000 km, which sets a star-tracker requirement for any AOA product<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>.</figcaption>
+    </figure>
+    <figure class="diagram">
+      <svg viewBox="0 0 460 260" role="img" aria-label="Single-satellite Doppler geolocation over a pass">
+        <line class="trk" x1="20" y1="60" x2="440" y2="60"/>
+        <text class="lbl xs" x="22" y="50">ground track (satellite moving →)</text>
+        <g class="sat"><circle cx="110" cy="60" r="4"/><circle cx="230" cy="60" r="4"/><circle cx="350" cy="60" r="4"/></g>
+        <text class="lbl xs" x="104" y="80">t₁</text><text class="lbl xs" x="224" y="80">t₂</text><text class="lbl xs" x="344" y="80">t₃</text>
+        <path class="lop" d="M60 20 C120 110 120 180 60 250" /><path class="lop" d="M230 20 L230 250" /><path class="lop" d="M400 20 C340 110 340 180 400 250" />
+        <text class="lbl xs" x="64" y="140">+Δf</text><text class="lbl xs" x="236" y="140">Δf = 0 at closest approach</text><text class="lbl xs" x="372" y="140">−Δf</text>
+        <circle class="emit" cx="300" cy="190" r="4"/><text class="lbl s" x="308" y="194">emitter</text>
+        <circle class="emit" cx="300" cy="-70" r="4" transform="translate(0,0)" opacity="0"/>
+        <circle cx="300" cy="-70" r="4"/>
+        <g opacity="0.45"><circle class="emit" cx="300" cy="-70" r="4" transform="translate(0,260) scale(1,-1)"/></g>
+        <text class="lbl xs" x="236" y="236">f_r(t) = f₀(1 − v·û/c) + δf  →  fit (lat, lon, δf) over 20 s – 8 min</text>
+        <text class="lbl xs" x="190" y="30">mirror position on the other side of the track ↑</text>
+        <text class="lbl xs" x="300" y="210">≈ 40 m per Hz of frequency error × geometry factor 1–10</text>
+      </svg>
+      <figcaption><b>Doppler / frequency-of-arrival over a pass.</b> The received frequency traces an S-curve whose shape depends on the cross-track distance and whose zero crossing fixes the along-track position. The curve is left/right symmetric, so a mirror solution remains unless the antenna pattern, AOA or a second pass breaks it. Clements et al. reached 68 m with one 20 s Spire capture of a stationary S-band transmitter, with simulated worst cases of 2–24 km<sup class="ref"><a href="#ref-R3-14">[R3-14]</a></sup>; the emitter must hold its frequency to about 1e-8 during the capture<sup class="ref"><a href="#ref-R3-13">[R3-13]</a></sup>.</figcaption>
+    </figure>
+    <figure class="diagram">
+      <svg viewBox="0 0 460 260" role="img" aria-label="Three-satellite TDOA geometry">
+        <line class="trk" x1="20" y1="50" x2="440" y2="50"/>
+        <text class="lbl xs" x="22" y="40">cluster ground track → (along-track baseline L = 150 km)</text>
+        <g class="sat"><circle cx="130" cy="50" r="4.5"/><circle cx="230" cy="58" r="4.5"/><circle cx="330" cy="50" r="4.5"/></g>
+        <text class="lbl xs" x="122" y="72">S₁</text><text class="lbl xs" x="222" y="80">S₂ (±20 km cross-track)</text><text class="lbl xs" x="322" y="72">S₃</text>
+        <path class="lop" d="M170 250 C 190 180 215 120 275 100" /><text class="lbl xs" x="150" y="248">Δτ₁₂ hyperbola</text>
+        <path class="lop" d="M330 250 C 300 180 280 130 215 110" /><text class="lbl xs" x="334" y="248">Δτ₂₃</text>
+        <path class="lop alt" d="M110 160 L 400 150" /><text class="lbl xs" x="402" y="150">Δτ₁₃</text>
+        <ellipse class="ell" cx="248" cy="154" rx="9" ry="34" transform="rotate(5 248 154)"/>
+        <circle class="emit" cx="248" cy="154" r="3"/>
+        <text class="lbl xs" x="262" y="190">95 % ellipse: long axis towards the formation</text>
+        <text class="lbl xs" x="262" y="203">(cross-track for an emitter abeam)</text>
+        <text class="lbl xs" x="22" y="232">σ_τ thermal ≈ 1/(β√(BTγ)) + 20 ns clock → ×GDOP ≈ d/L</text>
+      </svg>
+      <figcaption><b>Cluster TDOA.</b> Each pair of satellites measures a time difference of arrival and defines a hyperboloid; with the Earth-surface constraint two satellites give a curve, three a point plus mirror, three with FDOA or a fourth satellite an unambiguous fix<sup class="ref"><a href="#ref-R3-2">[R3-2]</a><a href="#ref-R3-11">[R3-11]</a></sup>. The gradient of a range difference is the baseline projected across the line of sight, so for an emitter abeam of an along-track formation the along-track coordinate is well determined and the cross-track coordinate poorly — hence the deliberate ±20 km cross-track offset of the middle satellite in the baseline (and in HawkEye's formation<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup>).</figcaption>
+    </figure>
+    <figure class="diagram">
+      <svg viewBox="0 0 460 260" role="img" aria-label="FDOA iso-Doppler lines crossing TDOA hyperbola">
+        <line class="trk" x1="20" y1="50" x2="440" y2="50"/>
+        <g class="sat"><circle cx="160" cy="50" r="4.5"/><circle cx="300" cy="50" r="4.5"/></g>
+        <text class="lbl xs" x="152" y="72">S₁</text><text class="lbl xs" x="292" y="72">S₂</text>
+        <path class="lop" d="M200 250 C 215 180 225 130 262 95" />
+        <text class="lbl xs" x="170" y="248">TDOA hyperbola</text>
+        <path class="lop alt" d="M40 140 C 140 120 300 120 430 150" />
+        <path class="lop alt" d="M40 175 C 140 150 300 150 430 185" />
+        <path class="lop alt" d="M40 210 C 140 180 300 180 430 220" />
+        <text class="lbl xs" x="340" y="140">iso-FDOA lines</text>
+        <text class="lbl xs" x="340" y="238">≈ 2.5 kHz span across footprint at 1 GHz</text>
+        <text class="lbl xs" x="340" y="251">≈ 400 m per Hz of FDOA error</text>
+        <ellipse class="ell" cx="233" cy="152" rx="14" ry="7"/>
+        <circle class="emit" cx="233" cy="152" r="3"/>
+        <text class="lbl xs" x="22" y="100">two satellites: TDOA curve × FDOA curve = point</text>
+        <text class="lbl xs" x="22" y="113">σ_f ≈ 1/(T_e√(BTγ)) ≈ 0.035 Hz for 25 kHz / 100 ms / 10 dB</text>
+      </svg>
+      <figcaption><b>Hybrid TDOA/FDOA.</b> Because the satellites move at 7.6 km/s, the same pair also measures a frequency difference of arrival whose iso-lines cross the TDOA hyperbola at a steep angle. This is why even a two-satellite pair, or a coplanar cluster with poor TDOA geometry, still produces a fix for narrowband emitters<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>; it needs local oscillators agreeing to ≪ 0.1 Hz at 1 GHz (GNSS-disciplined OCXOs) and an emitter that does not hop during the snapshot.</figcaption>
+    </figure>
+  </div>
+
+  <div class="callout note"><div class="t">A note on ellipse orientation</div>
+    <p>Research note 03 §6.2 paraphrases Leiter &amp; Gurfil as "error degrades along the formation's ground-track direction and is best perpendicular to it"<sup class="ref"><a href="#ref-R3-11">[R3-11]</a></sup>. The Cramér–Rao computation in <code>orbit.js</code> gives a more specific rule. A pair's TDOA gradient is the baseline projected across the line of sight: the component of the baseline transverse to the ground line of sight counts in full, the component along it only in proportion to sin²ε. The weak axis of a TDOA fix therefore points <em>from the emitter towards the formation</em>. For an emitter abeam of an along-track formation — the closest-approach geometry of every cluster pass — that direction is cross-track, so the 95 % ellipse is elongated perpendicular to the track and shrinks only when the middle satellite carries a cross-track offset of 10–50 km, which is exactly what HawkEye's out-of-plane oscillation and Kleos' two-plane diamond provide<sup class="ref"><a href="#ref-R3-1">[R3-1]</a><a href="#ref-R3-10">[R3-10]</a></sup>. For an emitter ahead of or behind the formation along the track the weak direction is along-track and the published sentence applies. The <a href="geolocation_sim.html">simulator</a> shows both as its time slider moves the cluster past the emitter; the research note should state which geometry it refers to.</p>
+  </div>
+
+  <h3>Achievable accuracy by method</h3>
+  <p>Planning figures assembled from the research base and from the simulator defaults (530 km, 20 ns sync, 5 m ephemeris). They are what the proposal should promise, not best cases.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Method</th><th>Satellites</th><th>Emitter requirements</th><th>Typical accuracy</th><th>Time to fix</th><th>Main limits</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>Interferometric AOA</td><td class="num">1</td><td>Any signal above threshold; one snapshot</td><td>1–10 km per snapshot at 500–1,500 km range (1.2 m baseline, L-band); improves as 1/√n over a pass</td><td>Instant (per snapshot)</td><td>Phase calibration, attitude knowledge 0.02–0.1°, mirror ambiguity on a single baseline</td><td>Research 03 §3.4, §6.1; TALOS ADCS 0.05° pointing / 0.02° knowledge</td></tr>
+      <tr><td>Doppler / FOA curve fit</td><td class="num">1</td><td>Stable carrier (≤1e-8 drift), continuous or repeated for ≥20 s; not frequency-hopping</td><td>Sub-km best case (68 m demonstrated) to 5–30 km typical; mirror solution across the track</td><td>20 s to 8 min of visibility</td><td>Oscillator offset, satellite velocity error, emitter motion</td><td><sup class="ref"><a href="#ref-R3-14">[R3-14]</a><a href="#ref-R3-13">[R3-13]</a><a href="#ref-R4-10">[R4-10]</a></sup></td></tr>
+      <tr><td>Multi-pass accumulation</td><td class="num">1</td><td>Fixed emitter active across several passes (radars, SATCOM terminals, base stations)</td><td>Few hundred metres to 1–5 km after days</td><td>Hours to days</td><td>Useless for moving emitters; needs association across passes</td><td>Research 03 §6.1(c)</td></tr>
+      <tr><td>TDOA (cluster)</td><td class="num">3–4</td><td>Any signal with bandwidth; single burst suffices</td><td>0.3–3 km (95 %) for 25 kHz comms; 100–500 m for MHz-class radars; 0.2–3 km CRLB maps at 20 ns and 100 km spacing</td><td>Instant (one snapshot)</td><td>Clock sync, GDOP ≈ d/L, cross-track degeneracy of collinear formations</td><td><sup class="ref"><a href="#ref-R3-2">[R3-2]</a><a href="#ref-R3-11">[R3-11]</a><a href="#ref-R3-12">[R3-12]</a></sup></td></tr>
+      <tr><td>TDOA + FDOA (cluster or pair)</td><td class="num">2–4</td><td>Narrowband, frequency-stable signals benefit most</td><td>Hundreds of metres for narrowband comms; Kleos Cape Verde test 0.32–32 km with a 4.2 W VHF beacon (best ellipse 4.5 × 0.26 km)</td><td>Instant</td><td>LO agreement ≪ 0.1 Hz, satellite velocity to 1 cm/s, emitter drift during snapshot</td><td><sup class="ref"><a href="#ref-R3-2">[R3-2]</a><a href="#ref-R3-10">[R3-10]</a></sup></td></tr>
+      <tr><td>Track smoothing (several clusters)</td><td class="num">9+</td><td>Persistent or recurring emitter</td><td>Per-fix accuracy as above; position of fixed emitters improves as 1/√N fixes</td><td>Hours</td><td>Association, emitter identity</td><td>Research 04 §6.2</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Decision guidance</h2>
+  <h3>What to sell at each stage</h3>
+  <ul>
+    <li><b>Stage 1 — one satellite:</b> sell monitoring, not geolocation: GNSS-interference presence and intensity maps per pass, spectrum occupancy by band, radar-presence indicators, catalogue seeding for the national EW database, and demonstrations for EUSPA and the EDF. Price as AOI subscriptions with daily cadence, the model HawkEye used for its 2020 Regional Awareness Subscription<sup class="ref"><a href="#ref-R4-13">[R4-13]</a></sup>. Any geolocation claim should be stated as "to the nearest 5–20 km, improving for persistent emitters", with the Doppler and AOA products labelled experimental.</li>
+    <li><b>Stage 2 — first cluster:</b> add geolocation products with 95 % ellipses, dark-vessel correlation with AIS, GNSS jammer and spoofer positions; qualify for the EUSPA space-based GNSS-interference monitoring service<sup class="ref"><a href="#ref-R4-16">[R4-16]</a></sup> and for national MoD air-defence monitoring of the kind HawkEye sells to a European ministry for up to USD 75 M<sup class="ref"><a href="#ref-R4-22">[R4-22]</a></sup>.</li>
+    <li><b>Stage 3 — three clusters:</b> pattern-of-life and alerting; several fixes a day on the same emitter make tracks and STANAG 4676 products possible; Luno-style analytics subscriptions.</li>
+    <li><b>Stage 4 — 12–24 satellites:</b> persistence SLAs by latitude band, tactical latency tiers (ISL plus polar or regional downlink), sovereign dedicated-capacity sales.</li>
+  </ul>
+  <h3>Why the first cluster matters more than the tenth satellite</h3>
+  <p>Three arguments, all visible in the simulations above. First, the product discontinuity: the cluster unlocks the geolocation tier, which is where HawkEye's revenue sits (geolocation and knowledge products on top of detections; USD 117.7 M in 2025<sup class="ref"><a href="#ref-R4-2">[R4-2]</a></sup>), while a single satellite can only sell presence maps. Second, the marginal revisit curve is steepest at the start: the CYGNSS study found the biggest gain between one and three nodes<sup class="ref"><a href="#ref-R4-17">[R4-17]</a></sup>, and our Athens simulation shows the maximum gap falling from about <span id="gap-1">—</span> h with one node to about <span id="gap-3">—</span> h with three clusters, then to <span id="gap-8">—</span> min with eight; the tenth satellite buys minutes, the third buys hours. Third, cost: the demonstrator is budgeted at €<span id="cost-1">—</span> M and the cluster at €<span id="cost-3">—</span> M (<code>BASELINE.cost</code>), so the cluster roughly doubles the money and changes the product class, while the 12-satellite stage at €<span id="cost-12">—</span> M only changes cadence. The practical consequence for TALOS-1 is that its clock, GNSS raw-observable output, snapshot time-stamping and formation-keeping ΔV must be specified for cluster operation from the start, so that satellites two and three complete a cluster rather than start a new design.</p>
+
+  <div class="callout warn"><div class="t">What the simulations do not model</div>
+    <p>Circular orbits with J2 secular drift, no drag, footprints as pure minimum-elevation cones, no duty cycle or tasking conflicts, no downlink latency, no sensitivity limit (an emitter in the footprint is counted as seen). Useful RF geometry — an emitter within about 1,000 km ground range for acceptable geolocation — reduces the counted passes to the 2–4 "useful" passes quoted in research note 04 §6.1. The <a href="coverage_sim.html">coverage simulator</a> lets you change elevation mask, orbit and constellation; the <a href="collection_planning.html">collection planning</a> page covers tasking and data flow.</p>
+  </div>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/data/world.js"></script>
+<script src="../assets/js/geo.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  const B = BASELINE, ALT = B.orbit.altKm, INC = B.orbit.incDeg, AOI = { lat: 38.0, lon: 23.7, name: 'Athens' };
+  const t0 = new Date('2026-10-21T00:00:00Z');
+  document.getElementById('meta-baseline').textContent = 'Baseline: ' + B.satName + ' — ' + ALT + ' km / ' + INC + '°';
+
+  // ---- stage cards from BASELINE
+  const sc = document.getElementById('stage-cards');
+  B.constellation.stages.forEach(s => {
+    const c = document.createElement('div'); c.className = 'card';
+    const sats = s.id === 's4' ? '12–24' : String(s.sats);
+    c.innerHTML = `<div class="n">${sats}<small>sat${s.sats>1?'s':''}</small></div><div class="yr">${s.name.replace(/^Stage \d — /,'')} · ${s.year}</div>
+      <div class="row"><span>Planes</span><span>${s.planes}</span></div>
+      <div class="row"><span>Geolocation</span><span style="font-weight:500">${s.geoloc}</span></div>
+      <div class="row"><span>CEP class</span><span>${s.cep}</span></div>`;
+    sc.append(c);
+  });
+
+  // ---- arithmetic
+  const P = ORB.period(ORB.RE + ALT);
+  document.getElementById('period').textContent = (P / 60).toFixed(1);
+  document.getElementById('period2').textContent = (P / 60).toFixed(0);
+  document.getElementById('orbits-day').textContent = (86400 / P).toFixed(1);
+  document.getElementById('shift-deg').textContent = (P / 86164 * 360).toFixed(1);
+  document.getElementById('fp5').textContent = ORB.footprintRadiusKm(ALT, 5).toFixed(0);
+  document.getElementById('fp10').textContent = ORB.footprintRadiusKm(ALT, 10).toFixed(0);
+  document.getElementById('cost-1').textContent = B.cost.demonstrator.join('–');
+  document.getElementById('cost-3').textContent = B.cost.cluster3.join('–');
+  document.getElementById('cost-12').textContent = B.cost.constellation12.join('–');
+
+  // ---- constellation builders (cluster nodes = 3 sats in formation around each Walker slot)
+  const CK = B.constellation.cluster;
+  function clusterAt(slot, k) { return ORB.cluster({ alt: ALT, inc: INC, raan: slot.raan, ta: slot.ta, name: slot.name }, 3, CK.alongTrackKm, CK.crossTrackKm, t0); }
+  function walkerSlots(T, P_, F) { const S = T / P_, out = []; for (let p = 0; p < P_; p++) for (let s = 0; s < S; s++) out.push({ raan: 360 * p / P_, ta: 360 * s / S + 360 * F * p / T, name: `P${p+1}-${s+1}` }); return out; }
+  function singles(T, P_, F) { return walkerSlots(T, P_, F).map(s => ORB.makeOrbit({ alt: ALT, inc: INC, raan: s.raan, ta: s.ta, epoch: t0, name: s.name })); }
+  function clusters(T, P_, F) { return walkerSlots(T, P_, F).flatMap(s => clusterAt(s)); }
+  const CONFIGS = [
+    { id: 'one', label: '1 satellite (Stage 1)', nodes: 1, orbits: singles(1, 1, 0), cl: false },
+    { id: 'cl1', label: '1 cluster of 3 (Stage 2)', nodes: 1, orbits: clusters(1, 1, 0), cl: true },
+    { id: 's9', label: '9 singles, 3 planes', nodes: 9, orbits: singles(9, 3, 1), cl: false },
+    { id: 'cl3', label: '3 clusters, 3 planes (Stage 3, 9 sats)', nodes: 3, orbits: clusters(3, 3, 1), cl: true },
+    { id: 's12', label: '12 singles, 4 planes', nodes: 12, orbits: singles(12, 4, 1), cl: false },
+    { id: 'cl4', label: '4 clusters, 4 planes (12 sats)', nodes: 4, orbits: clusters(4, 4, 1), cl: true },
+    { id: 's24', label: '24 singles, 4 planes', nodes: 24, orbits: singles(24, 4, 1), cl: false },
+    { id: 'cl8', label: '8 clusters, 4 planes (Stage 4, 24 sats)', nodes: 8, orbits: clusters(8, 4, 1), cl: true },
+  ];
+  // merged access windows
+  function windows(orbits, lat, lon, durS, minEl) {
+    const all = []; for (const o of orbits) for (const p of ORB.passes(o, lat, lon, 0, t0, durS, minEl, 20)) all.push({ s: p.aos.getTime(), e: p.los.getTime() + 20000, sat: o.name, maxEl: p.maxEl });
+    all.sort((a, b) => a.s - b.s);
+    const w = []; for (const p of all) { const L = w[w.length - 1]; if (L && p.s <= L.e + 1000) { L.e = Math.max(L.e, p.e); L.n++; } else w.push({ s: p.s, e: p.e, n: 1 }); }
+    return { passes: all, windows: w };
+  }
+  const DAYS = 3, DUR = 86400 * DAYS;
+  const results = [];
+  function runStats() {
+    const tb = document.querySelector('#rev-table tbody');
+    CONFIGS.forEach(c => {
+      const r = windows(c.orbits, AOI.lat, AOI.lon, DUR, 5);
+      const gaps = []; for (let i = 1; i < r.windows.length; i++) gaps.push((r.windows[i].s - r.windows[i - 1].e) / 60000);
+      const tot = r.windows.reduce((a, w) => a + (w.e - w.s), 0) / 60000;
+      const st = { passesDay: r.passes.length / DAYS, winDay: r.windows.length / DAYS, meanGap: gaps.length ? d3.mean(gaps) : DUR / 60, maxGap: gaps.length ? d3.max(gaps) : DUR / 60, minDay: tot / DAYS, meanWin: r.windows.length ? tot / r.windows.length : 0, windows: r.windows };
+      results.push({ c, st });
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${c.label}</td><td class="num">${c.nodes}</td><td class="num">${st.passesDay.toFixed(1)}</td><td class="num">${st.winDay.toFixed(1)}</td><td class="num">${st.meanGap.toFixed(0)}</td><td class="num">${st.maxGap.toFixed(0)}</td><td class="num">${st.minDay.toFixed(0)}</td><td class="num">${st.meanWin.toFixed(1)}</td>`;
+      tb.append(tr);
+    });
+    document.getElementById('sim-status').textContent = `Computed ${DAYS} days × ${CONFIGS.reduce((a, c) => a + c.orbits.length, 0)} satellite-orbits at 20 s steps; epoch ${t0.toISOString().slice(0, 10)}; min elevation 5°.`;
+    const g1 = results.find(r => r.c.id === 'one').st.maxGap, g3 = results.find(r => r.c.id === 'cl3').st.maxGap, g8 = results.find(r => r.c.id === 'cl8').st.maxGap;
+    document.getElementById('gap-1').textContent = (g1 / 60).toFixed(0);
+    document.getElementById('gap-3').textContent = (g3 / 60).toFixed(1);
+    document.getElementById('gap-8').textContent = g8.toFixed(0);
+    const c1 = U.css('--s1'), c3 = U.css('--s3');
+    Charts.range(document.getElementById('chart-gap'), { title: 'Gap between access windows over Athens: mean → max', unit: 'min', xLabel: 'minutes (log)', xLog: true, height: 300,
+      data: results.map(r => ({ label: r.c.label, lo: Math.max(1, r.st.meanGap), hi: Math.max(1.5, r.st.maxGap), color: r.c.cl ? c3 : c1 })) });
+    Charts.bar(document.getElementById('chart-min'), { title: 'Access minutes per day over Athens', unit: 'min/day', horizontal: true, height: 300,
+      data: results.map(r => ({ label: r.c.label, value: r.st.minDay, color: r.c.cl ? c3 : c1 })) });
+    drawStrip();
+  }
+
+  // ---- (c) strip
+  function drawStrip() {
+    const rows = results, W = 1000, rowH = 30, top = 24, H = top + rows.length * rowH + 10;
+    const x = h => 150 + (W - 160) * h / 24;
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Access windows over Athens over 24 hours">`;
+    for (let h = 0; h <= 24; h += 3) s += `<line class="grid-line" x1="${x(h)}" y1="${top - 6}" x2="${x(h)}" y2="${H - 8}"/><text class="tick" x="${x(h)}" y="${top - 10}" text-anchor="middle">${String(h).padStart(2, '0')}:00</text>`;
+    rows.forEach((r, i) => {
+      const y = top + i * rowH;
+      s += `<text class="rowlbl" x="144" y="${y + rowH / 2 + 4}" text-anchor="end">${r.c.label.replace(/ \(.*\)/, '')}</text>`;
+      s += `<line class="axis-line" x1="${x(0)}" y1="${y + rowH / 2}" x2="${x(24)}" y2="${y + rowH / 2}"/>`;
+      r.st.windows.filter(w => w.s < t0.getTime() + 86400000).forEach(w => { const a = (w.s - t0.getTime()) / 3600000, b = Math.min(24, (w.e - t0.getTime()) / 3600000); s += `<rect class="win${r.c.cl ? ' cl' : ''}" x="${x(a)}" y="${y + 6}" width="${Math.max(1.5, x(b) - x(a))}" height="${rowH - 12}" rx="1.5"><title>${new Date(w.s).toISOString().slice(11, 16)}–${new Date(w.e).toISOString().slice(11, 16)} UTC, ${w.n} satellite pass${w.n > 1 ? 'es' : ''}</title></rect>`; });
+    });
+    s += '</svg>';
+    document.getElementById('strip').innerHTML = s;
+  }
+
+  // ---- (b) map
+  const map = new GeoMap(document.getElementById('map'), { projection: 'equirect', center: [25, 35] });
+  const tools = document.getElementById('map-tools');
+  const trackCols = [U.css('--s1'), U.css('--s2'), U.css('--s3'), U.css('--s4'), U.css('--s5'), U.css('--s6'), U.css('--s7'), U.css('--s8')];
+  function showConfig(id) {
+    [...tools.querySelectorAll('button')].forEach(b => b.setAttribute('aria-pressed', b.dataset.id === id ? 'true' : 'false'));
+    const c = CONFIGS.find(x => x.id === id); const layers = [];
+    const fp = ORB.footprintRadiusKm(ALT, 5);
+    c.orbits.forEach((o, i) => {
+      const plane = Math.round((o.raan0 * ORB.R2D) % 360 / 90) % 8;
+      const col = trackCols[c.cl ? Math.floor(i / 3) % 8 : i % 8];
+      layers.push({ type: 'line', coords: ORB.groundTrack(o, t0, P, 30).map(p => [p[0], p[1]]), stroke: col, width: c.orbits.length > 12 ? 1 : 1.5, opacity: 0.9 });
+      const s = ORB.stateEcef(o, t0);
+      layers.push({ type: 'circle', center: [s.lon, s.lat], radiusKm: fp, fill: 'rgba(42,120,214,0.10)', stroke: col, width: 0.8 });
+      layers.push({ type: 'point', coords: [s.lon, s.lat], r: 3, fill: col, label: c.orbits.length <= 12 ? o.name : '' });
+    });
+    layers.push({ type: 'point', coords: [AOI.lon, AOI.lat], r: 5, fill: U.css('--band-ku'), stroke: '#fff', label: AOI.name });
+    map.layers = layers; map.draw();
+  }
+  CONFIGS.forEach(c => { const b = document.createElement('button'); b.textContent = c.label.replace(/ \(.*\)/, ''); b.dataset.id = c.id; b.addEventListener('click', () => showConfig(c.id)); tools.append(b); });
+  const reset = document.createElement('button'); reset.textContent = 'Reset view'; reset.addEventListener('click', () => map.resetView()); tools.append(reset);
+  showConfig('one');
+  document.addEventListener('themechange', () => { showConfig(tools.querySelector('[aria-pressed="true"]').dataset.id); });
+
+  setTimeout(runStats, 30);
+  renderRefs(['R3-1', 'R3-2', 'R3-10', 'R3-11', 'R3-12', 'R3-13', 'R3-14', 'R4-2', 'R4-8', 'R4-10', 'R4-13', 'R4-16', 'R4-17', 'R4-22', 'R4-40']);
+})();
+</script>
+</body>
+</html>

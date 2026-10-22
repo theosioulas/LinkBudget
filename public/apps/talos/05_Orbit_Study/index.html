@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How many satellites? — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<style>
+  .finder { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 1.2rem 1.4rem; font-family: var(--font-ui); }
+  .finder .q { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 1rem; }
+  .finder .q label { display: block; font-weight: 600; color: var(--ink); margin-bottom: 0.35rem; }
+  .finder .q select { width: 100%; }
+  .finder .hint { font-size: 0.78rem; color: var(--ink-3); margin-top: 0.3rem; }
+  .answer { margin-top: 1.2rem; border-top: 1px solid var(--line); padding-top: 1rem; }
+  .answer .big { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; }
+  .answer .big small { font-size: 1rem; font-weight: 500; color: var(--ink-3); }
+  .answer .why { font-family: var(--font-body); font-size: 1rem; max-width: 72ch; }
+  .alts { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 0.8rem; margin-top: 0.8rem; }
+  .alts .card { padding: 0.8rem 1rem; }
+  .alts .card h4 { margin: 0 0 0.3rem; font-size: 0.95rem; }
+  .alts .card .m { font-size: 0.8rem; color: var(--ink-2); }
+  .ladder { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0.9rem; }
+  .ladder .card { position: relative; }
+  .ladder .n { font-family: var(--font-ui); font-size: 2rem; font-weight: 700; letter-spacing: -0.03em; color: var(--accent); line-height: 1; }
+  .ladder .n small { font-size: 0.8rem; color: var(--ink-3); font-weight: 500; margin-left: 0.3rem; }
+  .ladder h3 { font-size: 1rem; margin: 0.4rem 0 0.4rem; }
+  .ladder ul { font-size: 0.88rem; padding-left: 1.1rem; margin: 0.3rem 0; }
+  .ladder .lim { color: var(--ink-3); font-size: 0.85rem; }
+  .ladder .stat { font-family: var(--font-ui); font-size: 0.8rem; background: var(--surface-2); border-radius: var(--radius); padding: 0.4rem 0.6rem; margin-top: 0.5rem; }
+  .rules li { margin: 0.5rem 0; }
+  @media (max-width: 1000px) { .finder .q, .alts, .ladder { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 600px) { .finder .q, .alts, .ladder { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>05 Orbit study</b> · Answer finder</div>
+    <h1>How many satellites do I need?</h1>
+    <p class="lead">Three choices — where you care about, what you need from the data, and how long you can wait between looks — give one recommended constellation and two alternatives, with the numbers behind them. Everything on this page is pre-computed with the study's orbit engine for twelve constellation templates; the <a href="templates.html">templates page</a> has the full catalogue and the <a href="orbit_selection.html">orbit-selection page</a> explains the choices.</p>
+    <div class="meta"><span>Engine: circular orbits + J2, 530 km, 3-day runs, 20 s steps</span><span>Revisit = gap between merged access windows of all nodes</span><span id="gen"></span></div>
+  </header>
+
+  <h2>Answer finder</h2>
+  <div class="finder" id="finder">
+    <div class="q">
+      <div><label for="q-region">Where do you need to look?</label><select id="q-region"></select><div class="hint">Pass density depends on latitude far more than on longitude; the regions are latitude bands with a representative point.</div></div>
+      <div><label for="q-need">What do you need from each pass?</label><select id="q-need">
+        <option value="monitor">Detect and characterise emitters (presence, spectrum, radar fingerprints)</option>
+        <option value="coarse">Coarse positions of persistent emitters (km-class over several passes)</option>
+        <option value="instant" selected>Instant geolocation of single bursts (ellipses on every pass)</option>
+      </select><div class="hint">Instant fixes need a 3-satellite TDOA/FDOA cluster; the first two can be done by single satellites.</div></div>
+      <div><label for="q-gap">How long can you wait between looks?</label><select id="q-gap">
+        <option value="1440">Once a day is fine (≤ 24 h)</option>
+        <option value="720">Twice a day (≤ 12 h gaps)</option>
+        <option value="360" selected>A few times a day (≤ 6 h gaps)</option>
+        <option value="180">Every ~3 hours</option>
+        <option value="90">Every ~1.5 hours</option>
+        <option value="60">Every hour</option>
+        <option value="30">Every 30 minutes</option>
+      </select><div class="hint">Judged on the <b>typical (median) gap</b>, with the worst gap shown; elevation mask selectable below.</div></div>
+    </div>
+    <div style="margin-top:0.8rem;display:flex;gap:1rem;flex-wrap:wrap;align-items:center;font-size:0.85rem">
+      <span class="seg" role="group" aria-label="Elevation mask"><button data-el="el5" aria-pressed="true">5° mask (survey)</button><button data-el="el15" aria-pressed="false">15° mask (useful geometry)</button></span>
+      <span class="muted">5° = everything the antennas can see; 15° = passes with good geolocation geometry and lower path loss.</span>
+    </div>
+    <div class="answer" id="answer"></div>
+  </div>
+
+  <h2>What one, two, three and four satellites give you</h2>
+  <p>The step that changes <em>what</em> you can sell is the first cluster; every later step changes <em>how often</em>. The ladder below uses the pre-computed figures for the Athens point at 38°N with a 5° mask (the full table is on the templates page).</p>
+  <div class="ladder" id="ladder"></div>
+
+  <h2>What more satellites buy — and what they don't</h2>
+  <p>Typical revisit gap versus number of nodes (a node is a single satellite or a cluster flying as one unit) for Walker-style constellations at 53° and sun-synchronous inclination. The curve flattens quickly: the first three or four nodes remove most of the waiting; after about twelve, each additional node buys minutes, not hours. Irregularities come from the number of planes and the phasing chosen for each count.</p>
+  <div class="grid c2">
+    <div><div id="c-nodes"></div></div>
+    <div><div id="c-nodes-sso"></div></div>
+  </div>
+  <div class="callout note"><div class="t">Reading the curve for a cluster constellation</div><p>If you fly clusters, multiply the node count by three to get satellites: eight nodes of instantaneous geolocation are 24 satellites, while eight single satellites give the same revisit for detection-only products. That factor of three is the whole commercial trade between the Unseenlabs model (many singles, Doppler geolocation) and the HawkEye model (clusters, TDOA/FDOA).</p></div>
+
+  <h2>Rules of thumb</h2>
+  <ol class="rules">
+    <li><b>Latitude sets the pass count; inclination sets where the peak is.</b> A satellite spends most of its time near its inclination latitude, so a 53° orbit gives 38°N almost twice the passes of a sun-synchronous orbit and nothing above 60°N. For Greece, the Black Sea and the Middle East, 45–55° is the right family; SSO is for global catalogues and polar downlink.</li>
+    <li><b>Planes buy revisit; satellites in the same plane buy repetition.</b> Two satellites 180° apart in one plane halve the mean gap but leave the same 13 h daily hole, because both cross the region at the same local times. Spreading nodes over planes fills the day.</li>
+    <li><b>A cluster is one node.</b> Three satellites flying 150 km apart give geolocation on every pass but no more passes. Decide early whether the product is "where is it now" (clusters) or "what is active, how often" (singles).</li>
+    <li><b>The 15° mask is the honest one for geolocation.</b> Low-elevation passes stretch footprints to 2,000 km and path loss by 12 dB; they count for detection but produce poor ellipses. Plan geolocation revisit on the 15° numbers.</li>
+    <li><b>Beyond ~12 nodes you are buying minutes.</b> From 165 min (one node) to 27 min (six nodes) to 16 min (twelve) at 38°N: the first six nodes deliver 85% of the achievable improvement. Spend the rest on a second inclination, inter-satellite links or ground stations before buying node thirteen.</li>
+    <li><b>Downlink gaps can exceed revisit gaps.</b> At 53° a single Greek ground station is unseen for 13–14 h a day. Revisit over the target is useless if the data wait on board; pair mid-inclination constellations with Mediterranean and Gulf stations or an ISL.</li>
+  </ol>
+
+  <h2>Sources and method</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+  <p class="small muted">Method: each template's satellites are propagated for three days from the common epoch; access windows above the elevation mask at the representative point are merged across all nodes; gaps are the intervals between windows. Figures are design-level (no drag, circular orbits, footprint = elevation cone) and differ from a mission-analysis tool by a few percent, not by factors. HawkEye 360's "< 45 min global" claim with 30+ satellites and the CYGNSS 1→7 satellite study are the external anchors.</p>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/data/orbit_study.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function () {
+  const S = ORBIT_STUDY, T = S.templates;
+  document.getElementById('gen').textContent = 'Computed ' + S.generated.slice(0, 10);
+  const REGIONS = [
+    ['Hormuz 26°N', 'Gulf, Red Sea, Libya coast (20–30°N)'], ['Nicosia 35°N', 'Eastern Mediterranean, Levant, Cyprus (30–37°N)'], ['Athens 38°N', 'Greece, Aegean, Anatolia (36–42°N)'],
+    ['Odesa 46°N', 'Black Sea, Balkans, Caucasus (42–48°N)'], ['Kyiv 50°N', 'Ukraine, Central Europe (48–55°N)'], ['Baltic 58°N', 'Baltic, Scandinavia (55–62°N)'], ['Equator (Gulf of Guinea)', 'Equatorial (±15°)'], ['Svalbard 78°N', 'Arctic (> 70°N)'],
+  ];
+  const sel = document.getElementById('q-region'); REGIONS.forEach(([k, n]) => { const o = document.createElement('option'); o.value = k; o.textContent = n; if (k === 'Athens 38°N') o.selected = true; sel.append(o); });
+  let mask = 'el5';
+  document.querySelectorAll('.seg button[data-el]').forEach(b => b.addEventListener('click', () => { mask = b.dataset.el; document.querySelectorAll('.seg button[data-el]').forEach(x => x.setAttribute('aria-pressed', x === b)); answer(); }));
+  const fmtGap = m => m == null ? '—' : m >= 120 ? (m / 60).toFixed(1) + ' h' : m + ' min';
+  const cost = t => { const u = BASELINE.cost.unit.recurringSat; const nre = BASELINE.cost.unit.payloadNre; const first = BASELINE.cost.demonstrator; if (t.sats === 1) return `€${first[0]}–${first[1]} M (demonstrator incl. NRE)`; const lo = first[0] + (t.sats - 1) * u[0], hi = first[1] + (t.sats - 1) * u[1]; return `≈ €${Math.round(lo)}–${Math.round(hi)} M cumulative (est.)`; };
+  function answer() {
+    const region = sel.value, need = document.getElementById('q-need').value, target = +document.getElementById('q-gap').value;
+    const ok = t => { const p = t.perf[region][mask]; if (!p.covered) return false; if (need === 'instant' && t.geoloc !== 'cluster') return false; return p.medianGapMin != null && p.medianGapMin <= target; };
+    const ranked = T.filter(ok).sort((a, b) => a.sats - b.sats || a.perf[region][mask].medianGapMin - b.perf[region][mask].medianGapMin);
+    const el = document.getElementById('answer');
+    if (!ranked.length) {
+      const any = T.filter(t => t.perf[region][mask].covered && (need !== 'instant' || t.geoloc === 'cluster')).sort((a, b) => a.perf[region][mask].medianGapMin - b.perf[region][mask].medianGapMin)[0];
+      el.innerHTML = `<div class="big">No template in the catalogue meets that</div><p class="why">${any ? `The best available is <b>${any.name}</b> (${any.sats} satellites) with a typical gap of ${fmtGap(any.perf[region][mask].medianGapMin)} and worst ${fmtGap(any.perf[region][mask].maxGapMin)}. Shorter gaps need more planes or a second inclination — see the curve below.` : 'This latitude is not covered by a 53° orbit at all: choose a sun-synchronous or higher-inclination template.'}</p>`;
+      return;
+    }
+    const best = ranked[0], p = best.perf[region][mask];
+    const alts = ranked.slice(1, 3);
+    const cheaper = T.filter(t => t.sats < best.sats && t.perf[region][mask].covered && (need !== 'instant' || t.geoloc === 'cluster')).sort((a, b) => b.sats - a.sats)[0];
+    el.innerHTML = `
+      <div class="big">${best.sats} satellite${best.sats > 1 ? 's' : ''} <small>— ${best.name} (${best.id})</small></div>
+      <p class="why">${best.planes} plane${best.planes > 1 ? 's' : ''}, ${best.nodes} revisit node${best.nodes > 1 ? 's' : ''}${best.clusterSize > 1 ? ` of ${best.clusterSize} satellites` : ''}, ${typeof best.inc === 'number' ? best.inc.toFixed(1) + '°' : best.inc} inclination at ${best.alt} km. Over <b>${region}</b> with a ${mask === 'el5' ? '5°' : '15°'} mask: <b>${p.windowsPerDay} looks per day</b>, typical gap <b>${fmtGap(p.medianGapMin)}</b>, mean ${fmtGap(p.meanGapMin)}, worst <b>${fmtGap(p.maxGapMin)}</b>, ${p.accessMinPerDay} minutes of access per day. ${need === 'instant' ? 'Each look yields instantaneous TDOA/FDOA fixes with confidence ellipses.' : need === 'coarse' ? 'Positions of persistent emitters converge to km-class after several looks; single bursts get Doppler/AOA fixes of 5–20 km.' : 'Each look yields detections, spectrum occupancy and radar fingerprints; geolocation is coarse.'} ${cost(best)}.</p>
+      <p class="why"><b>Capabilities:</b> ${best.capabilities}</p>
+      <div class="alts">
+        ${alts.map(t => { const q = t.perf[region][mask]; return `<div class="card"><h4>Also meets it: ${t.name} (${t.id})</h4><div class="m">${t.sats} sats · ${t.planes} plane${t.planes > 1 ? 's' : ''} · typical ${fmtGap(q.medianGapMin)}, worst ${fmtGap(q.maxGapMin)} · ${t.tag}</div></div>`; }).join('')}
+        ${cheaper ? (() => { const q = cheaper.perf[region][mask]; return `<div class="card"><h4>If you accept longer waits: ${cheaper.name} (${cheaper.id})</h4><div class="m">${cheaper.sats} sats · typical ${fmtGap(q.medianGapMin)}, worst ${fmtGap(q.maxGapMin)} · ${cheaper.tag}</div></div>`; })() : ''}
+      </div>
+      <p class="small muted" style="margin-top:0.8rem">Full catalogue with benefits, drawbacks and launch options: <a href="templates.html#${best.id}">templates → ${best.id}</a>. Why this inclination and altitude: <a href="orbit_selection.html">choosing the orbit</a>.</p>`;
+  }
+  ['q-region', 'q-need', 'q-gap'].forEach(id => document.getElementById(id).addEventListener('change', answer)); answer();
+
+  // ladder 1–4 satellites
+  const g = id => T.find(t => t.id === id).perf['Athens 38°N'].el5;
+  const L = [
+    { n: 1, t: 'Monitoring instrument', get: g('T2'), can: ['Detect and fingerprint radars, jammers, data links, tactical nets', 'Spectrum occupancy and GNSS-jammer presence maps per pass', 'Seed the EW database'], lim: 'Geolocation 5–20 km per pass (Doppler/AOA), 1–5 km for fixed emitters after days; one group of passes then a 10–14 h hole', ref: 'T1 / T2' },
+    { n: 2, t: 'Twice the sampling', get: g('T3'), can: ['Same products twice per orbit pair', 'Two independent Doppler/AOA fixes ~48 min apart → fixed emitters to km-class within a day', 'Redundancy'], lim: 'Still no instantaneous fixes; same-plane pair keeps the same daily hole (worst gap unchanged)', ref: 'T3' },
+    { n: 3, t: 'Geolocation product', get: g('T4'), can: ['Instant TDOA/FDOA fixes with ellipses on every pass', 'Dark-vessel correlation, jammer/spoofer positions, air-defence order of battle', 'The product customers pay for'], lim: 'Revisit identical to one satellite — the cluster is one node; formation keeping needed', ref: 'T4' },
+    { n: 4, t: 'Robust cluster, or a second node', get: g('T5'), can: ['Diamond: ambiguity-free fixes, better geometry, one spare', 'Alternative 3+1: cluster plus a single scout doubles detection revisit'], lim: 'Still one geolocating node; two planes need cross-track control', ref: 'T5' },
+  ];
+  document.getElementById('ladder').innerHTML = L.map(x => `<div class="card"><div class="n">${x.n}<small>satellite${x.n > 1 ? 's' : ''}</small></div><h3>${x.t}</h3><ul>${x.can.map(c => `<li>${c}</li>`).join('')}</ul><div class="lim"><b>Limit:</b> ${x.lim}</div><div class="stat">Athens, 5° mask: ${x.get.windowsPerDay} looks/day · typical gap ${fmtGap(x.get.medianGapMin)} · worst ${fmtGap(x.get.maxGapMin)} · <a href="templates.html#${x.ref.split(' ')[0]}">${x.ref}</a></div></div>`).join('');
+
+  // curves
+  function curve(el, key, title) {
+    const sites = ['Hormuz 26°N', 'Athens 38°N', 'Odesa 46°N', 'Kyiv 50°N'];
+    Charts.line(document.getElementById(el), { title, xLabel: 'revisit nodes (singles or clusters)', yLabel: 'typical gap, minutes (log)', yLog: true, markers: true, labels: false,
+      series: sites.map(s => ({ name: s, points: S.curves[`${key}|${s}`].map(c => [c.N, Math.max(2, c.el5.medianGapMin ?? c.el5.meanGapMin ?? 2)]) })),
+      hlines: [{ y: 60, label: '1 h' }, { y: 360, label: '6 h' }], xDomain: [1, 30] });
+  }
+  curve('c-nodes', 'i53', 'Mid-inclination 53° — typical gap vs nodes (5° mask)');
+  curve('c-nodes-sso', 'sso', 'Sun-synchronous — typical gap vs nodes (5° mask)');
+
+  function renderRefs(ids) { const ol = document.getElementById('refs'); ids.forEach(id => { const r = REFERENCES.find(x => x.id === id); if (!r) return; const li = document.createElement('li'); li.id = 'ref-' + id; li.innerHTML = `<b>[${id}]</b> ${r.title} — ${r.urls.map(u => `<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//, '').slice(0, 70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  renderRefs(['R4-1', 'R4-17', 'R4-8', 'R3-2', 'R1-6', 'R1-22']);
+})();
+</script>
+</body>
+</html>
