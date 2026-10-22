@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Products &amp; pricing — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .small { font-family: var(--font-ui); font-size: 0.82rem; color: var(--ink-2); }
+  .readout .v.txt { font-size: 0.95rem; }
+  .cmp td:first-child { font-weight: 600; white-space: nowrap; }
+  .cmp td.us { background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface)); }
+  .talk li { margin-bottom: 0.4rem; }
+  .noclaim li { margin-bottom: 0.35rem; }
+  .ladder-note { font-family: var(--font-ui); font-size: 0.8rem; color: var(--ink-3); }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>03 Scenarios &amp; services</b> · Products, services &amp; pricing</div>
+    <h1>Products, services &amp; pricing</h1>
+    <p class="lead">What TALOS sells, at which stage, in which contract form and at what price posture. The product ladder goes from detections to analytics with tasking and sovereign capacity alongside; the pricing patterns and anchors come from the contracts that exist in the market today; a revenue-scenario calculator lets you test subscription counts and anchor contracts against the opex of the three cost scenarios; and the go-to-market sequence, the talking points and the list of what we will not claim are written for the people who will sell this.</p>
+    <div class="meta"><span>Data: PRODUCTS, KPIS, COST_SCENARIOS (assets/data)</span><span>Sources: research notes 01, 04, 05</span><span>All prices est. unless cited</span></div>
+  </header>
+
+  <h2>Product ladder</h2>
+  <p>The ladder mirrors the L1–L4 levels of the <a href="collection_planning.html">data pipeline</a>: each step adds processing, fusion and analyst work, each step has a higher margin, and each step becomes credible at a later constellation stage. Two offers sit beside the ladder rather than on it: <em>IQ dedicated tasking</em>, which sells minutes and raw snapshots to customers who have their own exploitation, and <em>sovereign capacity</em>, which sells a committed share of a cluster with in-country processing — the two forms HawkEye 360 describes as IQ tasking and dedicated capacity, with Clusters 15/16 the first built around a committed-capacity customer <sup class="ref"><a href="#ref-R4-2">[R4-2]</a></sup><sup class="ref"><a href="#ref-R1-5">[R1-5]</a></sup>.</p>
+  <figure class="diagram">
+    <svg id="ladder" viewBox="0 0 1000 420" role="img" aria-label="Product ladder from L1 detections to L4 analytics with tasking and sovereign capacity alongside"></svg>
+    <figcaption>The product ladder. Each step lists what is delivered, the format and the first stage at which it is sold; the price posture is the planning assumption from PRODUCTS (est.). Tasking and sovereign capacity are sold as minutes and as a share of the cluster rather than as processed products.</figcaption>
+  </figure>
+  <div class="table-wrap"><table class="compact" id="prod-table">
+    <thead><tr><th>Tier</th><th>Product</th><th>What the customer receives</th><th>Format</th><th>Price posture</th><th>From stage</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+
+  <h2>Pricing models and market anchors</h2>
+  <p>Nobody in this market publishes list prices; the anchors below are contract values that are public, and the planning assumption drawn from them is that a national-MoD regional subscription with air-defence and GNSS-interference layers runs in the low-to-mid tens of millions per multi-year term (research 04 §2.1).</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Model</th><th>Who uses it</th><th>Unit of sale</th><th>Public anchor</th><th>TALOS use</th></tr></thead>
+    <tbody>
+      <tr><td><b>AOI subscription (DaaS)</b></td><td>HawkEye RAS, Kleos Guardian LOCATE, Unseenlabs</td><td>Per month/year per AOI, tiered by area and revisit</td><td>Frontex ≈ EUR 1.5 M (2019) for maritime situational awareness <sup class="ref"><a href="#ref-R4-30">[R4-30]</a></sup>; HawkEye RAS daily multi-million-km² AOIs <sup class="ref"><a href="#ref-R4-13">[R4-13]</a></sup></td><td>Core commercial line from Stage 1 (monitoring) and Stage 2 (geolocation); shareable collections</td></tr>
+      <tr><td><b>Tasked collection</b></td><td>HawkEye IQ tasking, Spire</td><td>Per collection or per block of tasking minutes; raw IQ + toolkit</td><td>NIWC Pacific monitoring task USD 5.8 M <sup class="ref"><a href="#ref-R4-30">[R4-30]</a></sup>; AFRL cluster USD 14 M (Spire) <sup class="ref"><a href="#ref-R4-9">[R4-9]</a></sup></td><td>Government tier; exclusivity premium; export-licence check per delivery</td></tr>
+      <tr><td><b>Analytics subscription</b></td><td>HawkEye Mission Space knowledge products, Windward</td><td>Per seat / per AOI</td><td>NGA Luno A/B analytics IDIQs, USD 490 M combined ceiling, orders USD 3.5–24.4 M <sup class="ref"><a href="#ref-R4-15">[R4-15]</a></sup></td><td>Stage 3 pattern-of-life and alerting; highest margin; depends on AIS/imagery fusion</td></tr>
+      <tr><td><b>Dedicated / sovereign capacity (MaaS)</b></td><td>Kleos MaaS, HawkEye sovereign model, Unseenlabs</td><td>% of cluster capacity × taskability × exclusivity; in-country ground station; operator keeps ownership</td><td>European MoD subscription up to USD 75 M <sup class="ref"><a href="#ref-R4-22">[R4-22]</a></sup>; USD 100 M+ five-year strategic partner with dedicated clusters <sup class="ref"><a href="#ref-R1-16">[R1-16]</a></sup></td><td>The differentiator: a sovereign Greek/EU cluster for the Hellenic MoD and one allied customer</td></tr>
+      <tr><td><b>Government framework / IDIQ</b></td><td>NRO SCE → CRFCA; NGA Luno</td><td>Task orders under a ceiling (or no ceiling)</td><td>NRO CRFCA operational RF augmentation "without a contract-value cap" (Aug 2026) <sup class="ref"><a href="#ref-R4-4">[R4-4]</a></sup></td><td>NATO APSS / NCIA framework and EU equivalents as they emerge</td></tr>
+      <tr><td><b>FMS / government-to-government bundle</b></td><td>HawkEye (India)</td><td>Data + software + training + support</td><td>India FMS approval USD 131 M incl. SeaVision (May 2025) <sup class="ref"><a href="#ref-R4-14">[R4-14]</a></sup></td><td>Model for a Greek G2G offer to Cyprus and Gulf customers once Stage 2 flies</td></tr>
+    </tbody></table></div>
+
+  <div class="callout note"><div class="t">Kleos's price structure — the clearest public reference</div>
+  <p>Kleos's February 2023 brochure is the only public statement of how a space-RF service is structured and priced: Guardian LOCATE as data-as-a-service (frequency, time, position, confidence ellipse per detection over an encrypted REST API) on a <em>monthly or annual subscription priced by AOI</em> with daily revisit; and Mission-as-a-Service on a four-satellite cluster offering up to 9 min per orbit (~70 min/day) of collection per satellite, with <em>price a function of the percentage of capacity, taskability and exclusivity</em>, options for direct-to-user downlink and on-premises processing, and unrestricted data rights for exclusive tasking <sup class="ref"><a href="#ref-R4-8">[R4-8]</a></sup>. Kleos's bankruptcy five months later is the other half of the reference: the structure was right, the anchor customer and the analytics layer were missing <sup class="ref"><a href="#ref-R1-31">[R1-31]</a></sup>. TALOS keeps the structure and reverses the order: anchor first.</p></div>
+
+  <h2>KPIs and service levels</h2>
+  <p>The KPIs customers ask for, what the market quotes, and what TALOS commits to by stage. Every accuracy commitment is conditional on signal bandwidth, duration, SNR and geometry, and the tasking interface shows the predicted CEP before a task is accepted — the honest answer to EUSPA's question about single- vs multi-satellite accuracy <sup class="ref"><a href="#ref-R4-16">[R4-16]</a></sup>.</p>
+  <div class="table-wrap"><table id="kpi-table">
+    <thead><tr><th>KPI / SLA</th><th>What the market quotes</th><th>TALOS commitment</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+
+  <h2>Revenue scenario calculator</h2>
+  <p>The calculator is a planning tool, not a forecast. It builds a revenue ramp from three streams — AOI subscriptions, government anchor contracts and sovereign capacity deals — over 2030–2038, and compares it with the operating cost of the stage in force each year (COST_SCENARIOS: demonstrator 2030–31, cluster 2032–33, constellation from 2034) and with cumulative capital spend (mid-range of the capex ranges, spread over the build years). The defaults are deliberately modest: a handful of subscriptions at the low end of the L2 price band, one anchor contract of the Frontex-to-NIWC size, one sovereign deal from the cluster stage. Everything on this panel is an estimate.</p>
+  <div class="panel"><h3>Revenue vs opex, 2030–2038 <span class="tag">est.</span></h3>
+    <div class="controls grid c3">
+      <div class="ctl"><label>AOI subscriptions at full ramp <output for="rv-n">12</output></label><input type="range" id="rv-n" min="0" max="60" step="1" value="12"></div>
+      <div class="ctl"><label>Average subscription <output for="rv-p">300</output> k€/yr</label><input type="range" id="rv-p" min="50" max="1500" step="50" value="300"></div>
+      <div class="ctl"><label>Years to full commercial ramp <output for="rv-ramp">4</output></label><input type="range" id="rv-ramp" min="1" max="8" step="1" value="4"></div>
+      <div class="ctl"><label>Government anchor contracts <output for="rv-g">1</output></label><input type="range" id="rv-g" min="0" max="4" step="1" value="1"></div>
+      <div class="ctl"><label>Anchor value <output for="rv-gv">4</output> M€/yr each</label><input type="range" id="rv-gv" min="1" max="20" step="0.5" value="4"></div>
+      <div class="ctl"><label>Sovereign capacity deals (from 2032) <output for="rv-s">1</output></label><input type="range" id="rv-s" min="0" max="3" step="1" value="1"></div>
+      <div class="ctl"><label>Sovereign deal value <output for="rv-sv">8</output> M€/yr each</label><input type="range" id="rv-sv" min="2" max="25" step="1" value="8"></div>
+      <div class="ctl"><label>Analytics uplift on subscriptions from 2034 <output for="rv-a">30</output> %</label><input type="range" id="rv-a" min="0" max="100" step="10" value="30"></div>
+    </div>
+    <div id="rv-chart"></div>
+    <div id="rv-chart2"></div>
+    <div class="readout">
+      <div><div class="k">Revenue 2032 (cluster IOC)</div><div class="v" id="rv-r1">—</div></div>
+      <div><div class="k">Revenue 2036</div><div class="v" id="rv-r2">—</div></div>
+      <div><div class="k">First year revenue ≥ opex (high)</div><div class="v txt" id="rv-r3">—</div></div>
+      <div><div class="k">Cumulative cash-positive (mid capex)</div><div class="v txt" id="rv-r4">—</div></div>
+      <div><div class="k">Peak funding need (mid capex)</div><div class="v" id="rv-r5">—</div></div>
+      <div><div class="k">Benchmark</div><div class="v txt">HawkEye: ~10 years and &gt;$500 M to a ~$200 M run-rate <sup class="ref"><a href="#ref-R5-7">[R5-7]</a></sup></div></div>
+    </div>
+    <p class="small">Mechanics: subscriptions ramp linearly from 2030 to full count after the chosen number of years; government anchors pay from 2030 (milestone payments during development are not modelled); sovereign deals start at cluster IOC (2032); the analytics uplift multiplies subscription revenue from 2034 when pattern-of-life products exist. Opex uses the COST_SCENARIOS ranges per stage; capex spreads the mid-point of the demonstrator (2027–30), cluster (2030–32) and 12-satellite (2033–36) ranges evenly over those years. No cost of sales, taxes or financing costs. The HawkEye benchmark is the reality check: a profitable space-RF operator needed a decade and a government anchor at 39% of revenue.</p>
+  </div>
+
+  <h2>Competitive positioning</h2>
+  <p>Three operators define the commercial market; TALOS does not try to beat them on scale. Its position is the EU-sourced, sovereign-processable, NATO-format-native regional system with a published accuracy model, in a region where the incumbents sell from Luxembourg, Rennes and Virginia.</p>
+  <div class="table-wrap"><table class="cmp">
+    <thead><tr><th>Dimension</th><th>HawkEye 360</th><th>Unseenlabs</th><th>Spire</th><th>TALOS (plan)</th></tr></thead>
+    <tbody>
+      <tr><td>Coverage / revisit</td><td>&gt;30 satellites in 3-sat clusters, SSO + mid-inclination planes; "&lt;45 min" global revisit (claim) <sup class="ref"><a href="#ref-R1-10">[R1-10]</a></sup></td><td>25 satellites (23 Gen-1 CubeSats + 2 Gen-2 150 kg), mostly SSO, scaling to 20–40 <sup class="ref"><a href="#ref-R1-21">[R1-21]</a></sup></td><td>Multi-mission LEMUR fleet; RF geolocation "pairs" (six added Q1 2026) <sup class="ref"><a href="#ref-R1-34">[R1-34]</a></sup></td><td class="us">Regional: 1 → 3 → 9 → 12–24 satellites at 53°; 4–7 passes/day over the Aegean from one satellite; sub-hour regional revisit only at Stage 4</td></tr>
+      <tr><td>Bands</td><td>30 MHz – 18 GHz (claim)</td><td>Gen-2: L/S/C/X (Ku) to 12 GHz</td><td>VHF, UHF, GNSS L, S, X</td><td class="us">UHF 225 MHz – X 12 GHz; two receiver paths (4 × 200 MHz coherent tuner, 8 × 2 GHz RFSoC)</td></tr>
+      <tr><td>Accuracy claims</td><td>No numeric CEP; 95% ellipse per fix; "few hundred m to few km" <sup class="ref"><a href="#ref-R4-29">[R4-29]</a></sup></td><td>"To the nearest kilometre" from one satellite (claim) <sup class="ref"><a href="#ref-R1-22">[R1-22]</a></sup></td><td>Single-satellite S/X demo 2026; no figure <sup class="ref"><a href="#ref-R1-35">[R1-35]</a></sup></td><td class="us">Published model: Stage 1 5–20 km single pass / 1–5 km multi-pass fixed; Stage 2 0.3–3 km comms, 100–500 m radars; predicted CEP shown before tasking</td></tr>
+      <tr><td>Sovereignty / processing</td><td>US company; EU subsidiary in Luxembourg (Sep 2026) for localised data; Leonardo and ERA partners <sup class="ref"><a href="#ref-R4-23">[R4-23]</a></sup></td><td>French; payload supplier to the sovereign CASSIOPÉE programme <sup class="ref"><a href="#ref-R1-27">[R1-27]</a></sup></td><td>US/Luxembourg; "sovereign-ready" cloud deployments <sup class="ref"><a href="#ref-R4-9">[R4-9]</a></sup></td><td class="us">Greek/EU operator; EU sovereign cloud + accredited national enclave; one-way feed to national/NATO EW databases</td></tr>
+      <tr><td>Export control</td><td>&gt;200 export licences; ITAR/EAR regime <sup class="ref"><a href="#ref-R4-2">[R4-2]</a></sup></td><td>EU dual-use regime</td><td>US regime for US-built elements</td><td class="us">ITAR-free baseline (EU-sourced payload chain, EAR-only residual semiconductors); EU 2021/821 licensing for IQ and libraries outside the EU</td></tr>
+      <tr><td>Latency</td><td>Hours today; minutes→seconds with direct downlink, crosslinks, on-board processing <sup class="ref"><a href="#ref-R4-2">[R4-2]</a></sup></td><td>Near-real-time claim; 3× faster via KSAT integration</td><td>Secure cloud delivery; imagery trigger</td><td class="us">Standard &lt;6 h · NRT &lt;90 min (Dubai/Puertollano) · minutes with ISL (Stage 3+)</td></tr>
+      <tr><td>Formats</td><td>GeoJSON, Mission Space, classified-enclave vetted</td><td>Portal, EO interoperability</td><td>Cloud, AI transcripts</td><td class="us">GeoJSON + OGC API Features + STANAG 4676 / 4559 / 4607 native — the gap in the current offers <sup class="ref"><a href="#ref-R4-44">[R4-44]</a></sup></td></tr>
+      <tr><td>Price posture</td><td>Premium; MoD subscriptions to USD 75 M; FMS USD 131 M</td><td>Mid; maritime subscriptions to "dozens of clients"</td><td>Mid; defence pivot</td><td class="us">Regional value pricing: subscriptions from ~€50k/yr (L1) to €0.2–2 M/yr (L2); sovereign deals tens of M€ multi-year; priced per minute of capacity in the tasking tier</td></tr>
+      <tr><td>Revenue scale</td><td>USD 117.7 M (2025), guide 215–220 M (2026) <sup class="ref"><a href="#ref-R1-2">[R1-2]</a></sup></td><td>Target EUR 100 M by 2029 <sup class="ref"><a href="#ref-R1-25">[R1-25]</a></sup></td><td>USD 75–85 M guide (2026), loss-making <sup class="ref"><a href="#ref-R1-34">[R1-34]</a></sup></td><td class="us">Calculator above: single-digit M€ at cluster IOC, tens of M€ with a sovereign deal and the constellation</td></tr>
+    </tbody></table></div>
+
+  <h2>Go-to-market sequence</h2>
+  <p>The sequence is ordered by the procurement clocks of the buyers (research 04 §3): EU bodies move on RFIs and calls, the Hellenic MoD can sign an LOI before hardware exists, NATO buys services once they are demonstrated, and commercial maritime partners buy a layer once it is on an API. It is the inverse of the Kleos order (commercial data first, anchor never).</p>
+  <ul class="timeline">
+    <li><div class="when">2027 Q1–Q3 · Phase 0/A</div><div class="what">EUSPA engagement and RFI follow-up</div><p>Position TALOS against the space-based GNSS RFI monitoring RFI (Part A service from 2030, Part B hosted-payload option earlier); answer the RFI's questions on update rate, time-to-localise-and-notify and single- vs multi-satellite accuracy with the models on this site <sup class="ref"><a href="#ref-R4-16">[R4-16]</a></sup>. Deliverable: a service concept note and a letter of interest.</p></li>
+    <li><div class="when">2027 Q2–2028 · Phase A/B</div><div class="what">EDF consortium</div><p>Join or form a consortium for an EDF SPACE-ISR-type call (SIGINT eligible, EU/associated-state consortia, CONOPS through prototyping funded) <sup class="ref"><a href="#ref-R4-27">[R4-27]</a></sup>; partners: a European bus vendor, a Greek AIT house, an analytics SME, a national research centre. Deliverable: funded pathfinder work and the first EU validation of the catalogue design.</p></li>
+    <li><div class="when">2027 Q3 → 2029 · G0 → G2</div><div class="what">Hellenic MoD anchor</div><p>LOI at G0 (a gate condition), then a milestone-paid anchor contract covering demonstrator products (regional monitoring, EW database seeding) and an option on sovereign cluster capacity; joint tasking board with defence as recommended for the national space posture <sup class="ref"><a href="#ref-R4-25">[R4-25]</a></sup>. Hellas Space 2.0 has no RF line yet — the pitch is the missing modality <sup class="ref"><a href="#ref-R4-24">[R4-24]</a></sup>.</p></li>
+    <li><div class="when">2030–2031 · after IOC</div><div class="what">NATO APSS / Aquila contribution</div><p>Offer TALOS-1 products as a Greek national contribution to the Alliance Persistent Surveillance from Space virtual constellation and respond to NCIA's commercial ISR data market opportunity; STANAG 4676/4559 native output is the entry ticket <sup class="ref"><a href="#ref-R4-26">[R4-26]</a></sup><sup class="ref"><a href="#ref-R4-36">[R4-36]</a></sup>.</p></li>
+    <li><div class="when">2031 → 2033 · Stage 2</div><div class="what">Commercial maritime and aviation partners</div><p>Source-layer licensing to Windward/Kpler-class platforms, P&amp;I clubs and insurers for GNSS-interference and dark-vessel layers (the Windward jamming features prove the demand <sup class="ref"><a href="#ref-R4-19">[R4-19]</a></sup>); EMSA and Frontex EUROSUR layers; interference-hunting service for GEO operators and EETT. Government-to-government offers (Cyprus, Gulf) once the cluster flies.</p></li>
+    <li><div class="when">2034 →</div><div class="what">Analytics and persistence tiers</div><p>Luno-style analytics for NGA-type buyers, persistence SLAs at Stage 4, second sovereign customer. Revenue mix target: government ≥ 60% (every surviving operator is government-anchored <sup class="ref"><a href="#ref-R1-20">[R1-20]</a></sup>), commercial the rest.</p></li>
+  </ul>
+
+  <h2>Sales talking points</h2>
+  <ul class="talk">
+    <li><strong>Regional persistence from the first satellite.</strong> A 53° orbit gives the Aegean, the Black Sea approaches and the Levant 4–7 passes a day from one spacecraft — computed, not claimed — where global constellations spread their minutes across the planet.</li>
+    <li><strong>Radars and jammers are day-one products.</strong> They are never sensitivity-limited from LEO; the catalogue of S/X-band naval and coastal radars and of L-band jammers starts filling during commissioning.</li>
+    <li><strong>Predicted accuracy before you pay.</strong> The tasking interface shows the passes and the CEP for your emitter class and geometry before accepting the task; no competitor publishes an accuracy model.</li>
+    <li><strong>EU-sourced and sovereign-processable.</strong> ITAR-free baseline, EU sovereign cloud, an accredited national enclave, and a catalogue designed so a classified annex attaches to an unclassified core.</li>
+    <li><strong>NATO formats native.</strong> STANAG 4676 tracks and a 4559-compatible library export from the start — a gap in every commercial offer today <sup class="ref"><a href="#ref-R4-44">[R4-44]</a></sup>.</li>
+    <li><strong>A living EW database, not a data feed.</strong> The product is the emitter catalogue with maturity levels, parametric history and pattern-of-life baselines; the detections are its raw material.</li>
+    <li><strong>Cueing, not replacing.</strong> RF narrows the search box for SAR, EO and maritime patrol; the Galápagos and Galwan cases are the pattern, with ICEYE Hellas and the national EO microsats as the local partners.</li>
+    <li><strong>The 1 → 3 step is where the value is.</strong> Independent CYGNSS data: median detection latency 3 h 46 min with one satellite, 48 min with seven, most of the gain early <sup class="ref"><a href="#ref-R4-17">[R4-17]</a></sup>. Buy the demonstrator products now, option the cluster.</li>
+  </ul>
+
+  <h2>What we will not claim</h2>
+  <div class="callout warn"><div class="t">The honesty list — every item has cost a competitor credibility or is below the physics</div>
+  <ul class="noclaim">
+    <li><strong>Detection of individual consumer drones from orbit.</strong> DJI-class links at 26–33 dBm EIRP are 9–16 dB below the thermal floor even at nadir with any aperture that fits a 150 kg bus. We sell UAS <em>activity</em>: ground control stations and military-class links.</li>
+    <li><strong>Detection of personal privacy devices (10 mW GNSS jammers).</strong> SNR −46 dB. We map jammers above roughly 10 W and all military-class jammers; we do not map every event an ADS-B degradation map shows.</li>
+    <li><strong>Content.</strong> No demodulation of voice or data, no transcription, no message content, encrypted or not. Externals only: who, where, when, what signature. (Spire's voice transcription is a state-mandate product; it is not ours.)</li>
+    <li><strong>A numeric accuracy without conditions.</strong> Every CEP we quote carries its signal bandwidth, duration, SNR and geometry; a "500 m" headline without them is marketing.</li>
+    <li><strong>Global coverage or sub-hour revisit before Stage 4.</strong> One satellite is 4–7 regional passes a day with 10–14 h gaps; the cluster does not change the pass count, only the accuracy.</li>
+    <li><strong>Tactical latency before the inter-satellite link.</strong> Standard tier is hours, NRT is under 90 minutes with contracted complements; minutes come with Stage 3.</li>
+    <li><strong>Detecting a silent target.</strong> EMCON defeats passive RF; we report non-detections as non-detections and fuse with SAR, AIS gaps and timing.</li>
+    <li><strong>C/X-band VSAT hunting as a continuous survey.</strong> Sidelobe SNR ≈ 0 dB with the baseline aperture; it is a tasked investigation with the reflector option, long dwell or a cue.</li>
+  </ul></div>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/programmatics.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  // ---------- product table ----------
+  const tb = document.querySelector('#prod-table tbody');
+  PRODUCTS.forEach(p => { const tr = document.createElement('tr'); tr.innerHTML = `<td><b>${p.tier}</b></td><td>${p.name}</td><td>${p.what}</td><td>${p.format}</td><td>${p.price}</td><td><span class="tag ${p.stage === 1 ? 'ok' : p.stage === 2 ? 'accent' : 'warn'}">Stage ${p.stage}</span></td>`; tb.append(tr); });
+
+  // ---------- ladder SVG ----------
+  (function ladder() {
+    const svg = d3.select('#ladder');
+    const steps = PRODUCTS.filter(p => /^L\d/.test(p.tier));
+    const side = PRODUCTS.filter(p => !/^L\d/.test(p.tier));
+    const x0 = 20, w = 175, hStep = 55, baseY = 400;
+    steps.forEach((p, i) => {
+      const x = x0 + i * (w + 8), top = baseY - (i + 1) * hStep - 80;
+      const g = svg.append('g');
+      g.append('rect').attr('x', x).attr('y', top).attr('width', w).attr('height', baseY - top).attr('rx', 6).attr('class', i === 3 ? 'box hi' : 'box');
+      g.append('text').attr('x', x + 10).attr('y', top + 20).attr('class', 'lbl').attr('font-weight', 600).text(p.tier);
+      const nm = wrap(p.name, 28).slice(0, 2); nm.forEach((l, k) => g.append('text').attr('x', x + 10).attr('y', top + 36 + k * 13).attr('class', 'lbl s').text(l));
+      const off = (nm.length - 1) * 13;
+      g.append('text').attr('x', x + 10).attr('y', top + 52 + off).attr('class', 'lbl xs').text('from Stage ' + p.stage + ' · ' + (['L1','L2','L3','L4'][i] === 'L4' ? 'highest margin' : ['shareable', 'ellipses, 4676', 'sovereign licence'][i]));
+      const lines = [p.format, p.price].flatMap(t => wrap(t, 30));
+      lines.slice(0, 6).forEach((l, k) => g.append('text').attr('x', x + 10).attr('y', top + 70 + off + k * 13).attr('class', 'lbl xs').text(l));
+      if (i < 3) svg.append('path').attr('d', `M${x + w},${top - 6} L${x + w + 8},${top - 6} L${x + w + 8},${top - hStep - 6}`).attr('class', 'wire data');
+    });
+    svg.append('text').attr('x', x0).attr('y', baseY + 16).attr('class', 'lbl xs').text('margin and analyst work increase →   stage at which it is sold: 1 · 2 · 2 · 3');
+    side.forEach((p, i) => {
+      const x = 770, top = 40 + i * 185, h = 170;
+      const g = svg.append('g');
+      g.append('rect').attr('x', x).attr('y', top).attr('width', 210).attr('height', h).attr('rx', 6).attr('class', 'box').attr('stroke-dasharray', '5 3');
+      g.append('text').attr('x', x + 10).attr('y', top + 20).attr('class', 'lbl').attr('font-weight', 600).text(p.tier + ' — ' + (i ? 'sovereign capacity' : 'IQ tasking'));
+      g.append('text').attr('x', x + 10).attr('y', top + 36).attr('class', 'lbl xs').text('from Stage ' + p.stage + ' · sold as minutes / % of cluster');
+      wrap(p.what, 36).slice(0, 5).forEach((l, k) => g.append('text').attr('x', x + 10).attr('y', top + 54 + k * 13).attr('class', 'lbl xs').text(l));
+      wrap(p.price, 36).slice(0, 3).forEach((l, k) => g.append('text').attr('x', x + 10).attr('y', top + 124 + k * 13).attr('class', 'lbl xs').attr('fill', 'var(--accent)').text(l));
+    });
+    function wrap(t, n) { const out = []; let line = ''; t.split(' ').forEach(wd => { if ((line + ' ' + wd).trim().length > n) { out.push(line.trim()); line = wd; } else line += ' ' + wd; }); if (line.trim()) out.push(line.trim()); return out; }
+  })();
+
+  // ---------- KPI table ----------
+  const kt = document.querySelector('#kpi-table tbody');
+  KPIS.forEach(k => { const tr = document.createElement('tr'); tr.innerHTML = `<td><b>${k.kpi}</b></td><td>${k.market}</td><td>${k.ours}</td>`; kt.append(tr); });
+
+  // ---------- revenue calculator ----------
+  const years = d3.range(2027, 2039);
+  const CS = Object.fromEntries(COST_SCENARIOS.map(c => [c.id, c]));
+  const stageFor = y => y < 2030 ? null : y < 2032 ? 'a' : y < 2034 ? 'b' : 'c';
+  const capexMid = {}; years.forEach(y => capexMid[y] = 0);
+  const spread = (lo, hi, y0, y1) => { const mid = (lo + hi) / 2, n = y1 - y0 + 1; for (let y = y0; y <= y1; y++) capexMid[y] += mid / n; };
+  spread(CS.a.capex[0], CS.a.capex[1], 2027, 2030); spread(CS.b.capex[0], CS.b.capex[1], 2030, 2032); spread(CS.c.capex[0], CS.c.capex[1], 2033, 2036);
+  function calc() {
+    const n = +v('rv-n'), p = +v('rv-p') / 1000, ramp = +v('rv-ramp'), g = +v('rv-g'), gv = +v('rv-gv'), s = +v('rv-s'), sv = +v('rv-sv'), a = +v('rv-a') / 100;
+    const rev = [], opLo = [], opHi = [], cum = []; let cash = 0, firstBE = null, firstCum = null, minCash = 0;
+    years.forEach(y => {
+      const st = stageFor(y);
+      const frac = y < 2030 ? 0 : Math.min(1, (y - 2030 + 1) / ramp);
+      let subs = n * p * frac; if (y >= 2034) subs *= (1 + a);
+      const gov = y >= 2030 ? g * gv : 0; const sov = y >= 2032 ? s * sv : 0;
+      const r = subs + gov + sov; rev.push([y, r]);
+      const lo = st ? CS[st].opex[0] : 0, hi = st ? CS[st].opex[1] : 0; opLo.push([y, lo]); opHi.push([y, hi]);
+      cash += r - (lo + hi) / 2 - capexMid[y]; cum.push([y, cash]); if (cash < minCash) minCash = cash;
+      if (firstBE === null && st && r >= hi) firstBE = y; if (firstCum === null && cash > 0 && y > 2029) firstCum = y;
+    });
+    Charts.line(document.getElementById('rv-chart'), { title: 'Annual revenue vs operating cost (M€, est.)', xLabel: 'year', yLabel: 'M€ / year', series: [{ name: 'Revenue (scenario)', points: rev }, { name: 'Opex high', points: opHi, dash: '4 3' }, { name: 'Opex low', points: opLo, dash: '2 3' }], xFormat: x => Math.round(x), xDomain: [2027, 2039.8], markers: true, height: 260 });
+    Charts.line(document.getElementById('rv-chart2'), { title: 'Cumulative cash: revenue − opex (mid) − capex (mid), M€, est.', xLabel: 'year', yLabel: 'M€', series: [{ name: 'Cumulative cash', points: cum, color: Charts.css('--s4') }], hlines: [{ y: 0, label: 'break-even' }], xFormat: x => Math.round(x), xDomain: [2027, 2039.8], markers: true, height: 220 });
+    const at = y => rev.find(r => r[0] === y)[1];
+    document.getElementById('rv-r1').innerHTML = at(2032).toFixed(1) + ' <small>M€</small>';
+    document.getElementById('rv-r2').innerHTML = at(2036).toFixed(1) + ' <small>M€</small>';
+    document.getElementById('rv-r3').textContent = firstBE ? firstBE + ' (opex of the stage then in force)' : 'not within 2038';
+    document.getElementById('rv-r4').textContent = firstCum ? firstCum : 'not within 2038';
+    document.getElementById('rv-r5').innerHTML = (-minCash).toFixed(0) + ' <small>M€ (vs €18–35 M demonstrator, €40–65 M cluster, €110–170 M constellation capex ranges)</small>';
+  }
+  function v(id) { return document.getElementById(id).value; }
+  ['rv-n', 'rv-p', 'rv-ramp', 'rv-g', 'rv-gv', 'rv-s', 'rv-sv', 'rv-a'].forEach(id => bindRange(id, calc, x => x));
+  calc();
+
+  function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  renderRefs(['R1-2','R1-5','R1-10','R1-16','R1-20','R1-21','R1-22','R1-25','R1-27','R1-31','R1-34','R1-35','R4-2','R4-4','R4-8','R4-9','R4-13','R4-14','R4-15','R4-16','R4-17','R4-19','R4-22','R4-23','R4-24','R4-25','R4-26','R4-27','R4-29','R4-30','R4-36','R4-44','R5-7']);
+})();
+</script>
+</body>
+</html>

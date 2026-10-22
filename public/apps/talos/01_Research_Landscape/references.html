@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>References — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .refgroup { margin: 1rem 0 2rem; }
+  .refgroup ol { font-family: var(--font-ui); font-size: 0.84rem; color: var(--ink-2); padding-left: 0; list-style: none; max-width: none; }
+  .refgroup li { display: grid; grid-template-columns: 6.6em minmax(0,1fr); gap: 0.6rem; padding: 0.35rem 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+  .refgroup li b { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .refgroup li .t { color: var(--ink); }
+  .refgroup li .u { display: block; font-size: 0.78rem; margin-top: 0.1rem; }
+  .refgroup li .u a { color: var(--ink-3); }
+  .refgroup li:target { background: var(--accent-soft); }
+  .reftools { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; font-family: var(--font-ui); font-size: 0.84rem; margin: 0.8rem 0; }
+  .reftools input { font: inherit; padding: 0.35rem 0.6rem; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--ink); min-width: 260px; }
+  .verify td:first-child { white-space: nowrap; font-family: var(--font-ui); font-weight: 600; }
+  .method dt { font-family: var(--font-ui); font-weight: 600; margin-top: 0.6rem; }
+  .method dd { margin: 0.2rem 0 0; }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>01 Research &amp; landscape</b> · References</div>
+    <h1>References</h1>
+    <p class="lead">Every source cited in the study, grouped by the research note it came from: R1 operators and programmes, R2 supplier catalogue, R3 payload engineering, R4 use cases, services and ground segment, R5 risks, programmatics, cost and regulation. Citation markers across the site have the form <code>[R1-10]</code> and resolve to the entries below. The page also records how the research was compiled and lists the items the research itself flagged for verification before anything is published outside the study team.</p>
+    <div class="meta"><span>Data: REFERENCES (references.js), <span id="nRefs">—</span> entries</span><span>Web research 21 Oct 2026</span></div>
+  </header>
+
+  <h2>How the research was compiled</h2>
+  <dl class="method">
+    <dt>Method</dt><dd>Five research notes were written on 21 October 2026 from open web sources: company press releases and SEC filings, trade press (SpaceNews, Via Satellite, Breaking Defense, Payload, Military &amp; Aerospace Electronics), mission databases (eoPortal, Gunter's Space Page), manufacturer datasheets and distributor pages (satsearch, SatNow, everythingRF), the NASA <em>State-of-the-Art of Small Spacecraft Technology</em> 2025/2026 editions, agency documents (EUSPA, EDA, ESA, NGA, NCIA, UNOOSA, ITU), analyst reports (IISS, Dataintelo, MarketsandMarkets) and a small number of blogs and newsletters where no better source existed. All links were live when checked.</dd>
+    <dt>Labelling</dt><dd>Figures are company or press claims unless stated otherwise. The notes use three flags that are carried onto every page of this site: <b>claimed</b> (a vendor or operator statement without independent confirmation, e.g. geolocation accuracies), <b>unverified</b> (a figure from secondary sources or community knowledge, e.g. most prices and the Kleos lifetime capital), and <b>est. / [est.]</b> (the study's own inference). An estimate is never upgraded to a fact between the research note and the page.</dd>
+    <dt>Numbering</dt><dd>Each note numbers its sources <code>[n]</code> inline; the site id is <code>R&lt;note&gt;-&lt;n&gt;</code>. Research note 02 lists its sources without numbers, so its entries carry synthetic ids <code>R2-x62</code> onward. Two R1 numbers (3 and the duplicate of 2) refer to the same document and are merged under <code>R1-2</code>.</dd>
+    <dt>Baseline data</dt><dd>Numbers used in calculations live in <code>assets/data/*.js</code> (baseline, components, emitters, risks, programmatics, suppliers, operators table) and are rendered from there, so a correction in the data file propagates to every page.</dd>
+  </dl>
+
+  <h2>Items flagged for verification before publication</h2>
+  <p>The research notes marked the following as claimed, unverified, conflicting or not fetched. They are collected here as the verification backlog; none of them changes a design decision in this study, but several would change a number quoted to a customer or an investor.</p>
+  <div class="table-wrap"><table class="verify compact">
+    <thead><tr><th>Area</th><th>Item</th><th>Why it matters / what to do</th></tr></thead>
+    <tbody>
+      <tr><td>R1 · Operators</td><td>HawkEye 360 2025 revenue: $117.7 M (prospectus) vs $98.7 M (one trade report)</td><td>Prospectus figure used throughout; confirm against the 10-K when filed.</td></tr>
+      <tr><td>R1 · Operators</td><td>HawkEye geolocation accuracy "~500 m to a few km" — anecdotal, unverified; Unseenlabs "~1 km" and Kleos "within 300 m" are vendor claims</td><td>No operator publishes independently verified CEP; TALOS KPIs must be stated with conditions and not benchmarked against these numbers.</td></tr>
+      <tr><td>R1 · Operators</td><td>Kleos KSM1 inclination conflict (~37° in text vs 95.9° in a table); Kleos lifetime capital A$60–80 M is an unverified aggregate</td><td>Check ASX filings if the Kleos unit economics are quoted externally.</td></tr>
+      <tr><td>R1 · Operators</td><td>Horizon Amber-1 loss on Virgin Orbit (widely reported, not on the company site); Amber-2/3 launch status</td><td>Re-check the Horizon news feed before describing the programme as stalled in any external document.</td></tr>
+      <tr><td>R1 · Operators</td><td>Aerospacelab RF trio mass and bands not disclosed; BAE Azalea bands, accuracy and digitiser not disclosed; Spire RFGL pair count not disclosed</td><td>Shown as "n/d" in the operator table; do not infer.</td></tr>
+      <tr><td>R1 · Operators</td><td>DRDO GEO ELINT follow-on (unverified press); Rafael nanosat swarm SIGINT (speculated); no Turkish ELINT satellite found (absence of evidence)</td><td>Treat as unknown.</td></tr>
+      <tr><td>R1 · Market</td><td>Market-size reports ($3.8 → 9.3 B; $28.6 → 46.9 B): methodologies opaque</td><td>Quote only with the "analyst est." tag and alongside revealed revenue.</td></tr>
+      <tr><td>R2 · Suppliers</td><td>All lines marked "price unverified": bus unit prices, antenna and reflector prices, Xiphos Q8RF, space CSAC, star trackers, wheels, arrays, batteries, thrusters, optical terminals, ground-station rates, GSaaS fees</td><td>Request quotations in Phase A for the shortlist; the BOM ranges are planning figures only.</td></tr>
+      <tr><td>R2 · Suppliers</td><td>Flight status to verify: OHB-LuxSpace Triton-X, EnduroSat microsat platform, Reflex bus, OSS Wrapped-Rib reflector, Astrolight ATLAS, Xiphos Q8RF (announced; Q8/Q8J heritage), Microchip space CSAC SA.65 variant specs, Septentrio mosaic in LEO per customer</td><td>Heritage claims drive the TRL filter on the catalogue page; confirm with vendors.</td></tr>
+      <tr><td>R2 · Suppliers</td><td>Blue Canyon datasheet values (verify in ADCS-2026 PDF); EV12AQ600 input bandwidth is datasheet-dependent; AWS Ground Station 2026 pricing ("contact sales"); Azure Orbital Ground Station status (treated as unavailable); Isar Spectrum, RFA One, Miura 5 first-flight status</td><td>Check at PDR; launch and ground assumptions re-baselined at CDR.</td></tr>
+      <tr><td>R4 · Use cases</td><td>Unseenlabs second-generation press release mirror (Manila Times, 8 Jul 2026) not retrievable; Unseenlabs' own site used instead</td><td>No impact on numbers.</td></tr>
+      <tr><td>R4 · Customers</td><td>UAE Armed Forces as a "strong" HawkEye customer is an allegation (Poulson), not confirmed by HawkEye; EDA–ESA EO-for-defence cooperation (Apr 2026) seen only in a search listing</td><td>Do not cite externally.</td></tr>
+      <tr><td>R4 · KPIs</td><td>AWS and KSATlite pricing pages publish no list prices; HawkEye "<45 min revisit" and ">1 M km² per pass" are vendor claims; CYGNSS study defers false-alarm characterisation</td><td>State as claims; TALOS Pd/FAR to be defined from calibration campaigns.</td></tr>
+      <tr><td>R5 · Regulation</td><td>Statutory texts not fetched: Laws 4508/2017, 4712/2020, 4623/2019, 2225/1994, 3649/2008, 5002/2022, 2168/1993; Constitution Art. 19; Directive 2002/58/EC; Reg. 2016/679; Reg. 2021/821; Common Position 2008/944 (ML11); 22 CFR 121 USML XI/XV; 15 CFR 774 ECCNs 3A001/5A002/9A515; ITU RR Arts. 9 and 11; ESA Zero Debris Charter; ECSS-M-ST-10C, E-ST-10-03C, Q-ST-60-13C; ECtHR <i>Big Brother Watch</i>, <i>Centrum för rättvisa</i></td><td>Cite from primary texts in the Phase A legal opinion; the UNOOSA summary [R5-13] is the only fetched source on Greek space law.</td></tr>
+      <tr><td>R5 · Regulation</td><td>Greek licence fee and implementing JMD status (not adopted as of Feb 2025); EU Space Act status as of Mar 2026; EU funding call cycles (EDF, EDIP, SAFE, EIB) and the "Achilles' Shield" space/ISR allocation</td><td>Re-check with the Ministry of Digital Governance, HSC and HCDI at G0.</td></tr>
+      <tr><td>R5 · Cost</td><td>SDA Tranche 0 York figure (~$94 M for 10 satellites) is a press-derived per-satellite inference; NanoAvionics Gen-2 MP42 pricing (">€10 M for five buses") mix unknown; insurance rates from broker market updates</td><td>Planning anchors only.</td></tr>
+      <tr><td>R5 · Lessons</td><td>UTIAS SFL closure notice (site-level statement); Spire–Kpler maritime sale (announced Nov 2024; 2025 completion per R1)</td><td>Confirm current status before citing in supplier due diligence.</td></tr>
+    </tbody></table></div>
+
+  <h2>All references</h2>
+  <div class="reftools"><label for="rq">Filter</label><input type="search" id="rq" placeholder="title, id or domain…"><span id="rcount" class="muted"></span></div>
+  <div id="groups"></div>
+
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  const GROUPS={R1:'R1 · Operators &amp; programmes landscape (research note 01)',R2:'R2 · Supplier &amp; component catalogue (research note 02)',R3:'R3 · Payload engineering (research note 03)',R4:'R4 · Use cases, services, customers &amp; ground segment (research note 04)',R5:'R5 · Risks, programmatics, cost, schedule &amp; regulation (research note 05)'};
+  function cleanTitle(t){ return t.replace(/\s*[:—-]?\s*https?:\/\/.*$/,'').replace(/[:;\s]+$/,''); }
+  document.getElementById('nRefs').textContent=REFERENCES.length;
+  const host=document.getElementById('groups'); const q=document.getElementById('rq');
+  function render(){
+    const term=q.value.trim().toLowerCase(); host.innerHTML=''; let n=0;
+    Object.keys(GROUPS).forEach(g=>{
+      const items=REFERENCES.filter(r=>r.file===g||r.id.startsWith(g+'-')).filter(r=>!term||(r.id+' '+r.title+' '+r.urls.join(' ')).toLowerCase().includes(term));
+      if(!items.length) return; n+=items.length;
+      const sec=document.createElement('section'); sec.className='refgroup'; sec.id='grp-'+g;
+      sec.innerHTML=`<h3>${GROUPS[g]} <span class="tag">${items.length}</span></h3><ol>`+items.map(r=>`<li id="ref-${r.id}"><b>[${r.id}]</b><div><span class="t">${cleanTitle(r.title).replace(/</g,'&lt;')}</span>${r.urls.map(u=>`<span class="u"><a href="${u}" target="_blank" rel="noopener">${u}</a></span>`).join('')}</div></li>`).join('')+'</ol>';
+      host.append(sec);
+    });
+    document.getElementById('rcount').textContent=`${n} of ${REFERENCES.length} entries`;
+  }
+  q.addEventListener('input',render); render();
+  if(location.hash){ const el=document.querySelector(location.hash); if(el) el.scrollIntoView(); }
+})();
+</script>
+</body>
+</html>

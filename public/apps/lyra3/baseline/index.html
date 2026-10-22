@@ -1,0 +1,2677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LYRA-3 · 100–150 kg baseline reference</title>
+  <style>
+    /* ==========================================================================
+       1. DESIGN TOKENS & MUTED PALETTE (Linear/Aerospace Modernism)
+       ========================================================================== */
+    :root {
+      --bg-base: #070a11;
+      --bg-surface: #0e1524;
+      --bg-surface-elevated: #141e33;
+      --bg-surface-hover: #1a2742;
+      --border-subtle: rgba(148, 163, 184, 0.12);
+      --border-focus: rgba(56, 189, 248, 0.4);
+      --border-hover: rgba(148, 163, 184, 0.25);
+      
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      
+      --accent-steel: #38bdf8;
+      --accent-steel-dim: rgba(56, 189, 248, 0.12);
+      --accent-sage: #34d399;
+      --accent-sage-dim: rgba(52, 211, 153, 0.12);
+      --accent-amber: #fbbf24;
+      --accent-amber-dim: rgba(251, 191, 36, 0.12);
+      --accent-rose: #f43f5e;
+      --accent-rose-dim: rgba(244, 63, 94, 0.12);
+      
+      --accent-emerald: var(--accent-sage);
+      --accent-cyan: var(--accent-steel);
+      
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 14px;
+      --radius-xl: 18px;
+      
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: ui-monospace, "SF Mono", "Fira Code", Menlo, monospace;
+      
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --duration-fast: 120ms;
+      --duration-normal: 180ms;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* Tabular numeric rendering */
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Container */
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ==========================================================================
+       2. HEADER & EXECUTIVE TELEMETRY BAR
+       ========================================================================== */
+    header {
+      background-color: rgba(7, 10, 17, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 0;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-primary);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--accent-sage);
+      box-shadow: 0 0 10px rgba(52, 211, 153, 0.6);
+    }
+
+    .brand-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .telemetry-pills {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .pill {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      padding: 4px 10px;
+      border-radius: 9999px;
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-surface);
+      color: var(--text-secondary);
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .pill-sage {
+      background-color: var(--accent-sage-dim);
+      border-color: rgba(52, 211, 153, 0.25);
+      color: var(--accent-sage);
+    }
+
+    .pill-steel {
+      background-color: var(--accent-steel-dim);
+      border-color: rgba(56, 189, 248, 0.25);
+      color: var(--accent-steel);
+    }
+
+    .pill-amber {
+      background-color: var(--accent-amber-dim);
+      border-color: rgba(251, 191, 36, 0.25);
+      color: var(--accent-amber);
+    }
+
+    .pill-rose {
+      background-color: var(--accent-rose-dim);
+      border-color: rgba(244, 63, 94, 0.25);
+      color: var(--accent-rose);
+    }
+
+    .pill-emerald {
+      background-color: var(--accent-sage-dim);
+      border-color: rgba(52, 211, 153, 0.25);
+      color: var(--accent-sage);
+    }
+
+    .pill-cyan {
+      background-color: var(--accent-steel-dim);
+      border-color: rgba(56, 189, 248, 0.25);
+      color: var(--accent-steel);
+    }
+
+    /* ==========================================================================
+       3. NAVIGATION TABS (Muted & Tactile)
+       ========================================================================== */
+    .nav-container {
+      background-color: var(--bg-base);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      padding: 6px 0;
+      scrollbar-width: none;
+    }
+
+    .tab-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+    }
+
+    .tab-btn:hover {
+      background-color: var(--bg-surface);
+      color: var(--text-primary);
+    }
+
+    .tab-btn.active {
+      background-color: var(--bg-surface-elevated);
+      color: var(--text-primary);
+      border-color: var(--border-subtle);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .tab-btn:active {
+      transform: scale(0.98);
+    }
+
+    .tab-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .tab-btn.active .tab-num {
+      color: var(--accent-steel);
+    }
+
+    /* ==========================================================================
+       4. TAB CONTENT PANES
+       ========================================================================== */
+    main {
+      padding: 32px 0 64px 0;
+    }
+
+    .tab-pane {
+      display: none;
+      animation: fadeIn 180ms var(--ease-out);
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ==========================================================================
+       5. CARDS & UI COMPONENTS
+       ========================================================================== */
+    .card {
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    .card-elevated {
+      background-color: var(--bg-surface-elevated);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .grid-5 {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+    }
+
+    @media (max-width: 1024px) {
+      .grid-3, .grid-4, .grid-5 { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; }
+    }
+
+    /* ==========================================================================
+       6. STEP-BY-STEP LINK CLOSING FLOW STYLES
+       ========================================================================== */
+    .flow-step-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      position: relative;
+      transition: border-color var(--duration-fast) ease, transform var(--duration-fast) ease;
+    }
+
+    .flow-step-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+
+    .flow-step-number {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent-steel);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .flow-step-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .flow-step-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      margin-bottom: 12px;
+    }
+
+    .flow-step-insight {
+      background: var(--bg-surface-elevated);
+      border-left: 3px solid var(--accent-steel);
+      padding: 8px 12px;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .secret-box {
+      background: linear-gradient(180deg, rgba(56, 189, 248, 0.08) 0%, rgba(14, 21, 36, 0.9) 100%);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin: 24px 0;
+    }
+
+    .secret-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: var(--accent-steel-dim);
+      color: var(--accent-steel);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      margin-bottom: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* ==========================================================================
+       7. SUBSYSTEM HARDWARE PHOTO GALLERY
+       ========================================================================== */
+    .subsystem-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: border-color var(--duration-fast) ease, transform var(--duration-fast) ease;
+    }
+
+    .subsystem-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+
+    .subsystem-img-container {
+      width: 100%;
+      height: 180px;
+      background: #060910;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .subsystem-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.3s ease;
+    }
+
+    .subsystem-card:hover .subsystem-img {
+      transform: scale(1.04);
+    }
+
+    .subsystem-body {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    .subsystem-domain {
+      font-size: 11px;
+      font-family: var(--font-mono);
+      color: var(--accent-steel);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      letter-spacing: 0.04em;
+    }
+
+    .subsystem-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .subsystem-vendor {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+
+    .subsystem-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 12px;
+      flex: 1;
+    }
+
+    .subsystem-specs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      background: var(--bg-surface-elevated);
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .spec-item span:first-child {
+      color: var(--text-muted);
+    }
+
+    .spec-item span:last-child {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    /* Stack Exploded Visualization */
+    .stack-deck-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      margin-bottom: 12px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      transition: background-color var(--duration-fast) ease, border-color var(--duration-fast) ease;
+    }
+
+    .stack-deck-card:hover {
+      background-color: var(--bg-surface-elevated);
+      border-color: var(--border-hover);
+    }
+
+    .stack-deck-badge {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--accent-steel);
+      white-space: nowrap;
+    }
+
+    .stack-deck-info {
+      flex: 1;
+    }
+
+    .stack-deck-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .stack-deck-components {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+
+    /* ==========================================================================
+       8. SCALING ROADMAP & SINGLE SATELLITE STYLES
+       ========================================================================== */
+    .scaling-tier-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 1024px) {
+      .scaling-tier-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 640px) {
+      .scaling-tier-grid { grid-template-columns: 1fr; }
+    }
+
+    .scaling-tier-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: border-color var(--duration-fast) ease, transform var(--duration-fast) ease;
+    }
+
+    .scaling-tier-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+
+    .scaling-tier-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent-steel);
+      margin-bottom: 6px;
+    }
+
+    .scaling-tier-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+    }
+
+    .scaling-tier-accuracy {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent-sage);
+      margin-bottom: 12px;
+      padding: 4px 8px;
+      background: var(--accent-sage-dim);
+      border-radius: var(--radius-sm);
+      display: inline-block;
+      width: fit-content;
+    }
+
+    .scaling-tier-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 12px;
+      flex: 1;
+    }
+
+    .scaling-tier-list {
+      list-style: none;
+      font-size: 12px;
+      color: var(--text-secondary);
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 10px;
+    }
+
+    .scaling-tier-list li {
+      margin-bottom: 6px;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .scaling-tier-list li::before {
+      content: "•";
+      color: var(--accent-steel);
+    }
+
+    /* Comparison Table */
+    .clean-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .clean-table th {
+      text-align: left;
+      padding: 10px 14px;
+      background: var(--bg-surface-elevated);
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .clean-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      vertical-align: middle;
+    }
+
+    .clean-table tr:hover td {
+      background: var(--bg-surface-elevated);
+      color: var(--text-primary);
+    }
+
+    /* ==========================================================================
+       9. FORM CONTROLS & CALCULATORS (Muted & Crisp)
+       ========================================================================== */
+    .calc-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .calc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+
+    @media (max-width: 900px) {
+      .calc-grid { grid-template-columns: 1fr; }
+    }
+
+    .calc-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .calc-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .calc-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .calc-label {
+      color: var(--text-secondary);
+    }
+
+    .calc-val {
+      font-family: var(--font-mono);
+      color: var(--accent-steel);
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      background: var(--bg-surface-elevated);
+      border-radius: 3px;
+      outline: none;
+      border: 1px solid var(--border-subtle);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--text-primary);
+      cursor: pointer;
+      border: 2px solid var(--accent-steel);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+
+    .calc-readouts {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .readout-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .readout-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .readout-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .readout-value {
+      font-family: var(--font-mono);
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .metric-unit {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .gauge-track {
+      width: 100%;
+      height: 8px;
+      background: var(--bg-base);
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid var(--border-subtle);
+      margin-top: 6px;
+    }
+
+    .gauge-bar {
+      height: 100%;
+      width: 50%;
+      background: var(--accent-sage);
+      transition: width 0.15s ease, background-color 0.15s ease;
+    }
+
+    .status-badge-box {
+      padding: 12px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      margin-top: 12px;
+    }
+
+    .status-badge-title {
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .status-badge-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Search & Filter Inputs */
+    .search-input {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-primary);
+      font-size: 13px;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      outline: none;
+      width: 100%;
+      margin-bottom: 16px;
+      transition: border-color var(--duration-fast) ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent-steel);
+    }
+
+    .filter-btn-group {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .filter-btn {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-secondary);
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--duration-fast) ease;
+    }
+
+    .filter-btn:hover {
+      background: var(--bg-surface-hover);
+      color: var(--text-primary);
+    }
+
+    .filter-btn.active {
+      background: var(--accent-steel-dim);
+      border-color: rgba(56, 189, 248, 0.4);
+      color: var(--accent-steel);
+      font-weight: 500;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal-window {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      max-width: 1000px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .modal-body {
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #05080f;
+    }
+
+    .modal-body img {
+      max-width: 100%;
+      max-height: 70vh;
+      object-fit: contain;
+    }
+
+    .btn-close {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .btn-close:hover {
+      color: var(--text-primary);
+    }
+  </style>
+  <style>
+    /* Embedded as tabs of the LYRA-3 simulator: no own header or tab bar. */
+    body { min-height: 0; }
+    main.container { padding-top: 20px; padding-bottom: 40px; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section id="view-link" class="tab-pane">
+      <div class="card">
+        <div class="card-title">
+          <span>Closing the Link: From Terrestrial Emitter to Real-Time Intelligence</span>
+        </div>
+        <div class="card-subtitle">
+          Closing an orbital passive RF link does not require brute-force high-power transmitters. It is a precise physical sequence of wideband electromagnetic capture, ultra-low-noise amplification, and onboard edge decoupling that discards empty noise and downlinks pure pulse intelligence in seconds.
+        </div>
+
+        <!-- The Secret Box: Why It Closes -->
+        <div class="secret-box">
+          <div class="secret-badge">The Core Engineering Breakthrough</div>
+          <h4 style="font-size: 15px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">
+            Why Most Systems Fail vs. How This Architecture Closes the Link
+          </h4>
+          <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.55;">
+            Digitizing 3.2 GHz of direct RF spectrum generates over <strong>30 Gigabits per second</strong> of raw data. Streaming this volume directly to Earth is physically impossible on a 100–150 kg smallsat. 
+            <strong>How we close the link:</strong> The spacecraft carries an onboard FPGA edge processor (Innoflight CFC-400) running a 1024-channel Polyphase Filter Bank. It discards 99.9% of empty dead space in orbit and extracts only compact <strong>Pulse Descriptor Words (PDWs)</strong>. Millions of radio pulses condense into a lightweight megabyte stream that beams down to ground stations or crosslinks across the constellation via laser in <strong>under 15 seconds</strong>.
+          </p>
+        </div>
+
+        <!-- 6-Stage Visual Journey Grid -->
+        <div class="grid-3" style="margin-top: 20px;">
+          <!-- Stage 1 -->
+          <div class="flow-step-card">
+            <div class="flow-step-number">Step 01 • Transmission</div>
+            <div class="flow-step-title">Ground Emitter Radiates</div>
+            <div class="flow-step-desc">
+              A naval radar, marine AIS transponder, battlefield GPS jammer, or tactical drone ground station broadcasts radio frequency energy into the sky. The signal disperses through 550+ km of atmosphere, arriving at orbit as a faint whisper.
+            </div>
+            <div class="flow-step-insight">
+              <strong>Physics:</strong> Arriving power density is extremely low (10<sup>−14</sup> to 10<sup>−11</sup> W), requiring quiet receivers.
+            </div>
+          </div>
+
+          <!-- Stage 2 -->
+          <div class="flow-step-card">
+            <div class="flow-step-number">Step 02 • Intercept</div>
+            <div class="flow-step-title">Aperture Collection at 7.6 km/s</div>
+            <div class="flow-step-desc">
+              The satellite sweeps across an 800–1,200 km horizon. Deployable wideband antennas intercept the electromagnetic wavefront: a 1.85m deployable LPDA for UHF/VHF, a 4-spiral cavity array for S-band, and parabolic reflectors for C/X-band.
+            </div>
+            <div class="flow-step-insight">
+              <strong>Kinematics:</strong> Deployable tape-spring booms fit a 1.85m antenna into a compact 3U stowage box.
+            </div>
+          </div>
+
+          <!-- Stage 3 -->
+          <div class="flow-step-card">
+            <div class="flow-step-number">Step 03 • Conditioning</div>
+            <div class="flow-step-title">Analog Front-End Protection &amp; LNA</div>
+            <div class="flow-step-desc">
+              A diode limiter acts as an electronic circuit breaker, clamping high-power pulses from megawatt radars to prevent burnout. A low-noise GaAs amplifier (NF &le; 1.2 dB) boosts the micro-signal cleanly, while switchable filters reject cell tower clutter.
+            </div>
+            <div class="flow-step-insight">
+              <strong>Protection:</strong> Survives direct high-power mainlobe illuminations up to +30 dBm without damage.
+            </div>
+          </div>
+
+          <!-- Stage 4 -->
+          <div class="flow-step-card">
+            <div class="flow-step-number">Step 04 • Digitization</div>
+            <div class="flow-step-title">Direct RF Sampling (3.2 GSPS)</div>
+            <div class="flow-step-desc">
+              Instead of heavy, drifting analog frequency downconverters, a space-qualified 12-bit ADC samples the incoming electromagnetic wave directly into digital I/Q streams. The physical radio wave becomes mathematical bits in nanoseconds.
+            </div>
+            <div class="flow-step-insight">
+              <strong>Simplicity:</strong> Replaces 8 analog mixers, local oscillators, and IF stages with a single digital chip.
+            </div>
+          </div>
+
+          <!-- Stage 5 -->
+          <div class="flow-step-card">
+            <div class="flow-step-number">Step 05 • Edge Decoupling</div>
+            <div class="flow-step-title">Onboard PDW Pulse Extraction</div>
+            <div class="flow-step-desc">
+              The FPGA Polyphase Filter Bank (PFB) slices the spectrum into narrow channels. A CFAR threshold detector extracts exact Pulse Descriptor Words: Time-of-Arrival (TOA), Pulse Width (PW), Carrier Frequency, Amplitude, and Bearing.
+            </div>
+            <div class="flow-step-insight">
+              <strong>Compression:</strong> Squeezes 30 Gbps raw RF noise into a lightweight &lt; 500 kbps metadata stream.
+            </div>
+          </div>
+
+          <!-- Stage 6 -->
+          <div class="flow-step-card">
+            <div class="flow-step-number">Step 06 • Delivery</div>
+            <div class="flow-step-title">Instant Downlink &amp; EOB Matching</div>
+            <div class="flow-step-desc">
+              Extracted pulse metadata transmits effortlessly over a standard X-band radio link or routes across optical laser crosslinks (O-ISL) in under 15 seconds. Ground stations match pulse signatures against Electronic Order of Battle threat catalogues.
+            </div>
+            <div class="flow-step-insight">
+              <strong>Result:</strong> Automatically names the exact ship, radar model, or jammer coordinates in real time.
+            </div>
+          </div>
+        </div>
+
+        <!-- Architectural Clarification: Do All Antennas Go into One SDR? -->
+        <div style="margin-top: 36px; border-top: 1px solid var(--border-subtle); padding-top: 28px;">
+          <div class="card-title">
+            <span>Payload Signal Routing: Do All Antennas Go into a Single SDR?</span>
+          </div>
+          <div class="card-subtitle">
+            No single SDR port connects directly to all antennas. The payload utilizes an intermediate Radio Frequency Front-End (RFFE) Conditioning &amp; Switch Matrix to protect digitizers, filter out-of-band clutter, and route signals into 4 phase-coherent receiver channels.
+          </div>
+
+          <div class="grid-3" style="margin-top: 20px;">
+            <!-- Stage A -->
+            <div class="flow-step-card">
+              <div class="flow-step-number">Stage A • Apertures (Deck 1)</div>
+              <div class="flow-step-title">Multiple Antennas for Different Tasks</div>
+              <div class="flow-step-desc">
+                Different missions require different antennas: A <strong>4-Spiral Cavity Array</strong> provides wide-angle Direction Finding (AOA), a <strong>Deployable Helical/LPDA</strong> surveys wideband UHF/L/S-band spectrum, and a <strong>Deployable Parabolic Mesh Dish</strong> delivers high gain for narrow-beam C/X-band pulse extraction.
+              </div>
+              <div class="flow-step-insight">
+                <strong>Physics:</strong> Each antenna has distinct beamwidth, polarization, and frequency range.
+              </div>
+            </div>
+
+            <!-- Stage B -->
+            <div class="flow-step-card">
+              <div class="flow-step-number">Stage B • RFFE &amp; Switch Matrix</div>
+              <div class="flow-step-title">Protection &amp; Dynamic Routing</div>
+              <div class="flow-step-desc">
+                Signals pass through <strong>PIN diode limiters</strong> (preventing burnout from 100 kW radars), band-tuned <strong>LNAs</strong>, and a <strong>5-band switched filter bank</strong>. A high-speed solid-state RF switch matrix dynamically steers the active antenna feeds to the SDR channels in &lt; 50 ns.
+              </div>
+              <div class="flow-step-insight">
+                <strong>Protection:</strong> Clamps high-power radar illuminations up to +30 dBm CW before they can reach the SDR.
+              </div>
+            </div>
+
+            <!-- Stage C -->
+            <div class="flow-step-card">
+              <div class="flow-step-number">Stage C • Coherent SDR &amp; FPGA (Deck 2)</div>
+              <div class="flow-step-title">4-Channel Coherent Receiver</div>
+              <div class="flow-step-desc">
+                The SDR provides <strong>4 phase-coherent receiver channels</strong> sharing a single atomic clock reference:
+                <br>• <strong>AOA Mode:</strong> Simultaneously digitizes all 4 spiral antennas to compute nanosecond phase delays (&Delta;&phi;) for instant line-of-bearing.
+                <br>• <strong>High-Gain Mode:</strong> Routes high-gain parabolic/helical feeds for deep pulse demodulation.
+              </div>
+              <div class="flow-step-insight">
+                <strong>Coherence:</strong> 4 synchronized ADCs sample in lockstep, enabling instant Direction-Finding without moving parts.
+              </div>
+            </div>
+          </div>
+
+          <!-- Signal Routing Flow Diagram -->
+          <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 18px 20px; margin-top: 20px; font-family: ui-monospace, monospace; font-size: 12px; color: var(--text-secondary); overflow-x: auto; line-height: 1.6;">
+            <div style="font-weight: 600; color: var(--accent-cyan); margin-bottom: 10px; font-family: var(--font-sans); font-size: 13px;">
+              System Signal Architecture Flowchart
+            </div>
+            [ 4x Spiral Cavity Array (AOA) ] ──┐<br>
+            [ Deployable Helical (UHF/L/S) ] ──┼──► [ RFFE: Limiters &amp; LNAs ] ──► [ Fast RF Switch Matrix ] ──► [ 4-Channel Coherent SDR ] ──► [ FPGA Edge Processor ]<br>
+            [ Parabolic Mesh Dish (C/X) ] ─────┘      (Burnout Protection)        (AOA vs High-Gain Select)     (3.2 GSPS Direct Sampling)     (Innoflight CFC-400 PDWs)
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-scaling" class="tab-pane">
+      <div class="card">
+        <div class="card-title">
+          <span>Can a Single Satellite Get Geolocation &amp; Signal Intelligence?</span>
+        </div>
+        <div class="card-subtitle">
+          Yes. A single LEO satellite can perform autonomous spectrum cataloguing and generate independent ground fixes using dual-axis phase interferometry combined with Doppler rate-of-change analysis.
+        </div>
+
+        <div class="grid-2" style="margin-top: 16px;">
+          <!-- Method 1: Phase Interferometry AOA -->
+          <div class="flow-step-card">
+            <div class="flow-step-number">Single-Sat Method 1 • Bearing</div>
+            <div class="flow-step-title">4-Spiral Phase Interferometry (AOA)</div>
+            <div class="flow-step-desc">
+              The satellite mounts 4 cavity-backed spiral antennas in an orthogonal cross on its Earth-facing deck (<i>d</i> = 0.55 m baseline). When a radar pulse arrives, it hits antenna 1 slightly before antenna 2. By measuring the sub-nanosecond phase difference, the satellite computes an instantaneous Line of Bearing (cone of arrival) directly to the target emitter.
+            </div>
+            <div class="flow-step-insight">
+              <strong>Result:</strong> Instantaneous bearing measurement (&le; 1.2&deg; accuracy) on every single pulse intercepted.
+            </div>
+          </div>
+
+          <!-- Method 2: Doppler Rate-of-Change -->
+          <div class="flow-step-card">
+            <div class="flow-step-number">Single-Sat Method 2 • Ranging</div>
+            <div class="flow-step-title">Doppler Rate-of-Change (<i>df/dt</i>)</div>
+            <div class="flow-step-desc">
+              Moving at 7.6 km/s, the satellite observes a changing frequency shift as it passes an emitter (the Doppler S-curve). At the exact instant of closest approach (TCA), the rate of frequency change (<i>ḟ</i>) reaches maximum steepness. This rate mathematically defines the perpendicular cross-track range to the emitter: <i>R</i><sub>min</sub> = <i>f</i><sub>0</sub><i>v</i><sup>2</sup> / (<i>c</i>·|<i>ḟ</i>|).
+            </div>
+            <div class="flow-step-insight">
+              <strong>Ambiguity Removal:</strong> Fusing Doppler ranging with the 4-spiral Phase Interferometer immediately eliminates left/right mirror ambiguity on the very first pulse burst.
+            </div>
+          </div>
+        </div>
+
+        <!-- Single Sat Performance Summary -->
+        <div style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 18px 20px; margin-top: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Single-Satellite Performance &amp; Operational Floor</span>
+            <span class="pill pill-steel">1 Satellite Baseline</span>
+          </div>
+          <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.55;">
+            • <strong>Geolocation Fix Accuracy:</strong> Produces a ground error ellipse of <strong>10 to 50 km CEP</strong> on a single 3-to-5 minute orbital overpass.<br>
+            • <strong>Operational Utility:</strong> Highly effective for regional threat assessment, verifying whether a radar or jammer is active in a military district, and cataloguing electronic signatures.<br>
+            • <strong>Operational Limit:</strong> Revisit cadence is 6 to 12 hours between passes over a given region, and it cannot geolocate short (&lt; 1 sec) frequency-hopping bursts with high precision.
+          </p>
+        </div>
+
+        <!-- How It Scales Roadmap -->
+        <div style="margin-top: 36px;">
+          <div class="card-title">
+            <span>The 4-Tier Constellation Scaling Roadmap</span>
+          </div>
+          <div class="card-subtitle">
+            How the mission scales progressively from an initial single pathfinder into a persistent, high-cadence tactical targeting constellation.
+          </div>
+
+          <div class="scaling-tier-grid">
+            <!-- Tier 1 -->
+            <div class="scaling-tier-card">
+              <div class="scaling-tier-badge">Tier 1 • Pathfinder</div>
+              <div class="scaling-tier-title">1 Satellite</div>
+              <div class="scaling-tier-accuracy">CEP 15 – 50 km</div>
+              <div class="scaling-tier-desc">
+                Initial orbital capability for passive RF cataloguing, EOB population, and single-pass Doppler+AOA regional localization.
+              </div>
+              <ul class="scaling-tier-list">
+                <li>Revisit: 6 – 12 hours</li>
+                <li>Single-pass AOA bearing line</li>
+                <li>Doppler inflection ranging</li>
+                <li>Validates payload &amp; antennas</li>
+              </ul>
+            </div>
+
+            <!-- Tier 2 -->
+            <div class="scaling-tier-card">
+              <div class="scaling-tier-badge">Tier 2 • Tandem Pair</div>
+              <div class="scaling-tier-title">2 Satellites</div>
+              <div class="scaling-tier-accuracy">CEP 2 – 5 km</div>
+              <div class="scaling-tier-desc">
+                Two spacecraft in the same orbital plane separated by 50–100 km. Introduces 1D TDOA hyperbola intersected with Doppler contours.
+              </div>
+              <ul class="scaling-tier-list">
+                <li>Revisit: 4 – 6 hours</li>
+                <li>1D Time-Difference of Arrival</li>
+                <li>Shrinks along-track ellipse</li>
+                <li>Cues maritime patrol aircraft</li>
+              </ul>
+            </div>
+
+            <!-- Tier 3 -->
+            <div class="scaling-tier-card" style="border-color: rgba(56, 189, 248, 0.3); background: rgba(56, 189, 248, 0.04);">
+              <div class="scaling-tier-badge">Tier 3 • Flying Triplet</div>
+              <div class="scaling-tier-title">3 Satellites (Cluster)</div>
+              <div class="scaling-tier-accuracy">CEP &le; 150 – 300 m</div>
+              <div class="scaling-tier-desc">
+                Flying cluster in triangle formation (like HawkEye 360 / Yaogan-30). Enables instantaneous 2D TDOA + FDOA hyperbolic intersection.
+              </div>
+              <ul class="scaling-tier-list">
+                <li>Single-burst geolocation (&lt; 1s)</li>
+                <li>Multi-satellite TDOA hyperbolas</li>
+                <li>Sub-nanosecond CSAC sync</li>
+                <li>Pinpoints tactical radios &amp; radars</li>
+              </ul>
+            </div>
+
+            <!-- Tier 4 -->
+            <div class="scaling-tier-card">
+              <div class="scaling-tier-badge">Tier 4 • Constellation</div>
+              <div class="scaling-tier-title">12 – 24 Satellites</div>
+              <div class="scaling-tier-accuracy">CEP &le; 50 – 150 m</div>
+              <div class="scaling-tier-desc">
+                Distributed Walker-Delta constellation across 3–4 planes connected by 1550 nm optical laser crosslinks for persistent global coverage.
+              </div>
+              <ul class="scaling-tier-list">
+                <li>Revisit: 15 – 30 minutes</li>
+                <li>Global persistent monitoring</li>
+                <li>Tracks mobile naval strike groups</li>
+                <li>Autonomous SAR/Optical cueing</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span>More Tactical Missions</span></div>
+        <div class="card-subtitle">Vignettes beyond the maritime and GNSS-jamming targets that the Operations tab simulates live (dark vessels, AIS spoofing, jammers, distress beacons).</div>
+        <div class="grid-2">
+          <!-- Mission 3 -->
+          <div class="flow-step-card">
+            <div class="flow-step-number">Mission Vignette 03</div>
+            <div class="flow-step-title">Tactical Drone (UAS) C2 Surveillance</div>
+            <div class="flow-step-desc">
+              Long-range tactical reconnaissance drones fly without active radar. However, their ground pilot must maintain continuous high-gain telemetry datalinks (433 MHz, 915 MHz, or C-band). The satellite intercepts the ground control uplink.
+            </div>
+            <div class="flow-step-insight">
+              <strong>Outcome:</strong> Geolocates the hidden drone ground control pilot and launch base rather than just the drone itself.
+            </div>
+          </div>
+
+          <!-- Mission 4 -->
+          <div class="flow-step-card">
+            <div class="flow-step-number">Mission Vignette 04</div>
+            <div class="flow-step-title">Air Defense Radar Pulse Cataloguing</div>
+            <div class="flow-step-desc">
+              When strategic SAM batteries (e.g. S-band or X-band phased arrays) power on, their antenna sidelobes leak energy into orbit. The satellite captures pulse widths, PRF, and frequency agility, updating the Electronic Order of Battle (EOB).
+            </div>
+            <div class="flow-step-insight">
+              <strong>Outcome:</strong> Classifies radar weapon type and deconflicts flight strike corridors in real time.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-hardware" class="tab-pane">
+      <div class="card">
+        <div class="card-title">
+          <span>Real Flight Hardware Subsystems</span>
+        </div>
+        <div class="card-subtitle">
+          Photographs of space-qualified flight hardware selected for the 100–150 kg ESPA-class LEO SIGINT satellite baseline, showing supplier heritage and physical specifications.
+        </div>
+
+        <div class="grid-3">
+          <!-- 1. Bus Structure -->
+          <div class="subsystem-card">
+            <div class="subsystem-img-container">
+              <img src="assets/subsystems/mp42_bus.jpg" alt="NanoAvionics MP42 ESPA Bus" class="subsystem-img">
+            </div>
+            <div class="subsystem-body">
+              <div class="subsystem-domain">Bus Platform • TRL 9</div>
+              <div class="subsystem-name">NanoAvionics MP42 ESPA Bus</div>
+              <div class="subsystem-vendor">Kongsberg NanoAvionics (Lithuania / USA)</div>
+              <div class="subsystem-desc">
+                Unibody monocoque aluminum chassis with modular shear panels and payload volume up to 610 &times; 710 &times; 965 mm. Provides 24" ESPA clampband interface and &gt; 50 Hz launch vehicle stiffness.
+              </div>
+              <div class="subsystem-specs">
+                <div class="spec-item"><span>Wet Capacity:</span> <span>150 kg</span></div>
+                <div class="spec-item"><span>Bus Mass:</span> <span>32.0 kg</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. SDR Receiver -->
+          <div class="subsystem-card">
+            <div class="subsystem-img-container">
+              <img src="assets/subsystems/innoflight_sdr.jpg" alt="Innoflight SCR-108 SDR" class="subsystem-img">
+            </div>
+            <div class="subsystem-body">
+              <div class="subsystem-domain">RF Payload • TRL 9</div>
+              <div class="subsystem-name">Innoflight SCR-108 Wideband SDR</div>
+              <div class="subsystem-vendor">Innoflight (USA)</div>
+              <div class="subsystem-desc">
+                Radiation-hardened multi-octave software defined radio supporting wideband tuning across UHF, L, S, C, and X bands. Features 4 phase-coherent receiver channels fed by an active RFFE switch matrix, enabling simultaneous 4-spiral AOA direction-finding or switched high-gain parabolic/helical surveillance.
+              </div>
+              <div class="subsystem-specs">
+                <div class="spec-item"><span>Architecture:</span> <span>4 Coherent RX</span></div>
+                <div class="spec-item"><span>Sampling:</span> <span>3.2 GSPS (12-bit)</span></div>
+                <div class="spec-item"><span>Tuning:</span> <span>300M – 12GHz</span></div>
+                <div class="spec-item"><span>Power:</span> <span>45.0 W</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. Edge Flight Computer -->
+          <div class="subsystem-card">
+            <div class="subsystem-img-container">
+              <img src="assets/subsystems/innoflight_cfc.jpg" alt="Innoflight CFC-400 Flight Computer" class="subsystem-img">
+            </div>
+            <div class="subsystem-body">
+              <div class="subsystem-domain">Avionics / Edge DSP • TRL 9</div>
+              <div class="subsystem-name">Innoflight CFC-400 Flight Computer</div>
+              <div class="subsystem-vendor">Innoflight (USA)</div>
+              <div class="subsystem-desc">
+                Multi-core ARM processor paired with Xilinx UltraScale+ FPGA. Executes real-time 1024-channel Polyphase Filter Bank (PFB) channelization and extracts &gt; 1.2M Pulse Descriptor Words (PDWs) per second.
+              </div>
+              <div class="subsystem-specs">
+                <div class="spec-item"><span>Throughput:</span> <span>1.2M PDW/s</span></div>
+                <div class="spec-item"><span>Storage:</span> <span>1 TB NVMe</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Deployable Helical Antenna -->
+          <div class="subsystem-card">
+            <div class="subsystem-img-container">
+              <img src="assets/subsystems/oxford_helical.jpg" alt="Oxford Deployable Helical Antenna" class="subsystem-img">
+            </div>
+            <div class="subsystem-body">
+              <div class="subsystem-domain">Antennas • TRL 8–9</div>
+              <div class="subsystem-name">Deployable Helical Antenna</div>
+              <div class="subsystem-vendor">Oxford Space Systems (UK)</div>
+              <div class="subsystem-desc">
+                Carbon fiber composite deployable boom antenna for wide-angle VHF, UHF, and L-band signal intercept. Stows into a 2U envelope and deploys via strain energy release without motorized actuators.
+              </div>
+              <div class="subsystem-specs">
+                <div class="spec-item"><span>Gain:</span> <span>+10.5 dBi</span></div>
+                <div class="spec-item"><span>Bands:</span> <span>UHF / L-Band</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. Deployable Reflector -->
+          <div class="subsystem-card">
+            <div class="subsystem-img-container">
+              <img src="assets/subsystems/oxford_reflector.jpg" alt="Oxford Deployable Reflector Antenna" class="subsystem-img">
+            </div>
+            <div class="subsystem-body">
+              <div class="subsystem-domain">Antennas • TRL 8–9</div>
+              <div class="subsystem-name">Deployable Parabolic Reflector</div>
+              <div class="subsystem-vendor">Oxford Space Systems (UK)</div>
+              <div class="subsystem-desc">
+                Offset wrapped-rib carbon fiber antenna with gold-plated mesh for high-gain C-band and X-band radar pulse intercept. Features high surface accuracy (&lt; 0.5 mm RMS) for directed tracking.
+              </div>
+              <div class="subsystem-specs">
+                <div class="spec-item"><span>Gain:</span> <span>+22.0 dBi</span></div>
+                <div class="spec-item"><span>Bands:</span> <span>C / X-Band</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. Reaction Wheels -->
+          <div class="subsystem-card">
+            <div class="subsystem-img-container">
+              <img src="assets/subsystems/bct_reaction_wheel.jpg" alt="Blue Canyon Reaction Wheel" class="subsystem-img">
+            </div>
+            <div class="subsystem-body">
+              <div class="subsystem-domain">ADCS Pointing • TRL 9</div>
+              <div class="subsystem-name">BCT Ultra-Low Disturbance RW</div>
+              <div class="subsystem-vendor">Blue Canyon Technologies / Raytheon (USA)</div>
+              <div class="subsystem-desc">
+                Precision momentum wheel assembly arranged in a 4-wheel pyramid configuration. Delivers high slew agility (up to 3&deg;/s) and sub-arcsecond pointing stability (&le; 0.05&deg;) for synthetic baseline maneuvers.
+              </div>
+              <div class="subsystem-specs">
+                <div class="spec-item"><span>Momentum:</span> <span>4.0 Nms</span></div>
+                <div class="spec-item"><span>Pointing:</span> <span>&le; 0.05&deg;</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 7. Star Tracker -->
+          <div class="subsystem-card">
+            <div class="subsystem-img-container">
+              <img src="assets/subsystems/sinclair_startracker.jpg" alt="Sinclair Star Tracker" class="subsystem-img">
+            </div>
+            <div class="subsystem-body">
+              <div class="subsystem-domain">ADCS Sensors • TRL 9</div>
+              <div class="subsystem-name">Sinclair ST-16RT2 Star Tracker</div>
+              <div class="subsystem-vendor">Rocket Lab / Sinclair (Canada / USA)</div>
+              <div class="subsystem-desc">
+                Autonomous attitude determination camera with integrated optical stray-light baffle. Delivers 5 arcsecond cross-boresight pointing accuracy with zero initial acquisition time ("lost-in-space" solution every frame).
+              </div>
+              <div class="subsystem-specs">
+                <div class="spec-item"><span>Accuracy:</span> <span>5 arcsec</span></div>
+                <div class="spec-item"><span>Mass:</span> <span>0.24 kg</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 8. Electric Propulsion -->
+          <div class="subsystem-card">
+            <div class="subsystem-img-container">
+              <img src="assets/subsystems/enpulsion_thruster.jpg" alt="Enpulsion FEEP Thruster" class="subsystem-img">
+            </div>
+            <div class="subsystem-body">
+              <div class="subsystem-domain">Propulsion • TRL 9</div>
+              <div class="subsystem-name">Enpulsion Micro R3 FEEP Thruster</div>
+              <div class="subsystem-vendor">Enpulsion (Austria)</div>
+              <div class="subsystem-desc">
+                Field Emission Electric Propulsion system using solid non-toxic indium propellant. Provides ultra-high specific impulse (3,000s) and &gt; 185 m/s delta-v for constellation slot phasing and collision avoidance.
+              </div>
+              <div class="subsystem-specs">
+                <div class="spec-item"><span>Isp:</span> <span>3,000 s</span></div>
+                <div class="spec-item"><span>Delta-v:</span> <span>185 m/s</span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 9. Optical ISL Terminal -->
+          <div class="subsystem-card">
+            <div class="subsystem-img-container">
+              <img src="assets/subsystems/tesat_scot80_laser_terminal.jpg" alt="Tesat SCOT80 Laser Terminal" class="subsystem-img">
+            </div>
+            <div class="subsystem-body">
+              <div class="subsystem-domain">Inter-Satellite Links • TRL 8–9</div>
+              <div class="subsystem-name">SCOT80 Optical ISL Terminal</div>
+              <div class="subsystem-vendor">Tesat-Spacecom (Germany)</div>
+              <div class="subsystem-desc">
+                1550 nm laser communication crosslink terminal supporting multi-gigabit mesh networking between constellation satellites up to 5,000 km apart. Delivers sub-15 second intelligence dissemination without ground stations.
+              </div>
+              <div class="subsystem-specs">
+                <div class="spec-item"><span>Data Rate:</span> <span>10 Gbps</span></div>
+                <div class="spec-item"><span>Range:</span> <span>5,000 km</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- How They Match: Physical Integration Stacking -->
+        <div style="margin-top: 40px;">
+          <div class="card-title">
+            <span>How the Subsystems Match: Physical Spacecraft Stacking</span>
+          </div>
+          <div class="card-subtitle">
+            Mechanical layout showing how the 10 subsystems pack into the 4-deck monocoque ESPA-class envelope (610 &times; 710 &times; 965 mm, 144.6 kg wet mass).
+          </div>
+
+          <div class="stack-deck-card">
+            <div class="stack-deck-badge">Deck 1 • Earth Nadir</div>
+            <div class="stack-deck-info">
+              <div class="stack-deck-title">Nadir Aperture &amp; Sensing Deck</div>
+              <div class="stack-deck-components">
+                • Deployable 1.85m UHF LPDA boom &amp; L-band helical antennas<br>
+                • Orthogonal 4-element cavity spiral phase interferometer array (0.55m baseline for AOA direction finding)<br>
+                • Deployable C/X-band offset parabolic reflector feed<br>
+                • Dual Sinclair ST-16RT2 star tracker optical heads with 35&deg; stray-light baffles
+              </div>
+            </div>
+          </div>
+
+          <div class="stack-deck-card">
+            <div class="stack-deck-badge">Deck 2 • Avionics Vault</div>
+            <div class="stack-deck-info">
+              <div class="stack-deck-title">Internal Shielded Electronics &amp; Edge Processing Bay</div>
+              <div class="stack-deck-components">
+                • Innoflight SCR-108 multi-octave SDR receiver (3.2 GSPS 12-bit direct RF digitizers)<br>
+                • Innoflight CFC-400 flight computer running real-time FPGA Polyphase Filter Banks and PDW extraction<br>
+                • Microchip SA.45s Chip-Scale Atomic Clock (CSAC) providing sub-nanosecond constellation time sync<br>
+                • Electrical Power System (EPS) 28V regulated distribution unit &amp; 480 Wh LiFePO4 battery pack<br>
+                • Dual loop heat pipes routing payload thermal dissipation to external radiator panels
+              </div>
+            </div>
+          </div>
+
+          <div class="stack-deck-card">
+            <div class="stack-deck-badge">Deck 3 • Propulsion &amp; ADCS</div>
+            <div class="stack-deck-info">
+              <div class="stack-deck-title">Attitude Control &amp; Orbital Maneuvering Bay</div>
+              <div class="stack-deck-components">
+                • 4x Blue Canyon Technologies reaction wheels mounted in a 45&deg; pyramid configuration<br>
+                • Enpulsion Micro R3 FEEP electric thruster with 14.5 kg solid indium propellant<br>
+                • 3-axis magnetic torque rods for momentum desaturation during orbital night
+              </div>
+            </div>
+          </div>
+
+          <div class="stack-deck-card">
+            <div class="stack-deck-badge">Deck 4 • Base Ring</div>
+            <div class="stack-deck-info">
+              <div class="stack-deck-title">Launch Vehicle Separation Interface</div>
+              <div class="stack-deck-components">
+                • Standard 24-inch ESPA clampband separation adapter ring<br>
+                • Separation microswitches and battery charging umbilical interface<br>
+                • Clean separation push-springs and grounding harness
+              </div>
+            </div>
+          </div>
+
+          <div class="stack-deck-card" style="border-style: dashed;">
+            <div class="stack-deck-badge">Lateral Deployables</div>
+            <div class="stack-deck-info">
+              <div class="stack-deck-title">External Flanking Deployable Appendages</div>
+              <div class="stack-deck-components">
+                • Dual deployable single-axis tracking GaAs solar array wings (1.15 m&sup2;, 318.5W EOL generation)<br>
+                • Fore and aft Tesat SCOT80 optical laser crosslink turrets (10 Gbps inter-satellite mesh)
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-library" class="tab-pane">
+      <!-- Calculators, Vendor Matrix, Frequency Explorer & Docs -->
+      <div class="card">
+        <div class="card-title">
+          <span>Supply Chain, Antennas &amp; Technical Archive</span>
+        </div>
+        <div class="card-subtitle">
+          Qualified supply chain vendor database, deployable antenna and frequency band matrix, architecture diagrams and the full technical report corpus.
+        </div>
+      </div>
+
+      <!-- Preserved Vendor Database Section -->
+      <div class="card mt-6" id="vendor-database-section">
+        <div class="card-title">
+          <span>Searchable Subsystem Supply Chain Database</span>
+        </div>
+        <div class="card-subtitle">
+          Matrix of 30+ qualified aerospace manufacturers across bus structures, electrical power, ADCS, propulsion, SDR receivers, deployable antennas, and optical ISLs.
+        </div>
+
+        <input type="text" id="vendor-search" class="search-input" placeholder="Search by manufacturer, component, bus interface, or keyword..." oninput="applyVendorFilters()">
+
+        <div class="filter-btn-group" id="vendor-cat-filters">
+          <button class="filter-btn active" data-cat="all" onclick="setVendorCategory('all')">All Domains (30)</button>
+          <button class="filter-btn" data-cat="bus" onclick="setVendorCategory('bus')">Bus Platform (5)</button>
+          <button class="filter-btn" data-cat="eps" onclick="setVendorCategory('eps')">EPS &amp; Solar (5)</button>
+          <button class="filter-btn" data-cat="adcs" onclick="setVendorCategory('adcs')">ADCS Pointing (5)</button>
+          <button class="filter-btn" data-cat="prop" onclick="setVendorCategory('prop')">Propulsion (5)</button>
+          <button class="filter-btn" data-cat="sdr" onclick="setVendorCategory('sdr')">SDR Payloads (5)</button>
+          <button class="filter-btn" data-cat="ant" onclick="setVendorCategory('ant')">Deployable Antennas (5)</button>
+          <button class="filter-btn" data-cat="isl" onclick="setVendorCategory('isl')">ISL &amp; Timing (5)</button>
+        </div>
+
+        <div class="filter-btn-group" id="vendor-export-filters">
+          <button class="filter-btn active" data-export="all" onclick="setVendorExport('all')">All Regulations</button>
+          <button class="filter-btn" data-export="non-itar" onclick="setVendorExport('non-itar')">Non-ITAR / EU / ITAR-Free</button>
+          <button class="filter-btn" data-export="ear99" onclick="setVendorExport('ear99')">US EAR99</button>
+          <button class="filter-btn" data-export="itar" onclick="setVendorExport('itar')">US ITAR</button>
+        </div>
+
+        <div style="overflow-x: auto; max-height: 500px;">
+          <table class="clean-table" id="vendor-table">
+            <thead>
+              <tr>
+                <th>Domain</th>
+                <th>Manufacturer</th>
+                <th>Component / Model</th>
+                <th>TRL</th>
+                <th>Key Specifications</th>
+                <th>Mass</th>
+                <th>Power</th>
+                <th>Data Interface</th>
+                <th>Export Status</th>
+              </tr>
+            </thead>
+            <tbody id="vendor-table-body">
+<!-- 30+ Space-Qualified Suppliers -->
+            <!-- 1. Bus Structures -->
+            <tr data-cat="bus" data-export="itar"><td>Bus Platform</td><td><strong>Moog Space &amp; Defense (USA)</strong></td><td>ESPA Grande / SL-Flex</td><td><span class="pill pill-emerald">TRL 9</span></td><td>24" ESPA interface, &gt;50 Hz lateral stiffness, handles 180 kg wet</td><td>30.0 kg dry</td><td>Passive</td><td>ESPA Clampband</td><td><span class="pill pill-rose">US ITAR</span></td></tr>
+            <tr data-cat="bus" data-export="non-itar"><td>Bus Platform</td><td><strong>AAC Clyde Space (UK/SWE)</strong></td><td>EPIC-150 Modular Bus</td><td><span class="pill pill-emerald">TRL 9</span></td><td>Aluminum honeycomb frame, rad-hard avionics vault, 150 kg wet envelope</td><td>32.0 kg dry</td><td>Passive</td><td>SpaceWire, CAN</td><td><span class="pill pill-emerald">Non-ITAR / UK</span></td></tr>
+            <tr data-cat="bus" data-export="ear99"><td>Bus Platform</td><td><strong>Apex Space (USA)</strong></td><td>Aries Platform (100–150 kg)</td><td><span class="pill pill-cyan">TRL 8–9</span></td><td>Serial manufacturing line, payload capacity up to 120 kg, 15" Marmon ring</td><td>45.0 kg bus</td><td>Passive</td><td>Ethernet, CAN</td><td><span class="pill pill-cyan">US EAR99</span></td></tr>
+            <tr data-cat="bus" data-export="non-itar"><td>Bus Platform</td><td><strong>Kongsberg NanoAvionics (LTU)</strong></td><td>MP50 Microsatellite Bus</td><td><span class="pill pill-emerald">TRL 9</span></td><td>85-liter payload volume, 200W thermal rejection heat pipe network</td><td>35.0 kg dry</td><td>Passive</td><td>SpaceWire, RS-485</td><td><span class="pill pill-emerald">Non-ITAR / EU</span></td></tr>
+            <tr data-cat="bus" data-export="itar"><td>Bus Platform</td><td><strong>York Space Systems (USA)</strong></td><td>S-CLASS Commercial Bus</td><td><span class="pill pill-emerald">TRL 9</span></td><td>Proliferated defense standard, 3-axis stabilized, payload fraction &gt; 40%</td><td>40.0 kg dry</td><td>Passive</td><td>RS-422, SpaceWire</td><td><span class="pill pill-rose">US ITAR</span></td></tr>
+
+            <!-- 2. EPS & Power -->
+            <tr data-cat="eps" data-export="itar"><td>EPS &amp; Solar</td><td><strong>Spectrolab / Boeing (USA)</strong></td><td>XTJ Prime GaInP/GaInAs/Ge</td><td><span class="pill pill-emerald">TRL 9</span></td><td>30.7%–32.0% efficiency, rad-hard &gt;10¹⁵ e/cm², temp coeff -0.18%/°C</td><td>Bare cells / CICs</td><td>32% BOL eff</td><td>PDU Bus Rail</td><td><span class="pill pill-rose">US ITAR</span></td></tr>
+            <tr data-cat="eps" data-export="non-itar"><td>EPS &amp; Solar</td><td><strong>DHV Technology (Spain)</strong></td><td>DSW-150 Tracking Wings</td><td><span class="pill pill-emerald">TRL 9</span></td><td>Dual carbon wings with SADM, 450W peak BOL, 320W OAP @ 600 km LEO</td><td>7.5 kg / wing</td><td>450W peak</td><td>SADM Step Pulse</td><td><span class="pill pill-emerald">Non-ITAR / EU</span></td></tr>
+            <tr data-cat="eps" data-export="non-itar"><td>EPS &amp; Power</td><td><strong>GomSpace (Denmark)</strong></td><td>NanoPower P200 + BP8 Battery</td><td><span class="pill pill-emerald">TRL 9</span></td><td>28V regulated power bus, &gt;96% MPPT conversion, 480 Wh Li-Ion battery pack</td><td>8.5 kg</td><td>&gt;96% efficiency</td><td>CAN, I2C</td><td><span class="pill pill-emerald">Non-ITAR / EU</span></td></tr>
+            <tr data-cat="eps" data-export="itar"><td>EPS &amp; Solar</td><td><strong>SolAero by Rocket Lab (USA)</strong></td><td>IMM Inverted Metamorphic</td><td><span class="pill pill-emerald">TRL 9</span></td><td>33.0% efficiency, ultra-lightweight composite substrate &lt; 1.8 kg/m²</td><td>Panel modules</td><td>33% BOL eff</td><td>PDU Interface</td><td><span class="pill pill-rose">US ITAR</span></td></tr>
+            <tr data-cat="eps" data-export="non-itar"><td>EPS &amp; Solar</td><td><strong>Oxford Space Systems (UK)</strong></td><td>Deployable High-Area Array</td><td><span class="pill pill-cyan">TRL 8</span></td><td>Flexible composite rollout panel, 350W peak, compact stowed volume</td><td>6.2 kg</td><td>350W peak</td><td>Deploy Actuator</td><td><span class="pill pill-emerald">Non-ITAR / UK</span></td></tr>
+
+            <!-- 3. ADCS Pointing -->
+            <tr data-cat="adcs" data-export="itar"><td>ADCS Pointing</td><td><strong>Blue Canyon Tech (USA)</strong></td><td>BCT X-SAT / FleXcore Suite</td><td><span class="pill pill-emerald">TRL 9</span></td><td>Pointing accuracy &lt; 0.005° (18 arcsec) 1σ, slew 3.5°/s, RWP100 wheels</td><td>8.0 kg suite</td><td>15–25W nominal</td><td>RS-422, CAN</td><td><span class="pill pill-rose">US ITAR</span></td></tr>
+            <tr data-cat="adcs" data-export="itar"><td>ADCS Pointing</td><td><strong>Adcole Space (USA)</strong></td><td>MAI-500 ADCS Suite</td><td><span class="pill pill-emerald">TRL 9</span></td><td>Sub-arcminute determination, integrated reaction wheels + torque rods</td><td>4.5 kg</td><td>12W nominal</td><td>RS-422</td><td><span class="pill pill-rose">US ITAR</span></td></tr>
+            <tr data-cat="adcs" data-export="non-itar"><td>ADCS Pointing</td><td><strong>Sinclair / Rocket Lab (CAN)</strong></td><td>RW3-1.0 Reaction Wheels</td><td><span class="pill pill-emerald">TRL 9</span></td><td>1.0 Nms momentum storage, ultra-low high-frequency jitter &lt; 1.5 mN</td><td>2.2 kg</td><td>8W nominal</td><td>RS-485, CAN</td><td><span class="pill pill-emerald">Non-ITAR / CAN</span></td></tr>
+            <tr data-cat="adcs" data-export="non-itar"><td>ADCS Pointing</td><td><strong>CubeSpace (South Africa)</strong></td><td>CubeControl Large Suite</td><td><span class="pill pill-emerald">TRL 9</span></td><td>0.02° 3-axis pointing accuracy, dual star tracker heads, high-torque wheels</td><td>5.5 kg</td><td>10–18W</td><td>CAN, UART</td><td><span class="pill pill-emerald">Non-ITAR / ZAF</span></td></tr>
+            <tr data-cat="adcs" data-export="non-itar"><td>ADCS Pointing</td><td><strong>Sensonor (Norway)</strong></td><td>STIM300 / STIM377H IMU</td><td><span class="pill pill-emerald">TRL 9</span></td><td>Tactical grade gyro bias stability 0.15°/hr, angular random walk 0.07°/√hr</td><td>0.055 kg</td><td>1.5W</td><td>RS-422</td><td><span class="pill pill-emerald">Non-ITAR / NOR</span></td></tr>
+
+            <!-- 4. Propulsion Systems -->
+            <tr data-cat="prop" data-export="non-itar"><td>Propulsion</td><td><strong>Exotrail (France)</strong></td><td>spaceware-M Hall Thruster</td><td><span class="pill pill-emerald">TRL 9</span></td><td>Thrust 8–18 mN, Isp 1,200–1,500s, Xenon/Krypton, &gt;200 m/s ΔV on 130 kg</td><td>9.5 kg wet</td><td>180–250W burn</td><td>CAN, RS-485</td><td><span class="pill pill-emerald">Non-ITAR / FRA</span></td></tr>
+            <tr data-cat="prop" data-export="non-itar"><td>Propulsion</td><td><strong>Enpulsion (Austria)</strong></td><td>ENPULSION Micro R3 FEEP</td><td><span class="pill pill-emerald">TRL 9</span></td><td>Indium liquid metal ion thruster, Isp 2,000–4,500s, thrust 0.1–1.5 mN</td><td>4.5 kg wet</td><td>20–40W</td><td>CAN, RS-422</td><td><span class="pill pill-emerald">Non-ITAR / AUT</span></td></tr>
+            <tr data-cat="prop" data-export="itar"><td>Propulsion</td><td><strong>Busek Co. (USA)</strong></td><td>BHT-350 Hall Effect Thruster</td><td><span class="pill pill-emerald">TRL 9</span></td><td>16 mN thrust, Isp 1,350s, 350W nominal, compact propellant feed system</td><td>10.0 kg wet</td><td>350W nominal</td><td>RS-422</td><td><span class="pill pill-rose">US ITAR</span></td></tr>
+            <tr data-cat="prop" data-export="non-itar"><td>Propulsion</td><td><strong>Benchmark Space Systems (USA)</strong></td><td>Halcyon Green Chemical Biprop</td><td><span class="pill pill-cyan">TRL 8–9</span></td><td>Thrust 1.0–2.5 N, HTP green propellant, rapid collision avoidance impulse</td><td>8.0 kg wet</td><td>15W standby</td><td>CAN, Discrete</td><td><span class="pill pill-emerald">ITAR-Free / USA</span></td></tr>
+            <tr data-cat="prop" data-export="non-itar"><td>Propulsion</td><td><strong>Dawn Aerospace (NZL/NLD)</strong></td><td>B20 Green Bi-propellant Thruster</td><td><span class="pill pill-emerald">TRL 9</span></td><td>Nitrous oxide (N2O) &amp; Propylene (C3H6), 20 N thrust, Isp 285s, non-toxic</td><td>7.5 kg dry</td><td>10W heaters</td><td>CAN, RS-485</td><td><span class="pill pill-emerald">Non-ITAR / NZ-EU</span></td></tr>
+
+            <!-- 5. SDR Receivers & Processors -->
+            <tr data-cat="sdr" data-export="itar"><td>SDR Payload</td><td><strong>Epiq Solutions (USA)</strong></td><td>Sidekiq X4 Multi-Channel SDR</td><td><span class="pill pill-cyan">TRL 8–9</span></td><td>1 MHz to 18 GHz continuous, 400 MHz IBW (or 800 MHz single), 14-bit ADC</td><td>1.8 kg (3U VPX)</td><td>30–45W</td><td>PCIe, SpaceWire</td><td><span class="pill pill-rose">US ITAR</span></td></tr>
+            <tr data-cat="sdr" data-export="itar"><td>SDR Payload</td><td><strong>CAES / Cobham (USA)</strong></td><td>Space VPX Wideband Receiver</td><td><span class="pill pill-emerald">TRL 9</span></td><td>100 krad TID rad-hard, sub-octave preselection switch filter banks, low phase noise</td><td>2.5 kg</td><td>40W</td><td>SpaceWire, AXI</td><td><span class="pill pill-rose">US ITAR</span></td></tr>
+            <tr data-cat="sdr" data-export="itar"><td>SDR Payload</td><td><strong>Innoflight (USA)</strong></td><td>CFC-400X / ZU19EG RFSoC</td><td><span class="pill pill-emerald">TRL 9</span></td><td>Xilinx UltraScale+ RFSoC, 1024-ch PFB channelizer, real-time PDW engine</td><td>1.5 kg</td><td>45–65W</td><td>10GbE, SpaceWire</td><td><span class="pill pill-rose">US ITAR</span></td></tr>
+            <tr data-cat="sdr" data-export="ear99"><td>SDR Payload</td><td><strong>Aitech Defense Systems (USA/ISR)</strong></td><td>S-A1760 AI Supercomputer</td><td><span class="pill pill-cyan">TRL 8</span></td><td>NVIDIA Jetson Orin core, 275 TOPS AI compute, real-time CNN signal classifier</td><td>2.2 kg</td><td>50–75W burst</td><td>PCIe, Gigabit Eth</td><td><span class="pill pill-cyan">US EAR99</span></td></tr>
+            <tr data-cat="sdr" data-export="non-itar"><td>SDR Payload</td><td><strong>Skylabs (Slovenia)</strong></td><td>NANOsdr / PicoSky Processor</td><td><span class="pill pill-cyan">TRL 8</span></td><td>Dual-channel direct-sampling SDR, integrated RISC-V DSP core, rad-hard</td><td>0.65 kg</td><td>14–22W</td><td>SpaceWire, CAN</td><td><span class="pill pill-emerald">Non-ITAR / EU</span></td></tr>
+
+            <!-- 6. Deployable Antennas -->
+            <tr data-cat="ant" data-export="itar"><td>Deployable Antenna</td><td><strong>MMA Design LLC (USA)</strong></td><td>T-DaHPR Parabolic Reflector</td><td><span class="pill pill-emerald">TRL 9</span></td><td>1.8m deployable parabolic mesh reflector, &gt;38.5 dBi at X-band, carbon struts</td><td>6.5 kg (4U stowed)</td><td>Motor deploy (15W)</td><td>SMA Actuator</td><td><span class="pill pill-rose">US ITAR</span></td></tr>
+            <tr data-cat="ant" data-export="itar"><td>Deployable Antenna</td><td><strong>Roccor / Redwire (USA)</strong></td><td>Open-Lattice Composite Booms</td><td><span class="pill pill-emerald">TRL 9</span></td><td>2.5–3.5m deployable composite boom, near-zero CTE (0×10⁻⁶/°C) for AOA baseline</td><td>3.5 kg</td><td>Passive spring</td><td>Deployable Hinge</td><td><span class="pill pill-rose">US ITAR</span></td></tr>
+            <tr data-cat="ant" data-export="non-itar"><td>Deployable Antenna</td><td><strong>Oxford Space Systems (UK)</strong></td><td>Deployable QHA &amp; Wrapped-Rib</td><td><span class="pill pill-cyan">TRL 8–9</span></td><td>Quadrifilar helical antenna for UHF/L-band; wrapped-rib reflector for C/X-band</td><td>2.0 kg</td><td>Passive / Burnwire</td><td>Release Discrete</td><td><span class="pill pill-emerald">Non-ITAR / UK</span></td></tr>
+            <tr data-cat="ant" data-export="itar"><td>Deployable Antenna</td><td><strong>CesiumAstro (USA)</strong></td><td>CommPack Active AESA Tile</td><td><span class="pill pill-cyan">TRL 8–9</span></td><td>Software-defined active phased array, X/Ku-band, dynamic ±60° electronic beam steering</td><td>4.5 kg</td><td>60–120W active</td><td>Ethernet, PCIe</td><td><span class="pill pill-rose">US ITAR</span></td></tr>
+            <tr data-cat="ant" data-export="non-itar"><td>Deployable Antenna</td><td><strong>Deployables Cubed / D3 (DEU)</strong></td><td>CubeRelease &amp; Tape Boom</td><td><span class="pill pill-emerald">TRL 9</span></td><td>High-reliability HDRM shape memory alloy actuators, resettable release mechanism</td><td>1.2 kg</td><td>5W release pulse</td><td>Discrete Command</td><td><span class="pill pill-emerald">Non-ITAR / EU</span></td></tr>
+
+            <!-- 7. ISL & Timing -->
+            <tr data-cat="isl" data-export="ear99"><td>ISL &amp; Timing</td><td><strong>Mynaric (Germany/USA)</strong></td><td>CONDOR Mk3 Laser Crosslink</td><td><span class="pill pill-emerald">TRL 9</span></td><td>10 Gbps optical ISL, range 100–5,000 km, sub-nanosecond clock sync via DOWTT</td><td>9.5 kg</td><td>65W nominal</td><td>Ethernet, SpaceWire</td><td><span class="pill pill-cyan">US EAR99 / DEU</span></td></tr>
+            <tr data-cat="isl" data-export="non-itar"><td>ISL &amp; Timing</td><td><strong>Tesat-Spacecom (Germany)</strong></td><td>SmartLCT Optical Terminal</td><td><span class="pill pill-emerald">TRL 9</span></td><td>Nd:YAG 1064nm coherent homodyne detection, 1.8–10 Gbps, ultra-high sensitivity</td><td>12.0 kg</td><td>80W nominal</td><td>SpaceWire, SFP+</td><td><span class="pill pill-emerald">Non-ITAR / DEU</span></td></tr>
+            <tr data-cat="isl" data-export="itar"><td>ISL &amp; Timing</td><td><strong>SA Photonics / CACI (USA)</strong></td><td>CrossBeam Low-SWaP Optical</td><td><span class="pill pill-emerald">TRL 9</span></td><td>Mass &lt; 7.0 kg, 10 Gbps crosslink, dual-axis coarse gimbal with fast steering mirror</td><td>6.8 kg</td><td>50W</td><td>10GbE, Serial</td><td><span class="pill pill-rose">US ITAR</span></td></tr>
+            <tr data-cat="isl" data-export="itar"><td>ISL &amp; Timing</td><td><strong>General Atomics (USA)</strong></td><td>LISCM Laser Terminal</td><td><span class="pill pill-cyan">TRL 8</span></td><td>1550 nm EDFA terminal, 1–5 Gbps, integrated inter-satellite laser ranging</td><td>8.5 kg</td><td>55W</td><td>Ethernet</td><td><span class="pill pill-rose">US ITAR</span></td></tr>
+            <tr data-cat="isl" data-export="ear99"><td>ISL &amp; Timing</td><td><strong>Microchip (USA)</strong></td><td>SA.45s Chip-Scale Atomic Clock</td><td><span class="pill pill-emerald">TRL 9</span></td><td>Allan Deviation σ_y(τ) &le; 10⁻¹¹/√τ, ultra-low power 120 mW, drift &lt; 1 ns/day</td><td>0.035 kg</td><td>0.12W</td><td>CMOS, Serial</td><td><span class="pill pill-cyan">US EAR99</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Preserved Frequency Explorer -->
+      <div class="card mt-6" id="frequency-explorer-section">
+        <div class="card-title">
+          <span>Frequency Band Coverage Explorer (UHF to X-Band)</span>
+        </div>
+        <div class="card-subtitle">
+          RF front-end tuning, deployable antenna architectures, and sensitivity margins spanning 300 MHz to 12.0 GHz.
+        </div>
+<div class="card" style="margin-bottom: 20px;">
+      <div class="card-header">
+        <div>
+          <h3>Deployable Antenna Systems &amp; Frequency Band Matrix (300 MHz – 12 GHz)</h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Interactive band selector examining RF propagation parameters, aperture dimensions, deployment mechanisms, and gain trade studies.</p>
+        </div>
+        <span class="pill pill-emerald">5 Dedicated Frequency Bands</span>
+      </div>
+
+      <!-- Band Selector Buttons -->
+      <div class="filter-btn-group" id="band-selector-group">
+        <button class="filter-btn active" onclick="selectBand('uhf')">UHF Band (300M–1G)</button>
+        <button class="filter-btn" onclick="selectBand('l-band')">L-Band (1–2 GHz)</button>
+        <button class="filter-btn" onclick="selectBand('s-band')">S-Band (2–4 GHz)</button>
+        <button class="filter-btn" onclick="selectBand('c-band')">C-Band (4–8 GHz)</button>
+        <button class="filter-btn" onclick="selectBand('x-band')">X-Band (8–12 GHz)</button>
+      </div>
+
+      <!-- Dynamic Band Details Card -->
+      <div id="band-details-card" class="grid-2" style="margin-top: 16px;">
+        <!-- Left: RF Parameters -->
+        <div style="background: var(--bg-elevated); padding: 18px; border-radius: 8px; border: 1px solid var(--border);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h4 id="band-name" style="color: var(--accent-cyan); font-size: 16px;">UHF Band (300 MHz – 1.0 GHz)</h4>
+            <span id="band-lambda" class="pill pill-cyan">λ = 100 cm – 30 cm</span>
+          </div>
+          <p id="band-desc" style="font-size: 13px;">Critical for tactical military push-to-talk communications, AIS maritime beacons, and UAS command uplinks. Requires long physical baselines due to meter-scale wavelengths.</p>
+
+          <div class="grid-2" style="margin-top: 14px;">
+            <div class="metric-box">
+              <div class="metric-title">Nadir Path Loss (550 km)</div>
+              <div id="band-fspl" class="metric-num" style="font-size: 20px;">136.8 <span class="metric-unit">dB</span></div>
+              <div class="metric-desc">@ 433 MHz center frequency</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-title">Target Emitters</div>
+              <div id="band-targets" style="font-size: 12.5px; font-family: var(--font-mono); color: #fff; margin-top: 4px;">AIS-1/2, PRC-117, UAS C2</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 14px;">
+            <h4 style="color: var(--text-main);">Ionospheric &amp; Propagation Phenomena:</h4>
+            <p id="band-propagation" style="font-size: 12.5px; color: var(--text-muted);">Faraday rotation significant (up to 120° at solar maximum). Requires dual-linear or circular polarization synthesis to prevent cross-polarization fades.</p>
+          </div>
+        </div>
+
+        <!-- Right: Deployable Mechanism Specifications -->
+        <div style="background: var(--bg-elevated); padding: 18px; border-radius: 8px; border: 1px solid var(--border);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h4 id="band-antenna-type" style="color: var(--accent-emerald); font-size: 16px;">Deployable LPDA Folding Scissor Boom</h4>
+            <span id="band-gain" class="pill pill-emerald">Gain: 7.5 – 9.5 dBi</span>
+          </div>
+
+          <div class="table-container" style="margin-bottom: 12px;">
+            <table>
+              <tbody>
+                <tr><td><strong>Aperture / Dimensions:</strong></td><td id="band-dimensions">1.85 m deployed boom length, 0.50 m dipole span</td></tr>
+                <tr><td><strong>Stowed Form Factor:</strong></td><td id="band-stowed">Compact 1.5U chassis (100 × 100 × 150 mm)</td></tr>
+                <tr><td><strong>Polarization:</strong></td><td id="band-polarization">Dual-Linear Orthogonal (H &amp; V synthesized)</td></tr>
+                <tr><td><strong>Release Mechanism:</strong></td><td id="band-release">Thermal burn-wire release with spring-loaded hinges</td></tr>
+                <tr><td><strong>Role in Geolocation:</strong></td><td id="band-role">Provides large synthetic baseline for single-sat Doppler &amp; FDOA</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="math-block emerald" id="band-math">
+            Interferometric Phase Shift: Δφ = (2π / λ) · d · cos(α)<br>
+            At 433 MHz (λ = 69.3 cm), a 1.85m boom provides d/λ = 2.67 baseline ratio.
+          </div>
+        </div>
+      </div>
+    </div>
+      </div>
+
+      <!-- Preserved Architecture Diagrams -->
+      <div class="card mt-6">
+        <div class="card-title">
+          <span>Spacecraft Vector Architecture Schematics</span>
+        </div>
+        <div class="card-subtitle">
+          Full-system electrical, command &amp; data handling, RF signal chain, and structural envelope vector diagrams.
+        </div>
+<div class="card" style="margin-bottom: 20px;">
+      <div class="card-header">
+        <div>
+          <h3>System Technical Architecture & Vector Diagram Suite</h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">5 standalone SVG architectural vector diagrams detailing electrical power, data flow, RF signal chains, antenna mechanisms, and mechanical layouts.</p>
+        </div>
+        <span class="pill pill-cyan">5 High-Resolution Vector Assets</span>
+      </div>
+
+      <div class="grid-3">
+        <!-- Diagram 1 -->
+        <div class="diagram-card">
+          <div class="diagram-preview" onclick="openDiagramModal('02_Technical_Architecture_and_Subsystems/diagrams/electrical_power_architecture.svg', 'Electrical Power Architecture (EPS, Solar, Battery, PDU)')">
+            <img src="02_Technical_Architecture_and_Subsystems/diagrams/electrical_power_architecture.svg" alt="Electrical Power Architecture">
+            <div class="diagram-preview-overlay"><span>🔍 Full-Screen Inspection</span></div>
+          </div>
+          <div class="diagram-meta">
+            <div>
+              <span class="pill pill-cyan" style="margin-bottom: 6px;">EPS Subsystem</span>
+              <h4>1. Electrical Power Architecture</h4>
+              <p style="font-size: 12px;">Deployable tracking solar wings (Spectrolab XTJ Prime 32% BOL), GomSpace P200 PDU with 28V regulated bus, 480 Wh Li-Ion battery pack, and latching current limiters.</p>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+              <button class="filter-btn" onclick="openDiagramModal('02_Technical_Architecture_and_Subsystems/diagrams/electrical_power_architecture.svg', 'Electrical Power Architecture (EPS, Solar, Battery, PDU)')">View Modal</button>
+              <a href="02_Technical_Architecture_and_Subsystems/diagrams/electrical_power_architecture.svg" target="_blank" class="filter-btn" style="text-decoration: none;">Direct SVG</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Diagram 2 -->
+        <div class="diagram-card">
+          <div class="diagram-preview" onclick="openDiagramModal('02_Technical_Architecture_and_Subsystems/diagrams/data_and_cdh_architecture.svg', 'C&DH Avionics & High-Rate Data Architecture')">
+            <img src="02_Technical_Architecture_and_Subsystems/diagrams/data_and_cdh_architecture.svg" alt="Data & C&DH Architecture">
+            <div class="diagram-preview-overlay"><span>🔍 Full-Screen Inspection</span></div>
+          </div>
+          <div class="diagram-meta">
+            <div>
+              <span class="pill pill-emerald" style="margin-bottom: 6px;">C&amp;DH Avionics</span>
+              <h4>2. C&amp;DH Avionics &amp; Data Flow</h4>
+              <p style="font-size: 12px;">Rad-tolerant flight computer, dual SpaceWire &amp; CAN networks, 10GbE payload data buses, high-capacity 2 TB NVMe mass memory, and X-band downlink transmitter.</p>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+              <button class="filter-btn" onclick="openDiagramModal('02_Technical_Architecture_and_Subsystems/diagrams/data_and_cdh_architecture.svg', 'C&DH Avionics & High-Rate Data Architecture')">View Modal</button>
+              <a href="02_Technical_Architecture_and_Subsystems/diagrams/data_and_cdh_architecture.svg" target="_blank" class="filter-btn" style="text-decoration: none;">Direct SVG</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Diagram 3 -->
+        <div class="diagram-card">
+          <div class="diagram-preview" onclick="openDiagramModal('02_Technical_Architecture_and_Subsystems/diagrams/rf_payload_signal_chain.svg', 'Wideband RF Front-End & Digital Processing Pipeline')">
+            <img src="02_Technical_Architecture_and_Subsystems/diagrams/rf_payload_signal_chain.svg" alt="RF Payload Signal Chain">
+            <div class="diagram-preview-overlay"><span>🔍 Full-Screen Inspection</span></div>
+          </div>
+          <div class="diagram-meta">
+            <div>
+              <span class="pill pill-amber" style="margin-bottom: 6px;">RF Payload</span>
+              <h4>3. RF Receiver Signal Chain</h4>
+              <p style="font-size: 12px;">Wideband 300M–12GHz RF front-end, PIN limiters, GaAs LNAs, 5 sub-octave filter banks, 5.2 GSPS 12-bit ADCs, FPGA 1024-channel PFB, and PDW engine.</p>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+              <button class="filter-btn" onclick="openDiagramModal('02_Technical_Architecture_and_Subsystems/diagrams/rf_payload_signal_chain.svg', 'Wideband RF Front-End & Digital Processing Pipeline')">View Modal</button>
+              <a href="02_Technical_Architecture_and_Subsystems/diagrams/rf_payload_signal_chain.svg" target="_blank" class="filter-btn" style="text-decoration: none;">Direct SVG</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Diagram 4 -->
+        <div class="diagram-card">
+          <div class="diagram-preview" onclick="openDiagramModal('02_Technical_Architecture_and_Subsystems/diagrams/antenna_deployment_mechanisms.svg', 'Deployable Antenna Deployment Sequences & Kinematics')">
+            <img src="02_Technical_Architecture_and_Subsystems/diagrams/antenna_deployment_mechanisms.svg" alt="Antenna Deployment Mechanisms">
+            <div class="diagram-preview-overlay"><span>🔍 Full-Screen Inspection</span></div>
+          </div>
+          <div class="diagram-meta">
+            <div>
+              <span class="pill pill-indigo" style="margin-bottom: 6px;">Antennas</span>
+              <h4>4. Deployable Antenna Mechanisms</h4>
+              <p style="font-size: 12px;">Kinematic deployment sequences for the 1.8m mesh parabolic reflector, 1.85m scissor boom LPDA, quadrifilar helix, and thermal release actuators.</p>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+              <button class="filter-btn" onclick="openDiagramModal('02_Technical_Architecture_and_Subsystems/diagrams/antenna_deployment_mechanisms.svg', 'Deployable Antenna Deployment Sequences & Kinematics')">View Modal</button>
+              <a href="02_Technical_Architecture_and_Subsystems/diagrams/antenna_deployment_mechanisms.svg" target="_blank" class="filter-btn" style="text-decoration: none;">Direct SVG</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Diagram 5 -->
+        <div class="diagram-card">
+          <div class="diagram-preview" onclick="openDiagramModal('02_Technical_Architecture_and_Subsystems/diagrams/spacecraft_envelope_and_layout.svg', 'ESPA Spacecraft Envelope, Layout & Thermal Design')">
+            <img src="02_Technical_Architecture_and_Subsystems/diagrams/spacecraft_envelope_and_layout.svg" alt="Spacecraft Envelope and Layout">
+            <div class="diagram-preview-overlay"><span>🔍 Full-Screen Inspection</span></div>
+          </div>
+          <div class="diagram-meta">
+            <div>
+              <span class="pill pill-cyan" style="margin-bottom: 6px;">Structure</span>
+              <h4>5. Spacecraft Envelope &amp; Layout</h4>
+              <p style="font-size: 12px;">100–150 kg ESPA mechanical envelope (600×600×800 mm), center of mass alignment, heat pipe loop layout, radiator panels, and thruster vectoring.</p>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+              <button class="filter-btn" onclick="openDiagramModal('02_Technical_Architecture_and_Subsystems/diagrams/spacecraft_envelope_and_layout.svg', 'ESPA Spacecraft Envelope, Layout & Thermal Design')">View Modal</button>
+              <a href="02_Technical_Architecture_and_Subsystems/diagrams/spacecraft_envelope_and_layout.svg" target="_blank" class="filter-btn" style="text-decoration: none;">Direct SVG</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+      </div>
+
+      <!-- Preserved Documentation Browser -->
+      <div class="card mt-6">
+        <div class="card-title">
+          <span>Technical Reports Archive (25 Documents)</span>
+        </div>
+        <div class="card-subtitle">
+          Direct access to all 25 exhaustive systems engineering reports across Folders 01, 02, and 03.
+        </div>
+<div class="card">
+      <div class="card-header">
+        <div>
+          <h3>Project Technical Corpus: 10 Comprehensive Markdown Reports</h3>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Direct relative links and executive briefs for all underlying engineering reports across the 3 study folders.</p>
+        </div>
+        <div class="filter-btn-group" style="margin-bottom: 0;">
+          <button class="filter-btn active" onclick="filterDocs('all')">All Folders (10)</button>
+          <button class="filter-btn" onclick="filterDocs('f01')">Folder 01: Market &amp; Constellations</button>
+          <button class="filter-btn" onclick="filterDocs('f02')">Folder 02: Subsystems &amp; Antennas</button>
+          <button class="filter-btn" onclick="filterDocs('f03')">Folder 03: CONOPS &amp; Math</button>
+        </div>
+      </div>
+
+      <div class="grid-2" id="docs-grid" style="margin-top: 16px;">
+        <!-- Report 1 -->
+        <div class="card doc-item" data-folder="f01">
+          <div class="card-header">
+            <h4>01_leo_sigint_overview_and_orbital_mechanics.md</h4>
+            <span class="pill pill-cyan">Folder 01</span>
+          </div>
+          <p style="font-size: 12.5px;">Physics and orbital mechanics trade-offs of LEO vs GEO for passive RF intercept. Slant range geometry, free-space path loss models across UHF to X-band, Doppler rate-of-change kinematics, and Walker constellation coverage trades.</p>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <span class="pill pill-emerald">47.8 KB | 4,200 Words</span>
+            <a href="01_State_of_the_Art_and_Market_Research/01_leo_sigint_overview_and_orbital_mechanics.md" target="_blank" class="filter-btn" style="text-decoration: none;">Open Report ↗</a>
+          </div>
+        </div>
+
+        <!-- Report 2 -->
+        <div class="card doc-item" data-folder="f01">
+          <div class="card-header">
+            <h4>02_commercial_and_defense_constellations_benchmark.md</h4>
+            <span class="pill pill-cyan">Folder 01</span>
+          </div>
+          <p style="font-size: 12.5px;">Exhaustive benchmarking of 7 commercial and defense constellations: HawkEye 360, Unseenlabs, Spire Global, Horizon Technologies, Kleos Space, NRO NOSS-3 / Intruder, and China Yaogan-30. Failure mode analysis of the "Kleos cluster trap".</p>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <span class="pill pill-emerald">37.1 KB | 3,850 Words</span>
+            <a href="01_State_of_the_Art_and_Market_Research/02_commercial_and_defense_constellations_benchmark.md" target="_blank" class="filter-btn" style="text-decoration: none;">Open Report ↗</a>
+          </div>
+        </div>
+
+        <!-- Report 3 -->
+        <div class="card doc-item" data-folder="f01">
+          <div class="card-header">
+            <h4>03_subsystem_supply_chain_matrix.md</h4>
+            <span class="pill pill-cyan">Folder 01</span>
+          </div>
+          <p style="font-size: 12.5px;">Comprehensive catalogue of 30+ qualified aerospace suppliers across 7 subsystem domains for 100–150 kg ESPA satellites. Includes TRL, flight heritage, SWaP metrics, interface protocols, and ITAR-free supply chain options.</p>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <span class="pill pill-emerald">47.5 KB | 4,100 Words</span>
+            <a href="01_State_of_the_Art_and_Market_Research/03_subsystem_supply_chain_matrix.md" target="_blank" class="filter-btn" style="text-decoration: none;">Open Report ↗</a>
+          </div>
+        </div>
+
+        <!-- Report 4 -->
+        <div class="card doc-item" data-folder="f01">
+          <div class="card-header">
+            <h4>04_frequency_bands_regulatory_and_orbital_considerations.md</h4>
+            <span class="pill pill-cyan">Folder 01</span>
+          </div>
+          <p style="font-size: 12.5px;">ITU Radio Regulations, passive listening sovereign rights under UN Outer Space Treaty (OST 1967), frequency band allocations from 300 MHz to 12 GHz, atmospheric absorption windows, and debris mitigation compliance (IADC / FCC 5-year deorbit).</p>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <span class="pill pill-emerald">13.4 KB | 1,450 Words</span>
+            <a href="01_State_of_the_Art_and_Market_Research/04_frequency_bands_regulatory_and_orbital_considerations.md" target="_blank" class="filter-btn" style="text-decoration: none;">Open Report ↗</a>
+          </div>
+        </div>
+
+        <!-- Report 5 -->
+        <div class="card doc-item" data-folder="f02">
+          <div class="card-header">
+            <h4>01_spacecraft_bus_and_swapc_budget.md</h4>
+            <span class="pill pill-emerald">Folder 02</span>
+          </div>
+          <p style="font-size: 12.5px;">Integrated SWaP-C budget table. CBE dry mass 121.5 kg, MEM 146.7 kg (+20.8% margin), peak payload power 269W, solar array EOL 318.5W (+29.4% margin), thermal rejection model, and unit cost breakdown ($4.8M recurring).</p>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <span class="pill pill-emerald">29.8 KB | 2,900 Words</span>
+            <a href="02_Technical_Architecture_and_Subsystems/01_spacecraft_bus_and_swapc_budget.md" target="_blank" class="filter-btn" style="text-decoration: none;">Open Report ↗</a>
+          </div>
+        </div>
+
+        <!-- Report 6 -->
+        <div class="card doc-item" data-folder="f02">
+          <div class="card-header">
+            <h4>02_rf_payload_and_digital_processing.md</h4>
+            <span class="pill pill-emerald">Folder 02</span>
+          </div>
+          <p style="font-size: 12.5px;">RF payload engineering deep-dive. 300M–12GHz direct-sampling receiver chain, GaAs limiters (+33 dBm CW protection), 5 switched sub-octave filter banks, 5.2 GSPS 12-bit ADCs, FPGA 1024-channel PFB channelizer, and PDW generation engine.</p>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <span class="pill pill-emerald">29.9 KB | 3,100 Words</span>
+            <a href="02_Technical_Architecture_and_Subsystems/02_rf_payload_and_digital_processing.md" target="_blank" class="filter-btn" style="text-decoration: none;">Open Report ↗</a>
+          </div>
+        </div>
+
+        <!-- Report 7 -->
+        <div class="card doc-item" data-folder="f02">
+          <div class="card-header">
+            <h4>03_wideband_deployable_antenna_systems.md</h4>
+            <span class="pill pill-emerald">Folder 02</span>
+          </div>
+          <p style="font-size: 12.5px;">Dedicated deployable antenna engineering report: 1.8m mesh parabolic reflector (C/X-band, &gt;38.5 dBi), deployable folding LPDA scissor boom (UHF to S-band), quadrifilar helix (L-band), and 4-element cavity spiral array for interferometry.</p>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <span class="pill pill-emerald">19.1 KB | 2,150 Words</span>
+            <a href="02_Technical_Architecture_and_Subsystems/03_wideband_deployable_antenna_systems.md" target="_blank" class="filter-btn" style="text-decoration: none;">Open Report ↗</a>
+          </div>
+        </div>
+
+        <!-- Report 8 -->
+        <div class="card doc-item" data-folder="f02">
+          <div class="card-header">
+            <h4>04_rf_link_budget_and_communications.md</h4>
+            <span class="pill pill-emerald">Folder 02</span>
+          </div>
+          <p style="font-size: 12.5px;">High-rate space-to-ground downlink communications engineering. 8.2 GHz X-band 300 Mbps DVB-S2X downlink to a 5.4m ground terminal, yielding +14.45 dB link margin (substantially exceeding the &gt; +4 dB / 20% requirement).</p>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <span class="pill pill-emerald">15.2 KB | 1,800 Words</span>
+            <a href="02_Technical_Architecture_and_Subsystems/04_rf_link_budget_and_communications.md" target="_blank" class="filter-btn" style="text-decoration: none;">Open Report ↗</a>
+          </div>
+        </div>
+
+        <!-- Report 9 -->
+        <div class="card doc-item" data-folder="f03">
+          <div class="card-header">
+            <h4>01_conops_five_target_scenarios.md</h4>
+            <span class="pill pill-amber">Folder 03</span>
+          </div>
+          <p style="font-size: 12.5px;">Comprehensive operational CONOPS for 5 key target types: Maritime AIS and naval/coastal radar decollision, GNSS spoofers and multi-kW barrage jammers, tactical UAS C2 datalinks, AEW&amp;C radar sidelobe cataloguing, and tactical VHF/UHF comms.</p>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <span class="pill pill-emerald">60.1 KB | 5,400 Words</span>
+            <a href="03_Operational_Scenarios_and_EW_Services/01_conops_five_target_scenarios.md" target="_blank" class="filter-btn" style="text-decoration: none;">Open Report ↗</a>
+          </div>
+        </div>
+
+        <!-- Report 10 -->
+        <div class="card doc-item" data-folder="f03">
+          <div class="card-header">
+            <h4>02_single_and_cluster_geolocation_mathematics.md</h4>
+            <span class="pill pill-amber">Folder 03</span>
+          </div>
+          <p style="font-size: 12.5px;">Mathematical derivations for both single-satellite and constellation geolocation: Doppler rate (<i>df/dt</i>), multi-baseline phase interferometry AOA, distributed TDOA/FDOA hyperbolas/isodops, Cross-Ambiguity Function (CAF), GDOP matrix, and CRLB bounds.</p>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+            <span class="pill pill-emerald">41.6 KB | 3,950 Words</span>
+            <a href="03_Operational_Scenarios_and_EW_Services/02_single_and_cluster_geolocation_mathematics.md" target="_blank" class="filter-btn" style="text-decoration: none;">Open Report ↗</a>
+          </div>
+        </div>
+      </div>
+    </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==========================================================================
+       MODAL DIALOG (Vector Diagrams)
+       ========================================================================== -->
+  <div id="diagram-modal" class="modal-backdrop" onclick="closeDiagramModalDirect(event)">
+    <div class="modal-window">
+      <div class="modal-header">
+        <span id="modal-title" style="font-size: 14px; font-weight: 600; color: var(--text-primary);">Diagram Viewer</span>
+        <button class="btn-close" onclick="closeDiagramModalDirect()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <img id="modal-img" src="" alt="Vector Diagram">
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       JAVASCRIPT ENGINE (All Dynamic Calculators & Filters)
+       ========================================================================== -->
+  <script>
+/* ==========================================================================
+     1. TAB SWITCHING ENGINE
+     ========================================================================== */
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+    const targetPane = document.getElementById(tabId);
+    if (targetPane) targetPane.classList.add('active');
+
+    const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.getAttribute('onclick')?.includes(tabId));
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // Trigger canvas resize/render if switching to calculators tab
+    if (tabId === 'tab-calculators') {
+      setTimeout(renderGdopCanvas, 50);
+    }
+  }
+
+  /* ==========================================================================
+     2. CONSTELLATION BENCHMARK FILTER
+     ========================================================================== */
+  function filterConstellations(cat) {
+    document.querySelectorAll('#constellationTable tbody tr').forEach(row => {
+      const rowCat = row.getAttribute('data-category');
+      if (cat === 'all' || !rowCat || rowCat === cat) {
+        row.style.display = '';
+      } else {
+        row.style.display = 'none';
+      }
+    });
+
+    // Update active button
+    const container = event.target.parentElement;
+    container.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+  }
+
+  /* ==========================================================================
+     3. SUBSYSTEM VENDOR SEARCH & FILTER ENGINE
+     ========================================================================== */
+  let currentVendorCat = 'all';
+  let currentVendorExport = 'all';
+
+  function setVendorCategory(cat) {
+    currentVendorCat = cat;
+    document.querySelectorAll('#vendor-cat-filters .filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-cat') === cat);
+    });
+    applyVendorFilters();
+  }
+
+  function setVendorExport(exp) {
+    currentVendorExport = exp;
+    document.querySelectorAll('#vendor-export-filters .filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('data-export') === exp);
+    });
+    applyVendorFilters();
+  }
+
+  function resetVendorFilters() {
+    document.getElementById('vendor-search').value = '';
+    currentVendorCat = 'all';
+    currentVendorExport = 'all';
+    document.querySelectorAll('#vendor-cat-filters .filter-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-cat') === 'all'));
+    document.querySelectorAll('#vendor-export-filters .filter-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-export') === 'all'));
+    applyVendorFilters();
+  }
+
+  function applyVendorFilters() {
+    const q = document.getElementById('vendor-search').value.toLowerCase();
+    const rows = document.querySelectorAll('#vendor-table tbody tr');
+    let visibleCount = 0;
+
+    rows.forEach(r => {
+      const text = r.innerText.toLowerCase();
+      const cat = r.getAttribute('data-cat');
+      const exp = r.getAttribute('data-export');
+
+      const matchesSearch = !q || text.includes(q);
+      const matchesCat = (currentVendorCat === 'all') || (cat === currentVendorCat);
+      const matchesExport = (currentVendorExport === 'all') || (exp === currentVendorExport);
+
+      if (matchesSearch && matchesCat && matchesExport) {
+        r.style.display = '';
+        visibleCount++;
+      } else {
+        r.style.display = 'none';
+      }
+    });
+
+    const badge = document.getElementById('vendor-count-badge');
+    if (badge) badge.innerText = `${visibleCount} Vendors Displayed`;
+  }
+
+  /* ==========================================================================
+     4. FREQUENCY BAND EXPLORER ENGINE
+     ========================================================================== */
+  const BANDS_DATA = {
+    'uhf': {
+      name: 'UHF Band (300 MHz – 1.0 GHz)',
+      lambda: 'λ = 100 cm – 30 cm',
+      desc: 'Critical for tactical military combat net radios (CNR), AIS maritime tracking, and drone telemetry. Signals penetrate vegetation and structures but require large apertures.',
+      fspl: '136.8 dB',
+      targets: 'Marine AIS-1/2, PRC-117, Tactical UAS C2',
+      propagation: 'Faraday rotation up to 120° at solar maximum; requires dual-linear or circular polarization to avoid cross-polarization fades.',
+      antennaType: 'Deployable LPDA Folding Scissor Boom',
+      gain: 'Gain: 7.5 – 9.5 dBi',
+      dimensions: '1.85 m deployed boom length, 0.50 m dipole span',
+      stowed: 'Compact 1.5U chassis (100 × 100 × 150 mm)',
+      polarization: 'Dual-Linear Orthogonal (H & V synthesized)',
+      release: 'Thermal burn-wire release with spring-loaded hinges',
+      role: 'Long physical baseline for single-sat Doppler rate & AOA interferometry',
+      math: 'Interferometric Phase Shift: Δφ = (2π / λ) · d · cos(α)\nAt 433 MHz (λ = 69.3 cm), a 1.85m boom provides d/λ = 2.67 baseline ratio.'
+    },
+    'l-band': {
+      name: 'L-Band (1.0 GHz – 2.0 GHz)',
+      lambda: 'λ = 30 cm – 15 cm',
+      desc: 'Hosts all global GNSS constellations (GPS L1/L2/L5, Galileo E1/E5, BeiDou), Iridium/Inmarsat satellite communications, and tactical datalinks.',
+      fspl: '148.0 dB',
+      targets: 'GPS L1/L2/L5 Jammers, Inmarsat, Mode-S ADS-B',
+      propagation: 'Low atmospheric absorption (< 0.05 dB); ionospheric scintillation occurs in equatorial and auroral zones.',
+      antennaType: 'Deployable Quadrifilar Conical Helix (QHA)',
+      gain: 'Gain: 11.5 – 13.5 dBi',
+      dimensions: '38 cm height × 18 cm base diameter',
+      stowed: 'Collapsible spring-helix into 1U volume (100 × 100 × 40 mm)',
+      polarization: 'Right-Hand Circular Polarization (RHCP, Axial Ratio < 1.5 dB)',
+      release: 'Shape Memory Alloy (SMA) pinpuller with damper',
+      role: 'Optimal circular polarization matches GNSS signals without Faraday loss',
+      math: 'Path Loss Advantage: Free space path loss is ~32 dB lower than from GEO!\nEnables detection of 100 mW handheld privacy jammers from 550 km orbit.'
+    },
+    's-band': {
+      name: 'S-Band (2.0 GHz – 4.0 GHz)',
+      lambda: 'λ = 15 cm – 7.5 cm',
+      desc: 'Dominant frequency band for naval air surveillance radars, coastal search radars, space telemetry, and 2.4 GHz tactical drone command datalinks.',
+      fspl: '154.2 dB',
+      targets: 'Naval Air Search Radars, SAM Radars, Drone C2',
+      propagation: 'Negligible rain attenuation; minimal atmospheric loss (< 0.1 dB nadir). Ideal for high-duty cycle radar pulse detection.',
+      antennaType: '4-Element Cavity-Backed Archimedean Spiral Array',
+      gain: 'Gain: 8.5 – 10.0 dBi per element',
+      dimensions: '4× (8 cm diameter cavity spirals) arranged on 0.5m baseline',
+      stowed: 'Flush nadir-deck mounting (zero mechanical deployment risk)',
+      polarization: 'Dual-Circular / Polarization Agnostic',
+      role: 'Primary multi-channel phase interferometer baseline for instantaneous AOA',
+      math: 'Unambiguous AOA Resolution: Coprime baseline spacing (d1 = 0.5λ, d2 = 3.5λ)\nResolves angle of arrival to < 0.8° without spatial grating lobes.'
+    },
+    'c-band': {
+      name: 'C-Band (4.0 GHz – 8.0 GHz)',
+      lambda: 'λ = 7.5 cm – 3.75 cm',
+      desc: 'Primary band for modern mobile Ground-Based Air Defense (GBAD) phased array engagement radars (e.g. S-300PMU2, Patriot PAC-3) and drone video datalinks.',
+      fspl: '160.8 dB',
+      targets: 'Air Defense Radars, 5.8 GHz Drone HD Video Datalinks',
+      propagation: 'Mild rain attenuation in heavy tropical rainstorms; clear-air attenuation < 0.2 dB.',
+      antennaType: 'Dual-Ridge Pyramidal Horn & Microstrip Array',
+      gain: 'Gain: 14.0 – 16.5 dBi',
+      dimensions: '9.5 × 9.5 × 14 cm pyramidal horn',
+      stowed: 'Fixed payload deck mounting within ESPA volume envelope',
+      polarization: 'Dual-Linear Orthogonal (H & V)',
+      role: 'High gain for intercepting radar antenna sidelobes (-30 dB below main beam)',
+      math: 'Sidelobe Intercept: Ground radar ERP = 80 dBW, Sidelobe = -30 dB => 50 dBW EIRP.\nPrx at 550 km orbit = -96 dBm, providing +15 dB detection SNR.'
+    },
+    'x-band': {
+      name: 'X-Band (8.0 GHz – 12.0 GHz)',
+      lambda: 'λ = 3.75 cm – 2.5 cm',
+      desc: 'Crucial for naval surface search radars (9.3–9.5 GHz), fighter fire control radars (APG-77/81), missile seekers, and high-rate satellite downlinks.',
+      fspl: '166.8 dB',
+      targets: 'Marine Navigation Radars (Dark Vessels), Fire Control Radars',
+      propagation: 'Tropospheric rain fade up to 1.5–3 dB during heavy rain. Atmospheric oxygen/water vapor absorption ~0.35 dB.',
+      antennaType: 'Deployable 1.8m Parabolic Mesh Reflector (MMA Design T-DaHPR)',
+      gain: 'Gain: 38.5 – 41.2 dBi',
+      dimensions: '1.80 m deployed diameter, focal length 0.72 m',
+      stowed: 'Stows into 4U volume envelope (200 × 200 × 100 mm)',
+      polarization: 'Dual-Linear / Circular selectable feed horn',
+      release: 'Motorized pantograph deployment with carbon-composite ribs',
+      role: 'Pencil-beam aperture for high-sensitivity radar interception & 300 Mbps downlink',
+      math: 'Aperture Gain: G = η · (π D / λ)² = 0.60 · (π · 1.8 / 0.0315)² = 40.8 dBi.\nEnables intercept of faint sidelobes and achieves 300 Mbps high-rate downlink.'
+    }
+  };
+
+  function selectBand(bandKey) {
+    const data = BANDS_DATA[bandKey];
+    if (!data) return;
+
+    document.getElementById('band-name').innerText = data.name;
+    document.getElementById('band-lambda').innerText = data.lambda;
+    document.getElementById('band-desc').innerText = data.desc;
+    document.getElementById('band-fspl').innerHTML = `${data.fspl} <span class="metric-unit">nadir</span>`;
+    document.getElementById('band-targets').innerText = data.targets;
+    document.getElementById('band-propagation').innerText = data.propagation;
+    document.getElementById('band-antenna-type').innerText = data.antennaType;
+    document.getElementById('band-gain').innerText = data.gain;
+    document.getElementById('band-dimensions').innerText = data.dimensions;
+    document.getElementById('band-stowed').innerText = data.stowed;
+    document.getElementById('band-polarization').innerText = data.polarization;
+    document.getElementById('band-release').innerText = data.release;
+    document.getElementById('band-role').innerText = data.role;
+    document.getElementById('band-math').innerText = data.math;
+
+    // Highlight button
+    document.querySelectorAll('#band-selector-group .filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.getAttribute('onclick')?.includes(bandKey));
+    });
+  }
+
+  /* ==========================================================================
+     5. CALCULATOR 1: FRIIS RF LINK BUDGET & SENSITIVITY ENGINE
+     ========================================================================== */
+  function updateLinkCalc() {
+    const f = parseFloat(document.getElementById('inp_freq').value);
+    const pWatts = parseFloat(document.getElementById('inp_tx_power').value);
+    const gTx = parseFloat(document.getElementById('inp_tx_gain').value);
+    const alt = parseFloat(document.getElementById('inp_alt').value);
+    const elevDeg = parseFloat(document.getElementById('inp_elev').value);
+    const elevRad = elevDeg * Math.PI / 180;
+    const gRx = parseFloat(document.getElementById('inp_rx_gain').value);
+    const nf = parseFloat(document.getElementById('inp_nf').value);
+    const bwMHz = parseFloat(document.getElementById('inp_bw').value);
+
+    // Band identifier
+    let bandName = "UHF";
+    if (f >= 1000 && f < 2000) bandName = "L-Band";
+    else if (f >= 2000 && f < 4000) bandName = "S-Band";
+    else if (f >= 4000 && f < 8000) bandName = "C-Band";
+    else if (f >= 8000) bandName = "X-Band";
+
+    const pDbm = (10 * Math.log10(pWatts) + 30).toFixed(1);
+    document.getElementById('lbl_freq').innerText = `${f} MHz (${bandName})`;
+    document.getElementById('lbl_tx_power').innerText = `${pWatts} W (+${pDbm} dBm)`;
+    document.getElementById('lbl_tx_gain').innerText = `${gTx.toFixed(1)} dBi`;
+    document.getElementById('lbl_alt').innerText = `${alt} km`;
+    document.getElementById('lbl_elev').innerText = `${elevDeg.toFixed(0)}° (Slant Look)`;
+    document.getElementById('lbl_rx_gain').innerText = `${gRx.toFixed(1)} dBi`;
+    document.getElementById('lbl_nf').innerText = `${nf.toFixed(1)} dB (LNA)`;
+    document.getElementById('lbl_bw').innerText = `${bwMHz.toFixed(3)} MHz`;
+
+    // Slant Range via Spherical Earth Geometry
+    const Re = 6378.137;
+    const cosLambda = (Re / (Re + alt)) * Math.cos(elevRad);
+    const lambda = Math.acos(cosLambda) - elevRad;
+    const slantRange = Math.sqrt(Re*Re + (Re+alt)*(Re+alt) - 2*Re*(Re+alt)*Math.cos(lambda));
+
+    // FSPL (dB) = 32.44 + 20*log10(rho_km) + 20*log10(f_MHz)
+    const fspl = 32.44 + 20 * Math.log10(slantRange) + 20 * Math.log10(f);
+
+    // Additional atmospheric and polarization loss
+    let lAtm = 0.4;
+    if (f > 7000) lAtm = 1.2;
+    else if (f > 3000) lAtm = 0.6;
+
+    // Received Power: Prx (dBm) = Ptx(dBm) + Gtx - FSPL + Grx - Latm
+    const prx = parseFloat(pDbm) + gTx - fspl + gRx - lAtm;
+
+    // Noise Power: Pn = -174 dBm/Hz + NF + 10*log10(BW_Hz)
+    const bwHz = bwMHz * 1e6;
+    const pn = -174.0 + nf + (10 * Math.log10(bwHz));
+
+    const snr = prx - pn;
+    const reqSnr = 10.0; // Required threshold for blind pulse detection
+    const linkMargin = snr - reqSnr;
+
+    // Update Numerical Readouts
+    document.getElementById('res_slant').innerHTML = `${Math.round(slantRange).toLocaleString()} <span class="metric-unit">km</span>`;
+    document.getElementById('res_fspl').innerHTML = `-${fspl.toFixed(1)} <span class="metric-unit">dB</span>`;
+    document.getElementById('res_prx').innerHTML = `${prx.toFixed(1)} <span class="metric-unit">dBm</span>`;
+
+    const snrEl = document.getElementById('res_snr');
+    snrEl.innerHTML = `${snr > 0 ? "+" : ""}${snr.toFixed(1)} <span class="metric-unit">dB</span>`;
+
+    // Visual Margin Gauge Update
+    const gaugeEl = document.getElementById('res_margin_gauge');
+    const marginValEl = document.getElementById('res_margin_val');
+
+    // Gauge scale: -10 dB = 0%, +4 dB = 46%, +20 dB = 100%
+    let gaugePct = ((linkMargin + 10) / 30) * 100;
+    if (gaugePct < 0) gaugePct = 0;
+    if (gaugePct > 100) gaugePct = 100;
+    gaugeEl.style.width = `${gaugePct.toFixed(1)}%`;
+
+    if (linkMargin >= 4.0) {
+      gaugeEl.style.backgroundColor = "var(--accent-emerald)";
+      gaugeEl.style.color = "var(--accent-emerald)";
+      marginValEl.style.color = "var(--accent-emerald)";
+      marginValEl.innerText = `+${linkMargin.toFixed(1)} dB (COMPLIANT ≥ +4 dB / 20%)`;
+      snrEl.style.color = "var(--accent-emerald)";
+    } else if (linkMargin >= 0.0) {
+      gaugeEl.style.backgroundColor = "var(--accent-amber)";
+      gaugeEl.style.color = "var(--accent-amber)";
+      marginValEl.style.color = "var(--accent-amber)";
+      marginValEl.innerText = `+${linkMargin.toFixed(1)} dB (MARGINAL: 0 to +4 dB)`;
+      snrEl.style.color = "var(--accent-amber)";
+    } else {
+      gaugeEl.style.backgroundColor = "var(--accent-rose)";
+      gaugeEl.style.color = "var(--accent-rose)";
+      marginValEl.style.color = "var(--accent-rose)";
+      marginValEl.innerText = `${linkMargin.toFixed(1)} dB (NON-COMPLIANT: NEGATIVE MARGIN)`;
+      snrEl.style.color = "var(--accent-rose)";
+    }
+  }
+
+  /* ==========================================================================
+     6. CALCULATOR 2: INTERACTIVE TDOA/FDOA GDOP & CEP CANVAS ENGINE
+     ========================================================================== */
+  let emitterPos = { x: 300, y: 220 }; // Ground emitter position on canvas
+  let isDraggingEmitter = false;
+
+  function initGdopCanvas() {
+    const canvas = document.getElementById('gdopCanvas');
+    if (!canvas) return;
+
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+      const dist = Math.hypot(x - emitterPos.x, y - emitterPos.y);
+      if (dist < 30) {
+        isDraggingEmitter = true;
+      } else {
+        emitterPos = { x, y };
+        updateGdopCalc();
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDraggingEmitter) return;
+      const rect = canvas.getBoundingClientRect();
+      let x = (e.clientX - rect.left) * (canvas.width / rect.width);
+      let y = (e.clientY - rect.top) * (canvas.height / rect.height);
+      x = Math.max(40, Math.min(canvas.width - 40, x));
+      y = Math.max(40, Math.min(canvas.height - 40, y));
+      emitterPos = { x, y };
+      updateGdopCalc();
+    });
+
+    window.addEventListener('mouseup', () => { isDraggingEmitter = false; });
+  }
+
+  function updateGdopCalc() {
+    const b = parseFloat(document.getElementById('inp_baseline').value);
+    const jitNs = parseFloat(document.getElementById('inp_jitter').value);
+    const ang = parseFloat(document.getElementById('inp_angle').value);
+    const fErr = parseFloat(document.getElementById('inp_f_err').value);
+
+    document.getElementById('lbl_baseline').innerText = `${b} km`;
+    document.getElementById('lbl_jitter').innerText = `${jitNs.toFixed(1)} ns`;
+    document.getElementById('lbl_angle').innerText = `${ang}° Off-Nadir`;
+    document.getElementById('lbl_f_err').innerText = `${fErr.toFixed(1)} Hz (FDOA Error)`;
+    document.getElementById('hud-cluster-baseline').innerText = `BASELINE: ${b} km`;
+
+    // GDOP Model for 3-satellite formation:
+    // GDOP ≈ (h / B) * (1 / cos(θ)) * √(1 + 0.5 sin²(θ))
+    const h = 550; // altitude km
+    const thetaRad = ang * Math.PI / 180;
+    let gdop = (h / b) * (1 / Math.cos(thetaRad)) * Math.sqrt(1 + 0.8 * Math.sin(thetaRad)*Math.sin(thetaRad));
+    if (gdop < 1.15) gdop = 1.15;
+
+    // Range error: σ_r = c * σ_t
+    const c = 0.299792458; // m / ns
+    const rangeErr = jitNs * c; // meters
+
+    // CEP-50 (meters)
+    // FDOA measurement error dampens cross-track error:
+    const fdoaDamping = 1.0 / (1.0 + 0.1 * (20.0 / Math.max(1.0, fErr)));
+    const cep = gdop * rangeErr * 125.0 * (1.0 + 0.4 * fdoaDamping);
+
+    document.getElementById('res_gdop').innerText = gdop.toFixed(2);
+    document.getElementById('res_range_err').innerHTML = `${rangeErr.toFixed(2)} <span class="metric-unit">m</span>`;
+
+    const cepEl = document.getElementById('res_cep');
+    const statusEl = document.getElementById('res_cep_status');
+    cepEl.innerHTML = `${cep.toFixed(1)} <span class="metric-unit">meters</span>`;
+
+    if (cep < 150) {
+      cepEl.style.color = "var(--accent-emerald)";
+      statusEl.style.color = "var(--accent-emerald)";
+      statusEl.innerText = "✔ Precision Strike & High-Resolution Cueing Quality (< 150m)";
+    } else if (cep < 500) {
+      cepEl.style.color = "var(--accent-cyan)";
+      statusEl.style.color = "var(--accent-cyan)";
+      statusEl.innerText = "✔ Tactical Surveillance & Maritime Interdiction Quality (150m – 500m)";
+    } else if (cep < 1000) {
+      cepEl.style.color = "var(--accent-amber)";
+      statusEl.style.color = "var(--accent-amber)";
+      statusEl.innerText = "⚠ Coarse Regional Localization (500m – 1000m)";
+    } else {
+      cepEl.style.color = "var(--accent-rose)";
+      statusEl.style.color = "var(--accent-rose)";
+      statusEl.innerText = "✖ Degraded Geolocation Accuracy (> 1000m)";
+    }
+
+    renderGdopCanvas(gdop, cep, b);
+  }
+
+  function renderGdopCanvas(gdop = 2.86, cep = 118.5, b = 65) {
+    const canvas = document.getElementById('gdopCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // 1. Radar Coordinate Grid
+    ctx.strokeStyle = '#162238';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < w; x += 40) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke();
+    }
+    for (let y = 0; y < h; y += 40) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
+    }
+
+    // Concentric Range Rings centered at (w/2, h/2)
+    ctx.strokeStyle = '#1b2a47';
+    ctx.beginPath(); ctx.arc(w/2, h/2, 80, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(w/2, h/2, 160, 0, Math.PI * 2); ctx.stroke();
+
+    // 2. Swarm Satellites Geometry (Triangle Formation)
+    // Scale baseline to canvas pixels
+    const pxScale = (b / 65) * 60;
+    const sat1 = { x: w/2, y: 70 - pxScale*0.3 };
+    const sat2 = { x: w/2 - pxScale, y: 90 + pxScale*0.5 };
+    const sat3 = { x: w/2 + pxScale, y: 90 + pxScale*0.5 };
+
+    // Swarm Baseline Lines
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
+    ctx.beginPath();
+    ctx.moveTo(sat1.x, sat1.y);
+    ctx.lineTo(sat2.x, sat2.y);
+    ctx.lineTo(sat3.x, sat3.y);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 3. Draw TDOA Hyperbolic Isochrones intersecting at emitterPos
+    // Pair 1-2 Isochrone
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.7)';
+    ctx.lineWidth = 1.5;
+    drawHyperbola(ctx, sat1, sat2, emitterPos, w, h);
+
+    // Pair 1-3 Isochrone
+    ctx.strokeStyle = 'rgba(245, 158, 11, 0.7)';
+    ctx.lineWidth = 1.5;
+    drawHyperbola(ctx, sat1, sat3, emitterPos, w, h);
+
+    // 4. Draw FDOA Isodop Contour passing through emitterPos
+    ctx.strokeStyle = 'rgba(168, 85, 247, 0.75)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([6, 3]);
+    ctx.beginPath();
+    ctx.moveTo(0, emitterPos.y + (emitterPos.x - w/2) * 0.25);
+    ctx.lineTo(w, emitterPos.y - (w - emitterPos.x) * 0.25);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 5. Draw 50% Circular Error Probable (CEP-50) Ellipse
+    const ellipseRadiusX = Math.min(80, Math.max(12, cep * 0.22));
+    const ellipseRadiusY = Math.min(50, Math.max(8, ellipseRadiusX / Math.max(1.1, gdop * 0.5)));
+    const ellipseRotation = Math.atan2(emitterPos.y - sat1.y, emitterPos.x - sat1.x);
+
+    ctx.save();
+    ctx.translate(emitterPos.x, emitterPos.y);
+    ctx.rotate(ellipseRotation);
+    ctx.fillStyle = 'rgba(16, 185, 129, 0.18)';
+    ctx.strokeStyle = '#10b981';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, ellipseRadiusX, ellipseRadiusY, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    // 6. Draw Target Emitter Node
+    ctx.fillStyle = '#10b981';
+    ctx.shadowColor = '#10b981';
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(emitterPos.x, emitterPos.y, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.font = '11px monospace';
+    ctx.fillStyle = '#f1f5f9';
+    ctx.fillText(`Target Emitter (${Math.round(emitterPos.x)}, ${Math.round(emitterPos.y)})`, emitterPos.x + 10, emitterPos.y - 8);
+    ctx.fillStyle = '#10b981';
+    ctx.fillText(`CEP: ${cep.toFixed(0)}m`, emitterPos.x + 10, emitterPos.y + 12);
+
+    // 7. Draw Satellite Nodes
+    drawSatelliteNode(ctx, sat1, 'Sat 1 (Apex)', '#06b6d4');
+    drawSatelliteNode(ctx, sat2, 'Sat 2', '#06b6d4');
+    drawSatelliteNode(ctx, sat3, 'Sat 3', '#06b6d4');
+  }
+
+  function drawSatelliteNode(ctx, pos, name, color) {
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // Solar array wings
+    ctx.strokeStyle = '#94a3b8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(pos.x - 12, pos.y); ctx.lineTo(pos.x - 6, pos.y);
+    ctx.moveTo(pos.x + 6, pos.y); ctx.lineTo(pos.x + 12, pos.y);
+    ctx.stroke();
+
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#cbd5e1';
+    ctx.fillText(name, pos.x - 16, pos.y - 10);
+  }
+
+  function drawHyperbola(ctx, s1, s2, target, w, h) {
+    const dTarget = Math.hypot(target.x - s1.x, target.y - s1.y) - Math.hypot(target.x - s2.x, target.y - s2.y);
+    ctx.beginPath();
+    let started = false;
+    for (let x = 0; x <= w; x += 15) {
+      // Find y that satisfies distance diff
+      for (let y = 0; y <= h; y += 4) {
+        const d = Math.hypot(x - s1.x, y - s1.y) - Math.hypot(x - s2.x, y - s2.y);
+        if (Math.abs(d - dTarget) < 3.0) {
+          if (!started) { ctx.moveTo(x, y); started = true; }
+          else { ctx.lineTo(x, y); }
+          break;
+        }
+      }
+    }
+    ctx.stroke();
+  }
+
+  /* ==========================================================================
+     7. CALCULATOR 3: SPACECRAFT SWAP-C BUDGET & MARGIN ENGINE
+     ========================================================================== */
+  function updateSwapCalc() {
+    const dutyMin = parseFloat(document.getElementById('inp_swap_duty').value);
+    const plPwr = parseFloat(document.getElementById('inp_swap_pl_pwr').value);
+    const solarBol = parseFloat(document.getElementById('inp_swap_solar').value);
+    const batWh = parseFloat(document.getElementById('inp_swap_bat').value);
+    const propKg = parseFloat(document.getElementById('inp_swap_prop').value);
+
+    document.getElementById('lbl_swap_duty').innerText = `${dutyMin} min / orbit (${((dutyMin / 95.6) * 100).toFixed(1)}%)`;
+    document.getElementById('lbl_swap_pl_pwr').innerText = `${plPwr} Watts (Active Dwell)`;
+    document.getElementById('lbl_swap_solar').innerText = `${solarBol} Watts BOL`;
+    document.getElementById('lbl_swap_bat').innerText = `${batWh} Wh (28V Pack)`;
+    const estDeltaV = Math.round(propKg * 14.5);
+    document.getElementById('lbl_swap_prop').innerText = `${propKg.toFixed(1)} kg (~${estDeltaV} m/s ΔV)`;
+
+    // Mass Breakdown (Aligned with 04_swap_c_and_link_budget_analysis.md):
+    // CBE Dry Mass = 108.55 kg, 16% contingency = 17.38 kg, clampband = 4.18 kg
+    const cbeDry = 108.55;
+    const growthContingency = cbeDry * 0.16; // 17.38 kg (16% standard dry growth)
+    const clampband = 4.18;
+    const wetMass = cbeDry + growthContingency + propKg + clampband;
+    const maxAllowedMass = 150.0;
+    const massMarginKg = maxAllowedMass - wetMass;
+    const massMarginPct = (massMarginKg / maxAllowedMass) * 100;
+
+    document.getElementById('res_swap_mass').innerHTML = `${wetMass.toFixed(1)} <span class="metric-unit">kg</span>`;
+    const massMarginEl = document.getElementById('res_swap_mass_margin');
+
+    if (massMarginKg >= 0) {
+      massMarginEl.style.color = "var(--accent-emerald)";
+      massMarginEl.innerText = `Launch Margin: +${massMarginKg.toFixed(1)} kg under 150 kg limit (+${massMarginPct.toFixed(1)}%)`;
+    } else {
+      massMarginEl.style.color = "var(--accent-rose)";
+      massMarginEl.innerText = `OVERWEIGHT: ${Math.abs(massMarginKg).toFixed(1)} kg over 150 kg limit!`;
+    }
+
+    // Power Model (95.6 min orbit: 60.1 min sunlit, 35.5 min eclipse):
+    // Standby: 67.5W, Active: plPwr, Downlink: 161.0W (10 min pass)
+    const standbyMin = Math.max(0, 95.6 - dutyMin - 10);
+    const energyOrbitWh = (67.5 * (standbyMin / 60)) + (plPwr * (dutyMin / 60)) + (161.0 * (10 / 60));
+    const oap = energyOrbitWh / (95.6 / 60);
+
+    document.getElementById('res_swap_oap').innerHTML = `${oap.toFixed(1)} <span class="metric-unit">W</span>`;
+
+    // Solar EOL generation with 0.85 degradation & sun angle factor:
+    const solarEol = solarBol * 0.85 * 0.95; // 318.5W @ 395W BOL
+    const solarMarginPct = ((solarEol - oap) / oap) * 100;
+
+    const marginEl = document.getElementById('res_swap_margin');
+    marginEl.innerHTML = `${solarMarginPct > 0 ? "+" : ""}${Math.round(solarMarginPct)}%`;
+    marginEl.style.color = solarMarginPct >= 20.0 ? "var(--accent-emerald)" : (solarMarginPct >= 0 ? "var(--accent-amber)" : "var(--accent-rose)");
+
+    // Eclipse Battery Depth of Discharge (DoD):
+    // Standby power draw in eclipse: 67.5W * (35.5 / 60) = 39.9 Wh
+    const eclipseEnergyWh = 67.5 * (35.5 / 60);
+    const dod = (eclipseEnergyWh / batWh) * 100;
+    const dodEl = document.getElementById('res_swap_dod');
+    dodEl.innerHTML = `${dod.toFixed(1)}%`;
+    dodEl.style.color = dod <= 20.0 ? "var(--accent-emerald)" : (dod <= 30.0 ? "var(--accent-amber)" : "var(--accent-rose)");
+
+    // Real-Time Compliance Assessment
+    const statusBox = document.getElementById('res_swap_status_box');
+    const statusTitle = document.getElementById('res_swap_status_title');
+    const statusDesc = document.getElementById('res_swap_status_desc');
+
+    const isMassOk = massMarginKg >= 0;
+    const isPowerOk = solarMarginPct >= 20.0;
+    const isDodOk = dod <= 20.0;
+
+    if (isMassOk && isPowerOk && isDodOk) {
+      statusBox.style.borderColor = "var(--accent-emerald)";
+      statusTitle.style.color = "var(--accent-emerald)";
+      statusTitle.innerText = "ALL SWaP-C REQUIREMENTS SATISFIED (MARGINS ≥ 20%)";
+      statusDesc.innerText = `Total wet mass (${wetMass.toFixed(1)} kg) is within the 150.0 kg ESPA rideshare envelope. Solar power margin is +${Math.round(solarMarginPct)}% (≥ 20%), and battery DoD (${dod.toFixed(1)}%) guarantees a 5-year LEO mission life.`;
+    } else {
+      statusBox.style.borderColor = "var(--accent-rose)";
+      statusTitle.style.color = "var(--accent-rose)";
+      statusTitle.innerText = "SWaP-C COMPLIANCE WARNING: LIMIT EXCEEDED";
+      let issues = [];
+      if (!isMassOk) issues.push(`Wet mass exceeds 150 kg limit by ${Math.abs(massMarginKg).toFixed(1)} kg`);
+      if (!isPowerOk) issues.push(`Solar power margin (+${Math.round(solarMarginPct)}%) is below required 20%`);
+      if (!isDodOk) issues.push(`Battery DoD (${dod.toFixed(1)}%) exceeds 20% degradation limit`);
+      statusDesc.innerText = `Violations: ${issues.join('; ')}. Adjust sliders to restore mission margins.`;
+    }
+  }
+
+  /* ==========================================================================
+     8. DOCUMENTATION BROWSER FILTER ENGINE
+     ========================================================================== */
+  function filterDocs(folderKey) {
+    document.querySelectorAll('.doc-item').forEach(card => {
+      const cardFolder = card.getAttribute('data-folder');
+      if (folderKey === 'all' || cardFolder === folderKey) {
+        card.style.display = '';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+
+    const container = event.target.parentElement;
+    container.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+  }
+
+  /* ==========================================================================
+     9. FULL-SCREEN VECTOR DIAGRAM MODAL CONTROLLER
+     ========================================================================== */
+  function openDiagramModal(svgPath, title) {
+    const modal = document.getElementById('diagram-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalImg = document.getElementById('modal-img');
+    const downloadLink = document.getElementById('modal-download-link');
+
+    if (!modal || !modalImg) return;
+
+    modalTitle.innerText = title;
+    modalImg.src = svgPath;
+    downloadLink.href = svgPath;
+
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeDiagramModal(event) {
+    if (event.target.id === 'diagram-modal') {
+      closeDiagramModalDirect();
+    }
+  }
+
+  function closeDiagramModalDirect() {
+    const modal = document.getElementById('diagram-modal');
+    if (modal) modal.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  // Keyboard escape listener for modal
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeDiagramModalDirect();
+  });
+
+  /* ==========================================================================
+     INITIALIZATION ON DOM LOAD
+     ========================================================================== */
+  window.addEventListener('DOMContentLoaded', () => {
+    // Embedded in the LYRA-3 simulator: show the pane named by ?view= and initialise what it holds.
+    const view = new URLSearchParams(location.search).get('view') || 'link';
+    const pane = document.getElementById('view-' + view) || document.querySelector('.tab-pane');
+    pane.classList.add('active');
+    if (document.getElementById('band-name')) selectBand('uhf');
+  });
+  </script>
+</body>
+</html>

@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roadmap, cost & schedule — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<style>
+  .mini { font-family: var(--font-ui); font-size: .8rem; color: var(--ink-2); }
+  td.spec { max-width: 40ch; white-space: normal; font-size: .82rem; }
+  td.wrap { max-width: 30ch; white-space: normal; }
+  .rec { font-family: var(--font-ui); font-weight: 700; }
+  .rec.buy { color: var(--accent); } .rec.build { color: var(--accent-2); } .rec.partner { color: var(--band-s); }
+  .gate-id { font-family: var(--font-ui); font-weight: 700; white-space: nowrap; }
+  .fund-table td.wrap { max-width: 36ch; }
+  .kill { list-style: none; padding: 0; margin: .4rem 0 0; }
+  .kill li { padding: .25rem 0 .25rem 1.3rem; position: relative; }
+  .kill li::before { content: "✕"; position: absolute; left: 0; color: var(--critical); font-weight: 700; }
+  .cost-table td.num { white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>02 Technical understanding</b> · Programmatics</div>
+    <h1>Roadmap, cost &amp; schedule</h1>
+    <p class="lead">What it costs, how long it takes and in what order the money is committed. The cost model triangulates from government fixed-price awards, ESA's €35 M Scout cap, the capital-raised-per-satellite of the operators that actually did this, and the few published list prices. It lands at €18–35 M for the TALOS-1 demonstrator, €40–65 M cumulative for the three-satellite cluster and €110–170 M for twelve satellites over seven to nine years — with the funding gap between demonstrator and cluster, not the technology, as the thing most likely to end the programme.</p>
+    <div class="meta"><span id="meta-baseline">Baseline</span><span>Source: research note 05 §1, §2, §5.6, §6, §7; programmatics.js</span><span>Money in M€, ranges [low, high]</span></div>
+  </header>
+
+  <div class="grid c4" id="kpis"></div>
+
+  <h2 id="cost">Cost model</h2>
+  <p>Bus vendors do not publish ESPA-class unit prices and SIGINT payload NRE is never disclosed, so every line below is a range anchored on public evidence: SDA Tranche 0 (~$9.4 M per York satellite including payload integration, a US-defence-grade price)<sup class="ref"><a href="#ref-R5-28">[R5-28]</a></sup>, the ESA Scout cap of €35 M for a complete small mission<sup class="ref"><a href="#ref-R5-26">[R5-26]</a></sup>, the Greek national programme's €60 M for eleven mostly CubeSat-class satellites<sup class="ref"><a href="#ref-R5-15">[R5-15]</a></sup><sup class="ref"><a href="#ref-R5-14">[R5-14]</a></sup>, SpaceX rideshare list prices<sup class="ref"><a href="#ref-R5-1">[R5-1]</a></sup> and the insurance market<sup class="ref"><a href="#ref-R5-19">[R5-19]</a></sup>. All figures are estimates unless a source is cited on the row.</p>
+  <div class="table-wrap"><table class="compact cost-table" id="cost-table"><thead><tr><th>Element</th><th class="num">Low</th><th class="num">High</th><th>Unit</th><th>Basis</th></tr></thead><tbody></tbody></table></div>
+
+  <h3>Scenario totals</h3>
+  <div class="grid c2"><div id="scen-capex"></div><div id="scen-opex"></div></div>
+  <div class="table-wrap"><table class="compact" id="scen-table"><thead><tr><th>Scenario</th><th class="num">Capex (M€, cumulative)</th><th class="num">Opex (M€/yr)</th><th>Duration to IOC</th><th>Notes</th></tr></thead><tbody></tbody></table></div>
+  <p>Per-year opex covers ground segment, operations staff, cloud and processing, liability insurance, licence maintenance and a small sustaining-engineering team; it excludes sales, G&amp;A and analytics product development — another €2–6 M/yr for a commercial entity (est.).</p>
+
+  <h3>Reality check: the operators that did it</h3>
+  <div class="table-wrap"><table class="compact" id="comp-table"><thead><tr><th>Operator</th><th>Capital raised</th><th>Satellites</th><th>Implied capital per satellite</th><th>Comment</th></tr></thead><tbody></tbody></table></div>
+  <p>The scenario totals are consistent with these anchors: a credible first operational SIGINT constellation of ~12 ESPA-class satellites is a €100–170 M, seven-to-nine-year undertaking before commercial G&amp;A. Companies that raised less than ~€100 M before reaching a revenue-generating constellation failed (Kleos)<sup class="ref"><a href="#ref-R5-2">[R5-2]</a></sup>; those that survived raised €120 M (Unseenlabs)<sup class="ref"><a href="#ref-R5-11">[R5-11]</a></sup> to $500 M+ (HawkEye 360, ten years and a May 2026 IPO to reach a ~$200 M revenue run-rate)<sup class="ref"><a href="#ref-R5-6">[R5-6]</a></sup><sup class="ref"><a href="#ref-R5-7">[R5-7]</a></sup>.</p>
+
+  <div class="panel" id="estimator">
+    <h3>Cost estimator</h3>
+    <p class="mini">A bottom-up build of the scenarios above. Sliders default to the mid-points of the cost-element ranges; the learning curve applies to bus, payload-recurring and AIT from the second unit. Satellites are delivered from year 3 at the chosen cadence; opex scales with the fraction of the constellation in orbit.</p>
+    <div class="controls">
+      <div class="ctl"><label>Number of satellites <output for="e-n">3</output></label><input type="range" id="e-n" min="1" max="24" step="1" value="3"></div>
+      <div class="ctl"><label>Bus unit cost <output for="e-bus">5.0</output> M€</label><input type="range" id="e-bus" min="3" max="7" step="0.1" value="5"></div>
+      <div class="ctl"><label>First-unit premium <output for="e-fu">45</output> %</label><input type="range" id="e-fu" min="0" max="80" step="5" value="45"></div>
+      <div class="ctl"><label>Payload NRE <output for="e-nre">10</output> M€</label><input type="range" id="e-nre" min="4" max="20" step="0.5" value="10"></div>
+      <div class="ctl"><label>Payload recurring <output for="e-rec">2.3</output> M€/sat</label><input type="range" id="e-rec" min="0.8" max="5" step="0.1" value="2.3"></div>
+      <div class="ctl"><label>AIT &amp; test <output for="e-ait">1.0</output> M€/sat</label><input type="range" id="e-ait" min="0.3" max="2" step="0.1" value="1"></div>
+      <div class="ctl"><label>Launch <output for="e-l">1.3</output> M€/sat</label><input type="range" id="e-l" min="0.8" max="3" step="0.1" value="1.3"></div>
+      <div class="ctl"><label>Learning curve per doubling <output for="e-lc">12</output> %</label><input type="range" id="e-lc" min="0" max="25" step="1" value="12"></div>
+      <div class="ctl"><label>Ground capex <output for="e-gs">1.5</output> M€</label><input type="range" id="e-gs" min="0.5" max="4" step="0.1" value="1.5"></div>
+      <div class="ctl"><label>Mission control &amp; data platform build <output for="e-mcs">2.0</output> M€</label><input type="range" id="e-mcs" min="0.5" max="4" step="0.1" value="2"></div>
+      <div class="ctl"><label>PM / SE / PA <output for="e-pm">16</output> % of hardware</label><input type="range" id="e-pm" min="8" max="25" step="1" value="16"></div>
+      <div class="ctl"><label>Contingency <output for="e-ct">25</output> %</label><input type="range" id="e-ct" min="5" max="35" step="1" value="25"></div>
+      <div class="ctl"><label>Opex at full constellation <output for="e-ox">5.5</output> M€/yr</label><input type="range" id="e-ox" min="1" max="25" step="0.5" value="5.5"></div>
+      <div class="ctl"><label>Delivery cadence <output for="e-cad">2</output> sats/yr</label><input type="range" id="e-cad" min="1" max="8" step="1" value="2"></div>
+      <div class="ctl"><label>Horizon <output for="e-y">8</output> years</label><input type="range" id="e-y" min="4" max="12" step="1" value="8"></div>
+    </div>
+    <div class="readout">
+      <div><div class="k">Capex (all satellites)</div><div class="v" id="e-capex">—</div></div>
+      <div><div class="k">of which recurring per satellite (avg)</div><div class="v" id="e-persat">—</div></div>
+      <div><div class="k">Cumulative cost over horizon</div><div class="v" id="e-cum">—</div></div>
+      <div><div class="k">Cost per satellite-year</div><div class="v" id="e-say">—</div></div>
+      <div><div class="k">Research range for this size</div><div class="v" id="e-ref">—</div></div>
+    </div>
+    <div id="e-chart-wrap"><div id="e-chart"></div></div>
+    <div id="e-cum-wrap"><div id="e-cum-chart"></div></div>
+    <div id="e-break-wrap"><div id="e-break"></div></div>
+  </div>
+
+  <h2 id="schedule">Schedule</h2>
+  <p>ECSS phasing, tailored. Realistic comparators from founding to first launch: HawkEye 360 39 months, Kleos ~42 months after a launch slip that strained liquidity, Unseenlabs ~48 months<sup class="ref"><a href="#ref-R5-9">[R5-9]</a></sup><sup class="ref"><a href="#ref-R5-5">[R5-5]</a></sup><sup class="ref"><a href="#ref-R5-11">[R5-11]</a></sup>; the Greek national programme took from March 2019 to CDR in December 2024<sup class="ref"><a href="#ref-R5-14">[R5-14]</a></sup>, a reminder that institutional programmes run slower than start-ups. Plan the demonstrator for 42 months with a 6-month float.</p>
+  <figure class="diagram">
+    <svg id="gantt" viewBox="0 0 980 360" role="img" aria-label="Phase schedule Gantt chart"></svg>
+    <figcaption><b>Demonstrator schedule from a <span id="g-kick"></span> kick-off.</b> Dark bars are the minimum phase duration, light extensions the maximum; the review that closes each phase is marked at the end of the minimum bar. The pathfinder (dashed) runs in parallel with Phase B/C so that its flight results feed the demonstrator CDR. The cumulative range is <span id="g-total"></span> months from kick-off to IOC; the baseline plan is 42 months with 6 months of float.</figcaption>
+  </figure>
+  <div class="table-wrap"><table class="compact" id="phase-table"><thead><tr><th>Phase</th><th class="num">Duration (months)</th><th>Content</th><th>Exit review</th></tr></thead><tbody></tbody></table></div>
+
+  <h3>Long-lead items</h3>
+  <p>Anything with a lead time longer than Phase B must be ordered at or before PDR, which is why the bus selection, the thruster and the antenna development are Phase B decisions and why two launch options are booked early.</p>
+  <div id="ll-chart"></div>
+  <div class="table-wrap"><table class="compact" id="ll-table"><thead><tr><th>Item</th><th class="num">Lead time (months)</th><th>Mitigation</th></tr></thead><tbody></tbody></table></div>
+
+  <h3>Decision gates</h3>
+  <div class="table-wrap"><table class="compact" id="gate-table"><thead><tr><th>Gate</th><th>When</th><th>Go criteria (all required)</th><th>KPIs to be met</th></tr></thead><tbody></tbody></table></div>
+  <div class="callout risk"><div class="t">Kill criteria — no-go regardless of score</div><ul class="kill">
+    <li>No lawful basis for the intended collection model (externals-only) under Greek and EU law.</li>
+    <li>Licence refusal, or an ITAR classification that makes EU-controlled sales impossible.</li>
+    <li>Pathfinder shows RFSoC lifetime under 18 months without a credible fix.</li>
+    <li>Failure to secure cluster funding before the demonstrator launch — do not launch into a funding cliff.</li>
+  </ul></div>
+
+  <h2 id="roadmap">Roadmap</h2>
+  <ul class="timeline" id="roadmap-tl"></ul>
+
+  <h2 id="team">Team and headcount</h2>
+  <p>Payload RF, DSP/FPGA, flight software, systems and mission analysis, product assurance, AIT, operations and flight dynamics, ground/cloud and cyber, RF/ELINT analysts, programme management and procurement, sales and government relations, legal/export/licensing. HawkEye 360 reached a few hundred staff at 39 satellites and Unseenlabs ~100–150 at eleven (est.).</p>
+  <div id="hc-chart"></div>
+
+  <h3>Build versus buy</h3>
+  <div class="table-wrap"><table class="compact" id="bvb-table"><thead><tr><th>Element</th><th>Recommendation</th><th>Rationale</th></tr></thead><tbody></tbody></table></div>
+
+  <h2 id="pathfinder">Pathfinder options</h2>
+  <div class="table-wrap"><table class="compact" id="pf-table"><thead><tr><th>Option</th><th class="num">Cost (M€)</th><th>Time to orbit</th><th>What it proves</th><th>What it does not</th></tr></thead><tbody></tbody></table></div>
+  <div id="pf-chart"></div>
+  <div class="callout decision"><div class="t">Recommendation: 16U pathfinder in parallel with Phase B</div><p>Run the 16U pathfinder with one UHF/L/S chain in parallel with Phase B of the 150 kg satellite — not sequentially — so that its flight results feed the demonstrator CDR. This mirrors HawkEye 360's 13 kg Pathfinder → larger Cluster 2 path<sup class="ref"><a href="#ref-R5-9">[R5-9]</a></sup><sup class="ref"><a href="#ref-R5-10">[R5-10]</a></sup> and costs about 20–25 % of the demonstrator. It retires the radiation, timing, EMC and downlink risks (<a href="risks.html">T-02/03/04/05/18</a>) and establishes the Greek licensing precedent before the flight model is committed. If budget forbids both, the hosted-payload route on a GNTS-class national mission is the cheapest way to retire radiation, firmware and timing risk.</p></div>
+
+  <h2 id="funding">Funding sources</h2>
+  <p>European defence, security and resilience start-ups raised a record $8.7 B in 2025, four times the 2020 level, driven by late-stage rounds<sup class="ref"><a href="#ref-R5-23">[R5-23]</a></sup>; Greece's HCDI now runs investor-access programmes and Greece ranks highly in EDF participation<sup class="ref"><a href="#ref-R5-24">[R5-24]</a></sup>. The table maps the instruments to the phases they can fund. Positioning as dual-use (maritime domain awareness, GNSS-interference monitoring, spectrum support for EETT, SAR cueing) widens the base and eases export; the defence-grade products are the margin.</p>
+  <div class="table-wrap"><table class="compact fund-table" id="fund-table"><thead><tr><th>Source</th><th>Instrument</th><th>Fits</th><th>Notes (research 05 §5.6)</th></tr></thead><tbody></tbody></table></div>
+  <div class="callout warn"><div class="t">Funding rule</div><p>Secure funding to the <em>cluster</em>, not just the demonstrator, before launching the demonstrator; sign anchor-customer contracts that pay on milestones during development; avoid single-lender debt before revenue. Gate G0 requires a funding plan covering the demonstrator and 50 % of the cluster; G2 requires cumulative funding ≥ the demonstrator total; G4 requires €25–35 M incremental secured.</p></div>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/programmatics.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  const B = BASELINE, $ = id => document.getElementById(id);
+  function renderRefs(ids){ const ol=$('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const chart = (wrapId, innerId, fn) => { const w = $(wrapId); w.innerHTML = `<div id="${innerId}"></div>`; fn($(innerId)); };
+  $('meta-baseline').textContent = 'Baseline: ' + B.version;
+  const S = COST_SCENARIOS;
+  const totalMin = PHASES.reduce((a, p) => a + p.months[0], 0), totalMax = PHASES.reduce((a, p) => a + p.months[1], 0);
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="v">€${S[0].capex[0]}–${S[0].capex[1]} M</div><div class="l">${S[0].name}</div><div class="d">opex €${S[0].opex[0]}–${S[0].opex[1]} M/yr · ${S[0].duration}</div></div>
+    <div class="kpi"><div class="v">€${S[1].capex[0]}–${S[1].capex[1]} M</div><div class="l">${S[1].name} (cumulative)</div><div class="d">opex €${S[1].opex[0]}–${S[1].opex[1]} M/yr · ${S[1].duration}</div></div>
+    <div class="kpi"><div class="v">€${S[2].capex[0]}–${S[2].capex[1]} M</div><div class="l">${S[2].name} (cumulative)</div><div class="d">opex €${S[2].opex[0]}–${S[2].opex[1]} M/yr · ${S[2].duration}</div></div>
+    <div class="kpi"><div class="v">${totalMin}–${totalMax}<small>months</small></div><div class="l">Kick-off → IOC</div><div class="d">Plan 42 months + 6 months float; launch ${B.schedule.launch}, IOC ${B.schedule.ioc}</div></div>`;
+
+  // cost elements
+  $('cost-table').tBodies[0].innerHTML = COST_ELEMENTS.map(c => { const pct = c.unit.startsWith('%') || c.id === 'pm' || c.id === 'cont'; return `<tr><td><b>${esc(c.name)}</b></td><td class="num">${pct ? c.range[0] + ' %' : '€' + c.range[0] + ' M'}</td><td class="num">${pct ? c.range[1] + ' %' : '€' + c.range[1] + ' M'}</td><td class="spec">${esc(c.unit)}</td><td class="spec">${esc(c.basis)}</td></tr>`; }).join('');
+  Charts.range($('scen-capex'), { title: 'Capex by scenario (M€, cumulative)', unit: 'M€', height: 160, data: S.map(s => ({ label: s.name, lo: s.capex[0], hi: s.capex[1], note: s.note })) });
+  Charts.range($('scen-opex'), { title: 'Steady-state opex (M€ per year)', unit: 'M€/yr', height: 160, data: S.map(s => ({ label: s.name, lo: s.opex[0], hi: s.opex[1], color: U.css('--s2') })) });
+  $('scen-table').tBodies[0].innerHTML = S.map(s => `<tr><td><b>${esc(s.name)}</b></td><td class="num">${s.capex[0]}–${s.capex[1]}</td><td class="num">${s.opex[0]}–${s.opex[1]}</td><td>${esc(s.duration)}</td><td class="spec">${esc(s.note)}</td></tr>`).join('');
+  $('comp-table').tBodies[0].innerHTML = COMPARATORS.map(c => `<tr><td><b>${esc(c.name)}</b></td><td class="spec">${esc(c.raised)}</td><td class="wrap">${esc(c.sats)}</td><td class="wrap">${esc(c.perSat)}</td><td class="spec">${esc(c.note)}</td></tr>`).join('');
+
+  // estimator
+  function est() {
+    const N = +$('e-n').value, bus = +$('e-bus').value, fu = +$('e-fu').value/100, nre = +$('e-nre').value, rec = +$('e-rec').value, ait = +$('e-ait').value, lau = +$('e-l').value, lc = +$('e-lc').value/100, gs = +$('e-gs').value, mcs = +$('e-mcs').value, pm = +$('e-pm').value/100, ct = +$('e-ct').value/100, ox = +$('e-ox').value, cad = +$('e-cad').value, Y = +$('e-y').value;
+    const b = Math.log2(1 - lc) || 0; // learning exponent
+    const unit = k => { const lf = k === 0 ? 1 : Math.pow(k + 1, b); return { bus: bus * (k === 0 ? 1 + fu : lf), rec: rec * lf, ait: ait * lf, launch: lau, ins: 0.3 }; }; // launch-only insurance €0.3 M (low end)
+    const units = d3.range(N).map(unit);
+    const hw = d3.sum(units, u => u.bus + u.rec + u.ait) + nre;
+    const sub = hw + d3.sum(units, u => u.launch + u.ins) + gs + mcs + 0.35; // regulatory/legal mid
+    const pmc = hw * pm, cont = (sub + pmc) * ct, capex = sub + pmc + cont;
+    const recPer = d3.mean(units, u => u.bus + u.rec + u.ait + u.launch + u.ins) * (1 + pm) * (1 + ct);
+    // yearly profile
+    const years = d3.range(1, Y + 1), nreProfile = [0.3, 0.4, 0.3];
+    let delivered = 0; const capY = [], opY = [], inOrbit = [];
+    years.forEach(y => { let c = 0; if (y <= 3) c += (nre + gs*0.5 + mcs*0.5 + 0.35) * nreProfile[y-1]; if (y === 3) c += gs*0.5 + mcs*0.5; const k0 = delivered; if (y >= 3) { const n = Math.min(cad, N - delivered); for (let k = k0; k < k0 + n; k++) c += units[k].bus + units[k].rec + units[k].ait + units[k].launch + units[k].ins; delivered += n; } if (y <= 3 || delivered > 0) { c += (y <= 3 ? hw/3*pm : 0); } capY.push(c); const frac = delivered / N; opY.push(y >= 3 ? ox * Math.max(0.3, frac) : 0.4); inOrbit.push(delivered); });
+    // distribute PM & contingency proportionally to capex profile
+    const capSum = d3.sum(capY); const scale = capSum > 0 ? capex / capSum : 1; const capYs = capY.map(c => c * scale);
+    const cum = []; let acc = 0; years.forEach((y, i) => { acc += capYs[i] + opY[i]; cum.push([y, acc]); });
+    const satYears = d3.sum(inOrbit.map((n, i) => years[i] >= 3 ? n : 0));
+    $('e-capex').textContent = '€' + capex.toFixed(0) + ' M'; $('e-persat').textContent = '€' + recPer.toFixed(1) + ' M'; $('e-cum').textContent = '€' + acc.toFixed(0) + ' M';
+    $('e-say').textContent = satYears ? '€' + (acc / satYears).toFixed(1) + ' M' : '—';
+    const ref = N <= 1 ? S[0] : N <= 3 ? S[1] : N <= 12 ? S[2] : null; $('e-ref').innerHTML = ref ? `€${ref.capex[0]}–${ref.capex[1]} M capex <small>(${ref.name.split(' ').slice(0,2).join(' ')})</small>` : 'beyond the 12-sat scenario';
+    chart('e-chart-wrap', 'e-chart', el => Charts.stack(el, { title: `Annual spend and cumulative cost — ${N} satellite${N>1?'s':''}, ${cad}/yr from year 3 (M€)`, unit: 'M€', height: 260, categories: years.map(y => 'Y' + y), format: v => v.toFixed(1), series: [ { name: 'Capex', values: capYs }, { name: 'Opex', values: opY } ] }));
+    chart('e-break-wrap', 'e-break', el => Charts.bar(el, { title: 'Capex breakdown (M€)', unit: 'M€', horizontal: true, height: 230, format: v => v.toFixed(1), data: [ { label: 'Payload NRE', value: nre }, { label: `Bus (${N})`, value: d3.sum(units, u => u.bus) }, { label: 'Payload recurring', value: d3.sum(units, u => u.rec) }, { label: 'AIT & test', value: d3.sum(units, u => u.ait) }, { label: 'Launch + launch insurance', value: d3.sum(units, u => u.launch + u.ins) }, { label: 'Ground + MCS + regulatory', value: gs + mcs + 0.35 }, { label: 'PM / SE / PA', value: pmc }, { label: 'Contingency', value: cont } ] }));
+    const refLines = ref ? [{ y: ref.capex[0], label: `research low €${ref.capex[0]} M` }, { y: ref.capex[1], label: `research high €${ref.capex[1]} M` }] : [];
+    let cc = 0; const cumCap = capYs.map(c => (cc += c));
+    chart('e-cum-wrap', 'e-cum-chart', el => Charts.line(el, { title: 'Cumulative cost by year (M€) vs the research scenario range', xLabel: 'year', yLabel: 'M€ cumulative', height: 240, markers: true, series: [ { name: 'Capex + opex', points: cum }, { name: 'Capex only', points: years.map((y, i) => [y, cumCap[i]]), dash: '5 4' } ], hlines: refLines, format: v => v.toFixed(0), xFormat: v => 'Y' + v.toFixed(0) }));
+  }
+  ['e-n','e-fu','e-lc','e-pm','e-ct','e-cad','e-y'].forEach(id => bindRange(id, est, v => v));
+  ['e-bus','e-nre','e-rec','e-ait','e-l','e-gs','e-mcs','e-ox'].forEach(id => bindRange(id, est, v => v.toFixed(1)));
+
+  // Gantt
+  (function(){
+    const svg = d3.select('#gantt'); const W = 980, left = 300, right = 30, top = 40, rowH = 38;
+    const x = d3.scaleLinear().domain([0, totalMax + 2]).range([left, W - right]);
+    const kick = B.schedule.kickoff; $('g-kick').textContent = kick; $('g-total').textContent = `${totalMin}–${totalMax}`;
+    const [ky, kq] = kick.split('-Q').map(Number); const monthToLabel = m => { const q = (kq - 1) + Math.floor(m / 3); return `${ky + Math.floor(q / 4)} Q${q % 4 + 1}`; };
+    for (let m = 0; m <= totalMax; m += 6) { svg.append('line').attr('class','grid-line').attr('x1', x(m)).attr('x2', x(m)).attr('y1', top - 8).attr('y2', top + PHASES.length * rowH + 50); svg.append('text').attr('class','lbl xs').attr('x', x(m)).attr('y', top - 12).attr('text-anchor','middle').text(`M${m}`); svg.append('text').attr('class','lbl xs').attr('x', x(m)).attr('y', top + PHASES.length * rowH + 62).attr('text-anchor','middle').text(monthToLabel(m)); }
+    let sMin = 0, sMax = 0;
+    PHASES.forEach((p, i) => {
+      const y = top + i * rowH;
+      svg.append('text').attr('class','lbl s').attr('x', left - 10).attr('y', y + 16).attr('text-anchor','end').text(p.name.length > 44 ? p.name.slice(0, 42) + '…' : p.name);
+      svg.append('rect').attr('x', x(sMin)).attr('y', y + 4).attr('width', x(sMin + p.months[0]) - x(sMin)).attr('height', 18).attr('rx', 3).attr('fill', 'var(--accent)');
+      svg.append('rect').attr('x', x(sMin + p.months[0])).attr('y', y + 4).attr('width', x(sMax + p.months[1]) - x(sMin + p.months[0])).attr('height', 18).attr('rx', 3).attr('fill', 'var(--accent)').attr('opacity', .3);
+      svg.append('text').attr('class','lbl xs').attr('x', x(sMax + p.months[1]) + 5).attr('y', y + 17).text(`${p.months[0]}–${p.months[1]} mo`);
+      const rx = x(sMin + p.months[0]); svg.append('path').attr('d', `M${rx} ${y - 2} l5 7 l-5 7 l-5 -7 z`).attr('fill', 'var(--accent-2)');
+      svg.append('text').attr('class','lbl xs').attr('x', rx + 8).attr('y', y + 1).attr('fill','var(--accent-2)').text(p.review);
+      sMin += p.months[0]; sMax += p.months[1];
+    });
+    // pathfinder bar (parallel with B/C): starts M9, 24–30 months
+    const yP = top + PHASES.length * rowH;
+    svg.append('text').attr('class','lbl s').attr('x', left - 10).attr('y', yP + 16).attr('text-anchor','end').text('16U pathfinder (parallel)');
+    svg.append('rect').attr('x', x(9)).attr('y', yP + 4).attr('width', x(33) - x(9)).attr('height', 18).attr('rx', 3).attr('fill', 'none').attr('stroke', 'var(--accent-2)').attr('stroke-dasharray', '5 3');
+    svg.append('rect').attr('x', x(33)).attr('y', yP + 4).attr('width', x(39) - x(33)).attr('height', 18).attr('rx', 3).attr('fill', 'var(--accent-2)').attr('opacity', .25);
+    svg.append('text').attr('class','lbl xs').attr('x', x(9) + 4).attr('y', yP + 17).text('build 24–30 mo → flight 2029 → results feed CDR');
+    svg.append('text').attr('class','lbl').attr('x', left).attr('y', 14).text('Demonstrator phases — minimum (dark) and maximum (light) durations');
+  })();
+  $('phase-table').tBodies[0].innerHTML = PHASES.map(p => `<tr><td><b>${esc(p.name)}</b></td><td class="num">${p.months[0]}–${p.months[1]}</td><td class="spec">${esc(p.content)}</td><td>${esc(p.review)}</td></tr>`).join('') + `<tr><td><b>Total kick-off → IOC</b></td><td class="num"><b>${totalMin}–${totalMax}</b></td><td class="spec">Plan 42 months with 6 months float</td><td></td></tr>`;
+
+  // long lead
+  Charts.range($('ll-chart'), { title: 'Long-lead items — lead time (months)', unit: 'months', height: 360, xLabel: 'months', data: LONG_LEAD.map(l => ({ label: l.item.length > 44 ? l.item.slice(0, 42) + '…' : l.item, lo: l.months[0], hi: l.months[1], note: l.mit, color: l.months[1] >= 18 ? U.css('--accent-2') : U.css('--s1') })) });
+  $('ll-table').tBodies[0].innerHTML = LONG_LEAD.map(l => `<tr><td class="wrap">${esc(l.item)}</td><td class="num">${l.months[0]}–${l.months[1]}</td><td class="spec">${esc(l.mit)}</td></tr>`).join('');
+  // gates
+  $('gate-table').tBodies[0].innerHTML = GATES.map(g => `<tr><td><span class="gate-id">${g.id}</span><br><b>${esc(g.name)}</b></td><td class="wrap">${esc(g.when)}</td><td class="spec">${esc(g.go)}</td><td class="spec">${esc(g.kpi)}</td></tr>`).join('');
+  // roadmap
+  $('roadmap-tl').innerHTML = ROADMAP.map(r => `<li><div class="when">${esc(r.when)}</div><div class="what">${esc(r.what)}</div><p>${esc(r.detail)}</p></li>`).join('');
+  // headcount
+  Charts.range($('hc-chart'), { title: 'Core team by phase (FTE)', unit: 'FTE', height: 220, data: HEADCOUNT.map(h => ({ label: h.phase, lo: h.fte[0], hi: h.fte[1], note: h.note, color: U.css('--band-s') })) });
+  // build vs buy
+  $('bvb-table').tBodies[0].innerHTML = BUILD_VS_BUY.map(b => { const cls = /build/i.test(b.rec) ? 'build' : /partner/i.test(b.rec) ? 'partner' : 'buy'; return `<tr><td class="wrap">${esc(b.element)}</td><td><span class="rec ${cls}">${esc(b.rec)}</span></td><td class="spec">${esc(b.why)}</td></tr>`; }).join('');
+  // pathfinder
+  $('pf-table').tBodies[0].innerHTML = PATHFINDER_OPTIONS.map((p, i) => `<tr><td class="wrap"><b>${esc(p.option)}</b>${i===1?' <span class="tag ok">recommended</span>':''}</td><td class="num">${p.cost[0]}–${p.cost[1]}</td><td class="wrap">${esc(p.time)}</td><td class="spec">${esc(p.proves)}</td><td class="spec">${esc(p.not)}</td></tr>`).join('');
+  Charts.range($('pf-chart'), { title: 'Pathfinder options — cost (M€)', unit: 'M€', height: 150, data: PATHFINDER_OPTIONS.map((p, i) => ({ label: p.option.split(' with ')[0].split(' on ')[0], lo: p.cost[0], hi: p.cost[1], color: i === 1 ? U.css('--ok') : U.css('--s1') })) });
+  // funding
+  const FUND = [
+    ['ESA', 'GSTP, InCubed, Scout, ARTES', 'Phase A–B technology money; Scout-class full mission (€35 M cap)', 'The natural source for breadboards, antenna development and the pathfinder; Greece\'s ESA subscription and the GNTS precedent (ESA-managed, RRF-funded) make the route familiar'],
+    ['European Defence Fund (EDF)', '~€8 B 2021–27, annual calls incl. space/ISR', 'Phase B–D payload development in a consortium', 'Greece ranks highly in EDF participation; requires a multi-state consortium; verify current call cycle'],
+    ['EDIP / SAFE', 'EDIP; 2025 SAFE loan facility (€150 B) for joint procurement', 'Cluster and constellation procurement by MoDs', 'Procurement instruments, not grants: they fund the customer, not the company — align the anchor contract with them'],
+    ['EIB', 'Widened defence/dual-use eligibility 2024–25', 'Debt for cluster/constellation capex once revenue exists', 'Avoid single-lender secured debt before revenue (the Kleos lesson)'],
+    ['NATO Innovation Fund', '~€1 B, 24 allies; space holdings incl. SatVu, Isar, Kreios, Simera', 'Equity, Phase B onward', 'Investments carry no procurement guarantee'],
+    ['HCDI (ΕΛΚΑΚ)', 'Investor-access programmes (Bpifrance EuroQuity, European Defence Alliance, Pitch Arena 2026)', 'Equity access and MoD proximity', '45+ start-ups sought > €101 M from 22 VCs at the first Pitch Arena'],
+    ['RRF / national programme', 'GNTS precedent: €60 M satellites / €130 M total', 'National anchor for the demonstrator; HAITF test facility', 'Proved Greek Phase B–D execution under ESA management; "Achilles\' Shield" 2025–36 armaments plan includes space/ISR lines (verify allocation)'],
+    ['Private venture capital', 'European DSR rounds: $8.7 B in 2025', 'Series A/B around G1–G2', 'Dual-use positioning widens the investor base; defence-grade products are the margin'],
+  ];
+  $('fund-table').tBodies[0].innerHTML = FUND.map(f => `<tr><td><b>${f[0]}</b></td><td class="wrap">${f[1]}</td><td class="wrap">${f[2]}</td><td class="wrap spec">${f[3]}</td></tr>`).join('');
+
+  renderRefs(['R5-1','R5-2','R5-5','R5-6','R5-7','R5-9','R5-10','R5-11','R5-14','R5-15','R5-19','R5-23','R5-24','R5-26','R5-28']);
+})();
+</script>
+</body>
+</html>

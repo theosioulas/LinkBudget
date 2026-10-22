@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Antenna trade study — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .katex-display { overflow-x:auto; overflow-y:hidden; padding:.2rem 0; }
+  .types { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:.8rem; margin:1rem 0; }
+  .types .card { padding:.8rem; }
+  .types .card svg { width:100%; height:auto; display:block; background:var(--surface-2); border-radius:var(--radius); margin-bottom:.5rem; }
+  .types .card h3 { font-size:.95rem; margin:.2rem 0; }
+  .types .card p { font-size:.86rem; margin:.2rem 0; color:var(--ink-2); font-family:var(--font-ui); line-height:1.45; }
+  .types .card .spec { font-size:.78rem; color:var(--ink-3); }
+  .sk { fill:none; stroke:var(--ink); stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round; }
+  .sk.thin { stroke-width:1; stroke:var(--ink-2); }
+  .sk.fillp { fill:var(--accent-soft); stroke:var(--accent); }
+  .sk.gnd { stroke:var(--ink-3); stroke-dasharray:3 2; }
+  td.sm { font-size:.78rem; color:var(--ink-2); }
+  table.gs td.es { color:var(--ink-faint); font-style:italic; }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>02 Technical understanding</b> · Antennas</div>
+    <h1>Antenna trade study</h1>
+    <p class="lead">No single antenna covers 225 MHz to 12 GHz, and no antenna that fits a 150 kg bus has both wide field of regard and high gain. The TALOS-1 suite therefore has three kinds of aperture: deployable helices and wideband survey elements that see the whole ±66° field of regard at 3–10 dBi, body-mounted S- and X-band patch arrays that add 18–22 dBi where radars live, and a four-element sinuous interferometer on a 1.2 m cross-boom for single-satellite direction finding. This page gives the physics, the candidate types with sketches, what operators actually fly, the interferometer design with a calculator, and the supplier shortlist.</p>
+    <div class="meta"><span id="meta-baseline">Baseline: TALOS-1 v0.3</span><span>Sources: research notes 02 §B, 03 §3</span></div>
+  </header>
+
+  <div class="grid c4" id="kpis"></div>
+
+  <h2>Fundamentals: gain, beamwidth, footprint</h2>
+  <p>For an aperture antenna of effective diameter D at wavelength λ, with aperture efficiency η (0.5–0.7 for reflectors and arrays):</p>
+  $$ G \approx \eta\left(\frac{\pi D}{\lambda}\right)^2 \;\Rightarrow\; G_{dBi} \approx 20\log_{10}\frac{D}{\lambda} + 9.94 + 10\log_{10}\eta $$
+  $$ \theta_{3dB} \approx 70^\circ\,\frac{\lambda}{D}, \qquad \text{footprint diameter at range } d \approx d\,\theta_{3dB}\,[\text{rad}] $$
+  <p>Gain and beamwidth are two faces of the same number: every 6 dB of gain halves the beamwidth and quarters the solid angle covered. For an axial-mode helix of N turns, circumference C ≈ λ and turn spacing S ≈ 0.25 λ, the Kraus formula gives \( G \approx 15\,N\,S\,C^2/\lambda^3 \) and \( \theta_{3dB} \approx 52^\circ/(C\sqrt{NS}) \) — the gain comes from length, not area, which is why it is the UHF answer.</p>
+  <div class="grid c2">
+    <div class="panel">
+      <h3>Aperture calculator</h3>
+      <div class="controls">
+        <div class="ctl"><label>Diameter <output for="ap-d">0.7</output> m</label><input type="range" id="ap-d" min="0.1" max="3" step="0.05" value="0.7"></div>
+        <div class="ctl"><label>Frequency <output for="ap-f">3 GHz</output></label><input type="range" id="ap-f" min="2" max="4.26" step="0.01" value="3.477"></div>
+        <div class="ctl"><label>Efficiency <output for="ap-eff">0.55</output></label><input type="range" id="ap-eff" min="0.4" max="0.75" step="0.01" value="0.55"></div>
+        <div class="ctl"><label>Range to target <output for="ap-r">1000</output> km</label><input type="range" id="ap-r" min="500" max="2500" step="50" value="1000"></div>
+      </div>
+      <div class="readout">
+        <div><div class="k">D / λ</div><div class="v" id="ap-dl">—</div></div>
+        <div><div class="k">Gain</div><div class="v" id="ap-g">—</div></div>
+        <div><div class="k">Beamwidth (3 dB)</div><div class="v" id="ap-bw">—</div></div>
+        <div><div class="k">Footprint diameter</div><div class="v" id="ap-fp">—</div></div>
+      </div>
+      <p class="muted" id="ap-note" style="font-size:.8rem;margin:.6rem 0 0"></p>
+    </div>
+    <div class="panel">
+      <h3>Axial-mode helix calculator</h3>
+      <div class="controls">
+        <div class="ctl"><label>Turns <output for="hx-n">8</output></label><input type="range" id="hx-n" min="3" max="16" step="1" value="8"></div>
+        <div class="ctl"><label>Frequency <output for="hx-f">300</output> MHz</label><input type="range" id="hx-f" min="225" max="1000" step="5" value="300"></div>
+      </div>
+      <div class="readout">
+        <div><div class="k">Gain (Kraus)</div><div class="v" id="hx-g">—</div></div>
+        <div><div class="k">Beamwidth</div><div class="v" id="hx-bw">—</div></div>
+        <div><div class="k">Deployed length</div><div class="v" id="hx-len">—</div></div>
+        <div><div class="k">Diameter</div><div class="v" id="hx-dia">—</div></div>
+      </div>
+      <p class="muted" style="font-size:.8rem;margin:.6rem 0 0">Kraus' formula is optimistic by 1–3 dB for short helices; vendors quote 8–13 dBi for 5–12 turns (research 03 §3.2). Bandwidth is ≈ 1.5:1, so one helix cannot cover 225–512 MHz at full gain — the TALOS helices are centred for 250–450 MHz with the wideband CP antennas covering the edges at lower gain.</p>
+    </div>
+  </div>
+
+  <h3>Gain versus size at the TALOS bands</h3>
+  <p>Computed with η = 0.55 and footprint at 1000 km range. Cells where D &lt; λ are electrically small: the aperture formula does not apply and the gain comes from a resonant or travelling-wave structure (helix, LPDA, dipole) instead.</p>
+  <div class="table-wrap"><table class="gs compact" id="gaintab"><thead><tr><th>Aperture D</th><th class="num">300 MHz (λ = 1.0 m)</th><th class="num">1 GHz (0.30 m)</th><th class="num">3 GHz (0.10 m)</th><th class="num">10 GHz (0.03 m)</th></tr></thead><tbody></tbody></table></div>
+  <p>The table makes the UHF problem explicit: at 300 MHz a 1 m structure is one wavelength, gain is 7–10 dBi at best and comes from length. It also shows why high-gain X-band apertures are incompatible with wide-area survey unless they are scanned or used as a cued "zoom" channel: a 1 m dish at 10 GHz has a 2° beam and a 37 km footprint at 1000 km — the search problem of a 7.7 million km² field of regard becomes hopeless.</p>
+
+  <h2>Candidate antenna types</h2>
+  <p>The ten families below are the realistic options for a 150 kg bus (research 03 §3.2). Each sketch is a schematic of the mechanism, not a product drawing. Figures of merit: band fit, gain, polarisation, stowed size and how well the phase centre behaves — the last matters only for the interferometer, but matters a lot there.</p>
+  <div class="types" id="types"></div>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Type</th><th>Band fit</th><th>Gain</th><th>Polarisation</th><th>Size on a 150 kg bus</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Deployable axial-mode helix</td><td>225–1000 MHz</td><td>8–13 dBi (5–12 turns)</td><td>Circular, one sense (dual needs two)</td><td>0.3–1.5 m deployed; stowed ≈ Ø20 × 10 cm</td><td class="sm">≈ 1.5:1 bandwidth; proven on cubesats; good ±40° coverage</td></tr>
+      <tr><td>Quadrifilar helix (QFH)</td><td>137–500 MHz</td><td>3–5 dBi</td><td>Circular</td><td>0.3–0.6 m</td><td class="sm">Excellent hemispheric coverage, low gain</td></tr>
+      <tr><td>Deployable tape dipoles / monopoles</td><td>30–500 MHz</td><td>0–2 dBi</td><td>Linear</td><td>0.5–2.5 m elements</td><td class="sm">Cheapest VHF/UHF coverage; HawkEye Pathfinder used quarter-wave dipoles<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup>; pairs form a crude interferometer</td></tr>
+      <tr><td>Log-periodic dipole array (LPDA)</td><td>0.3–3 GHz (10:1)</td><td>6–8 dBi</td><td>Linear (dual needs crossed LPDA)</td><td>Longest element ≈ 0.5 m at 300 MHz; boom 0.5–0.8 m</td><td class="sm">Frequency independent; phase centre moves with frequency — a calibration issue for DF</td></tr>
+      <tr><td>Cavity-backed spiral / sinuous</td><td>1–18 GHz (10:1+)</td><td>2–6 dBi</td><td>Circular (spiral) / dual-linear or dual-circular (sinuous)</td><td>Ø ≈ λ<sub>low</sub>/π: 10 cm at 1 GHz, 1 m at 300 MHz</td><td class="sm">The classic ESM/DF element: 70–90° beam, stable phase centre; sinuous gives both polarisations</td></tr>
+      <tr><td>Vivaldi / tapered-slot array</td><td>2–18 GHz</td><td>5–10 dBi element; arrays 15–25 dBi</td><td>Dual-linear</td><td>Element ≈ λ<sub>low</sub>/2; 8×8 at 2 GHz ≈ 60 × 60 cm</td><td class="sm">One aperture for S/C/X digital beamforming; many channels → power</td></tr>
+      <tr><td>Microstrip patch arrays</td><td>Per band (10–15 %)</td><td>4×4: 18–20 dBi; 8×8: 24–26 dBi</td><td>Dual-linear or circular</td><td>4×4 at 2.4 GHz ≈ 25 × 25 cm; at 9.5 GHz ≈ 7 × 7 cm</td><td class="sm">Low profile, body-mounted, stackable multi-band panels; HawkEye used patches<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup></td></tr>
+      <tr><td>Wideband (quad-ridged) horns</td><td>2–18 GHz</td><td>10–20 dBi</td><td>Dual-linear</td><td>10–30 cm</td><td class="sm">Robust, well-defined phase centre; HawkEye's "wideband button and horn antennas"<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup></td></tr>
+      <tr><td>Deployable mesh / wrapped-rib reflector</td><td>2–12 GHz</td><td>25–40 dBi</td><td>Any (feed-defined)</td><td>0.5–2 m</td><td class="sm">Only for a cued, pointed "zoom" channel; drives ADCS and mass; 12–18 month lead time</td></tr>
+      <tr><td>Conformal / body-mounted wideband arrays</td><td>1–12 GHz</td><td>10–20 dBi with DBF</td><td>Dual</td><td>Uses bus faces</td><td class="sm">Attractive for a 1 m-class bus; needs a phase-stable structure</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>What operators fly</h2>
+  <p>Public information on antenna suites is thin, but consistent with the table above. The pattern across operators is identical: cheap wide-field elements for detection, a few directional apertures for the bands that pay, and bigger buses as the signal library grows.</p>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Operator / spacecraft</th><th>Antennas (open sources)</th><th>Receiver</th><th>Implication for TALOS</th></tr></thead>
+    <tbody>
+      <tr><td><b>HawkEye 360 Pathfinder</b> (SFL NEMO-15, 13.4 kg)<sup class="ref"><a href="#ref-R3-1">[R3-1]</a></sup><sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup></td><td>Quarter-wave dipoles, patch antennas, wideband "button" and horn antennas covering VHF–Ku; later clusters show deployable VHF/UHF whips and larger body panels<sup class="ref"><a href="#ref-R3-3">[R3-3]</a></sup><sup class="ref"><a href="#ref-R3-4">[R3-4]</a></sup></td><td>3 × AD9361 on Zynq 7045, 70 MHz–6 GHz, 56 MHz IBW; LNB to ≈ 18 GHz</td><td>A 15 kg satellite with 0–10 dBi antennas geolocates PTT radios and marine radars operationally — gain is not the limiting factor for the core products.</td></tr>
+      <tr><td><b>Unseenlabs BRO</b> Gen 1 (6U → 8U, ≈ 6 kg) and Gen 2 BRO-31 (≈ 150 kg)<sup class="ref"><a href="#ref-R3-6">[R3-6]</a></sup><sup class="ref"><a href="#ref-R3-8">[R3-8]</a></sup></td><td>Deployable antenna panels (Gen 1); Gen 2 covers L, S, C, X and Ku bands — antenna details not public</td><td>Wideband spectrum-monitoring receiver, on-board detection</td><td>The 150 kg class with multi-band coverage is exactly where single-satellite RF monitoring is heading; BRO-31 is the closest analogue to TALOS-1.</td></tr>
+      <tr><td><b>Kleos KSM-1</b> (4 × 6U, ≈ 8 kg)<sup class="ref"><a href="#ref-R3-9">[R3-9]</a></sup><sup class="ref"><a href="#ref-R3-10">[R3-10]</a></sup></td><td>VHF maritime-band antennas, "up to six antenna pairs" per cluster; Patrol mission added 8.5–9.6 GHz X-band</td><td>VHF receivers with AIS decoder; raw IQ time-stamped for ground CAF</td><td>Antenna pairs on each satellite were used for multilateration — the single-satellite baseline idea TALOS implements properly with a 1.2 m boom.</td></tr>
+      <tr><td><b>Yaogan triplets / US NOSS</b> <span class="tag">OSINT, unverified</span></td><td>Not public; ~1100 km orbits, triangular formations of ~100 km (Yaogan) and tens of km (NOSS)</td><td>—</td><td>The historic TDOA reference architecture: naval radars geolocated by sidelobe reception since the 1970s (research 03 §2.4g).</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Field of regard versus gain</h2>
+  <p>From 530 km, the ground visible above 10° elevation is a circle of radius <span id="fp10"></span> km (≈ <span id="fp10a"></span> million km²); to see all of it the antenna must cover a cone of ±<span id="nadir10"></span>° about nadir, and ±<span id="nadir5"></span>° for the 5° horizon. This half-angle is the fundamental tension: a wide-FOR staring element is capped at roughly 4–8 dBi, whereas a 27 dBi beam at 3 GHz covers 1/100 of that solid angle. The drawing is to scale — the satellite is close to the Earth, which is why the useful cone is so wide and so flat.</p>
+  <figure class="diagram">
+    <div id="for-svg"></div>
+    <figcaption><b>True-scale geometry at 530 km.</b> The survey antennas must fill the ±67° cone to reach the 5° horizon (footprint radius ≈ <span id="fp5c"></span> km); the ±65° cone reaches the 10° line. The S-band 4×4 array (20° beam) and X-band 8×8 (8° beam) illuminate only the small nadir patches shown — they rely on radars being visible through sidelobes from anywhere, and on the mainlobe sweep for bonus hits. The slant range to the horizon is <span id="sl5"></span> km versus 530 km at nadir, a 12 dB path-loss swing across the footprint.</figcaption>
+  </figure>
+  <div id="fp-chart"></div>
+  <p class="muted" style="font-family:var(--font-ui);font-size:.85rem">Footprint radius versus minimum elevation for the three altitudes the baseline considers (ORB.footprintRadiusKm). Lowering the usable elevation from 10° to 5° adds 24 % to the radius but 56 % to the area — at the price of 1.6 dB more path loss and the worst geometry for geolocation.</p>
+
+  <h2>Interferometric direction finding</h2>
+  <p>A single satellite measures a line of bearing by comparing the phase of the same signal at two elements a baseline D apart. For an arrival angle θ from boresight:</p>
+  $$ \Delta\phi = \frac{2\pi D}{\lambda}\sin\theta, \qquad \sigma_\theta = \frac{\lambda\,\sigma_\phi}{2\pi D\cos\theta}\ [\text{rad}] $$
+  $$ \text{ground error} \approx d\,\sigma_\theta \ \text{(cross-range)}, \quad \text{worse by } 1/\sin\varepsilon \text{ along the line of sight} $$
+  <p>Research 03 §3.4 gives the reference case: D = 1 m, 1 GHz (D/λ = 3.3), σ<sub>φ</sub> = 5° → σ<sub>θ</sub> = 4.2 mrad → 2.1 km at nadir from 500 km, 4–6 km at 1000 km. At 300 MHz the same baseline gives 13 mrad; at 3 GHz, 1.4 mrad. The phase budget is the hard part: 5° at 1 GHz is 4 mm of path — thermally stable cabling, matched LNAs and on-orbit calibration against known beacons (AIS base stations, ADS-B ground references, dedicated calibration transmitters). Attitude knowledge enters directly: 1 mrad of attitude error is 1 km at 1000 km, which is why TALOS carries star trackers (0.02° knowledge).</p>
+  <p><b>Ambiguity.</b> Phase wraps when D &gt; λ/2, so a 1.2 m baseline at 1 GHz (4 λ) has ≈ 8 ambiguous lobes across ±90°. The resolutions are a short unambiguous baseline plus long precise ones (coarse/fine), three or more non-collinear elements (planar correlative interferometry), and combining AOA with the Doppler history over the pass. Correlative interferometry with 4–6 wideband elements over 1–12 GHz is the standard ESM approach and tolerates mutual coupling via calibration tables.</p>
+  <div class="grid c2">
+    <div class="panel">
+      <h3>AOA accuracy calculator</h3>
+      <div class="controls">
+        <div class="ctl"><label>Baseline <output for="aoa-d">1.2</output> m</label><input type="range" id="aoa-d" min="0.2" max="3" step="0.05" value="1.2"></div>
+        <div class="ctl"><label>Frequency <output for="aoa-f">1 GHz</output></label><input type="range" id="aoa-f" min="2.35" max="4.08" step="0.01" value="3"></div>
+        <div class="ctl"><label>Residual phase error <output for="aoa-p">5</output>°</label><input type="range" id="aoa-p" min="1" max="25" step="0.5" value="5"></div>
+        <div class="ctl"><label>Off-boresight angle <output for="aoa-t">30</output>°</label><input type="range" id="aoa-t" min="0" max="65" step="1" value="30"></div>
+        <div class="ctl"><label>Range <output for="aoa-r">1000</output> km</label><input type="range" id="aoa-r" min="500" max="2500" step="50" value="1000"></div>
+        <div class="ctl"><label>Elevation at emitter <output for="aoa-e">30</output>°</label><input type="range" id="aoa-e" min="5" max="90" step="1" value="30"></div>
+      </div>
+      <div class="readout">
+        <div><div class="k">D / λ</div><div class="v" id="aoa-dl">—</div></div>
+        <div><div class="k">Angular error σ<sub>θ</sub></div><div class="v" id="aoa-s">—</div></div>
+        <div><div class="k">Cross-range error</div><div class="v" id="aoa-x">—</div></div>
+        <div><div class="k">Along-LOS error</div><div class="v" id="aoa-y">—</div></div>
+        <div><div class="k">Ambiguous lobes (±90°)</div><div class="v" id="aoa-amb">—</div></div>
+        <div><div class="k">Unambiguous half-angle</div><div class="v" id="aoa-ua">—</div></div>
+      </div>
+      <p class="muted" style="font-size:.8rem;margin:.6rem 0 0">Single-snapshot, two-element figures. Averaging n snapshots across a pass improves as 1/√n and the changing geometry breaks the mirror ambiguity (research 03 §6.1a).</p>
+    </div>
+    <figure class="diagram" style="margin:1.2rem 0">
+      <div id="boom-svg"></div>
+      <figcaption><b>The TALOS-1 DF aperture, viewed from nadir.</b> Four cavity-backed sinuous elements (Ø 0.3 m) at the tips of a 1.2 m deployable cross-boom on the −Z (nadir) face. Opposite pairs give the 1.2 m fine baselines, adjacent pairs 0.85 m, and each tip paired with the hub-mounted wideband CP survey antenna gives a 0.6 m coarse baseline — three baseline lengths for coarse-to-fine ambiguity resolution in two axes. The calibration comb is coupled into every element through 20 dB couplers.</figcaption>
+    </figure>
+  </div>
+
+  <h2>Polarisation</h2>
+  <p>Ground communications are mostly vertical, marine radars horizontal, aircraft antennas vary, and the view from orbit rotates the apparent polarisation as the satellite passes. Faraday rotation adds tens of degrees at 300 MHz (scaling ≈ 1/f², about 1° at 3 GHz). A single linear polarisation risks 10–30 dB fades; dual-polarised elements with diversity combining limit the loss to ≤ 3 dB and give polarisation ratio as a classification feature (research 03 §3.6). The TALOS rule is therefore: everything dual-polarised. The two UHF helices are wound in opposite senses (RHCP + LHCP), the wideband survey antennas are an RHCP/LHCP pair, the sinuous elements are dual-circular by construction, and the patch arrays are dual-linear (H/V) with both outputs digitised — which is why the S/C/X bank has eight chains for six antennas.</p>
+
+  <h2>Swept beam versus wide field of view</h2>
+  <p>The search-rate argument (research 03 §3.5): a staring 70° beam sees the whole footprint continuously at ≈ 7 dBi. A 7° beam (27 dBi at 3 GHz) covers 1/100 of the solid angle and must revisit 100 cells per pass; with ≈ 8 minutes above 10° that is ≈ 5 s per cell — longer than a radar scan period (fine for radars) but short compared with a push-to-talk burst (poor for comms). The compromise every ESM system uses, and TALOS follows, is <b>wide-FOV omnidirectional channels for detection and alarm, plus one or two high-gain channels cued for characterisation and precise AOA</b>. In TALOS-1 the high-gain channels are fixed nadir arrays; the 0.7 m reflector option makes one of them steerable (through the spacecraft, at 0.05° pointing), and a Vivaldi digital-beamforming panel is the Stage 3 way to steer without moving anything.</p>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Strategy</th><th class="num">Gain</th><th class="num">Beam</th><th class="num">Cells per footprint</th><th class="num">Dwell per cell (8 min pass)</th><th>Good for</th><th>Poor for</th></tr></thead>
+    <tbody id="sweep"></tbody>
+  </table></div>
+
+  <h2>The TALOS-1 antenna suite</h2>
+  <p>The decision table is generated from <code>components.js</code> so that mass, TRL and suppliers match the <a href="payload_explorer.html">explorer</a> and the <a href="budgets.html">budgets</a>. The role column explains why each aperture earns its mass. Total antenna mass in the core baseline is <span id="ant-mass"></span> kg; the reflector option adds <span id="ant-opt"></span> kg and a pointing requirement.</p>
+  <div class="table-wrap"><table id="suite"><thead><tr><th>Antenna</th><th>Band</th><th>Gain / beam</th><th class="num">Mass (kg)</th><th>Role</th><th>Candidate suppliers</th><th class="num">TRL</th><th>Risks</th></tr></thead><tbody></tbody></table></div>
+  <div class="callout decision"><div class="t">Decision D-03 — survey + arrays + interferometer, reflector deferred</div><p>TALOS-1 flies the full survey and DF suite and defers the deployable reflector. Reasons: (1) the products that pay in Stage 1 (radars, tactical comms, jammers) need coverage and dynamic range, not 30 dBi; (2) a deployable reflector is the long pole in the antenna category (12–18 months, £0.5–1.5 M, price unverified) and the main schedule risk<sup class="ref"><a href="#ref-R2-x63">[R2-x63]</a></sup>; (3) it forces 0.05° pointing onto the bus for every collection, whereas the baseline arrays tolerate the ADCS easily. The structural interface (+X face HDRM) and the RF chain inputs are reserved so that it can be added in Stage 2 without redesign.</p></div>
+
+  <h2>Deployables, risk and calibration</h2>
+  <p>Three deployments stand between launch and first light: the two UHF helices (single-shot HDRM and hinge each), the DF cross-boom (two booms, four HDRMs) and the solar wings. Deployment failure is <a href="risks.html#T-01">risk T-01</a>; the boom's thermal distortion and the chains' phase drift are <a href="risks.html#T-20">risk T-20</a>. The mitigation plan:</p>
+  <div class="grid c2">
+    <div class="card"><h3>Mechanism qualification</h3><ul style="margin:.3rem 0 0 1rem;padding:0;font-size:.95rem"><li>Buy flight-proven helices and booms (Oxford Space Systems, Helical Communication Technologies, Kall Morris class) rather than develop; TRL 9 for helices, 6–8 for booms.</li><li>Zero-g offload deployment tests at ambient, hot and cold; vibration at ESPA levels before and after.</li><li>Redundant release (dual initiators or burn-wire plus pin-puller); deployment telemetry on every hinge; no deployment within the first orbit.</li><li>Graceful degradation: with one helix lost, the other still covers UHF at single polarisation; with one DF element lost, three remain and the 2-D LOB degrades to a 1-D cone plus Doppler.</li></ul></div>
+    <div class="card"><h3>Phase calibration plan</h3><ul style="margin:.3rem 0 0 1rem;padding:0;font-size:.95rem"><li>Ground: anechoic-chamber calibration of the full spacecraft (not the bare antenna) across 1–12 GHz and ±60°, stored as correlative-interferometry tables; the Hellenic AIT facility or an EU chamber.</li><li>Orbit, every orbit: the injected calibration comb measures each chain's gain and phase relative to the others, removing LNA and cable drift.</li><li>Orbit, every day: known emitters (AIS base stations, ADS-B ground stations, cellular sites of known position, dedicated beacons in Greece) fix the remaining structural and attitude biases.</li><li>Thermal: front-ends co-located on a ±2 °C plate, phase-stable coax matched to ±2 mm; the boom is carbon-fibre with near-zero CTE.</li></ul></div>
+  </div>
+
+  <h2>Supplier shortlist (category B)</h2>
+  <p>Rendered from the supplier catalogue (<code>suppliers.js</code>, category B). The practical path identified in research 02 is wideband spectrum-monitoring products plus custom DF arrays — few COTS products are marketed as "SIGINT antennas". Prices are indicative and unverified unless stated; the EU dual-use 5A001 entry may apply to DF arrays regardless of origin<sup class="ref"><a href="#ref-R3-24">[R3-24]</a></sup>.</p>
+  <div class="table-wrap"><table id="suptab" class="compact"><thead><tr><th data-sort="str">Supplier</th><th data-sort="str">Country</th><th>Product</th><th>Key specs</th><th>Heritage / TRL</th><th>Price / lead</th><th>Export</th></tr></thead><tbody></tbody></table></div>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/components.js"></script>
+<script src="../assets/data/suppliers.js"></script>
+<script src="../assets/data/risks.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  const B = BASELINE, RF = ORB.RF, alt = B.orbit.altKm;
+  document.getElementById('meta-baseline').textContent = 'Baseline: ' + B.version;
+  const fmtF = f => f >= 1000 ? (f / 1000).toFixed(f % 1000 ? 1 : 0) + ' GHz' : f.toFixed(0) + ' MHz';
+  const ants = COMPONENTS.filter(c => c.sub === 'payload-antenna');
+  const sum = (a, k) => a.reduce((s, c) => s + c[k], 0);
+
+  // KPIs
+  const kp = document.getElementById('kpis');
+  [[`${ants.filter(a => !a.optional).length} apertures`, 'in the TALOS-1 core suite', `${sum(ants.filter(a => !a.optional), 'kg').toFixed(1)} kg, 3 deployments`],
+   [`±${ORB.nadirAngle(alt, 5).toFixed(0)}°`, 'cone to the 5° horizon', `footprint radius ${ORB.footprintRadiusKm(alt, 5).toFixed(0)} km`],
+   ['3 → 22 dBi', 'gain range across the suite', 'survey elements → X-band 8×8'],
+   ['1.2 m', 'longest DF baseline', '≈ 2 km AOA at nadir, 1 GHz, 5° phase']]
+  .forEach(k => kp.append(U.el('div', { class: 'kpi' }, U.el('div', { class: 'v' }, k[0]), U.el('div', { class: 'l' }, k[1]), U.el('div', { class: 'd' }, k[2]))));
+
+  // ---- aperture calculator
+  function apCalc() {
+    const D = +document.getElementById('ap-d').value, f = Math.pow(10, +document.getElementById('ap-f').value), eff = +document.getElementById('ap-eff').value, r = +document.getElementById('ap-r').value;
+    const lam = RF.wavelength(f), dl = D / lam, g = RF.apertureGain(D, f, eff), bw = RF.beamwidth(D, f), fp = r * bw * Math.PI / 180;
+    document.getElementById('ap-dl').textContent = dl.toFixed(2);
+    document.getElementById('ap-g').textContent = dl < 1 ? '— (electrically small)' : g.toFixed(1) + ' dBi';
+    document.getElementById('ap-bw').textContent = dl < 1 ? '> 70°' : bw.toFixed(1) + '°';
+    document.getElementById('ap-fp').textContent = dl < 1 ? '—' : fp.toFixed(0) + ' km';
+    document.getElementById('ap-note').textContent = dl < 1 ? `At ${fmtF(f)} a ${D} m aperture is ${dl.toFixed(2)} λ: use a helix, LPDA or dipole and expect 0–10 dBi.` : `At ${fmtF(f)}, ${D} m gives ${g.toFixed(1)} dBi: a ${bw.toFixed(1)}° beam covers ${fp.toFixed(0)} km at ${r} km range, i.e. ${(Math.PI * (fp / 2) ** 2 / 1e6).toFixed(3)} million km² of the ${(Math.PI * ORB.footprintRadiusKm(alt, 10) ** 2 / 1e6).toFixed(1)} million km² visible above 10°.`;
+  }
+  ['ap-d', 'ap-eff', 'ap-r'].forEach(id => bindRange(id, apCalc, v => String(v)));
+  bindRange('ap-f', apCalc, v => fmtF(Math.pow(10, v)));
+  function hxCalc() {
+    const N = +document.getElementById('hx-n').value, f = +document.getElementById('hx-f').value, lam = RF.wavelength(f);
+    document.getElementById('hx-g').textContent = RF.helixGain(N, f).toFixed(1) + ' dBi';
+    document.getElementById('hx-bw').textContent = (52 / Math.sqrt(N * 0.25)).toFixed(0) + '°';
+    document.getElementById('hx-len').textContent = (N * 0.25 * lam).toFixed(2) + ' m';
+    document.getElementById('hx-dia').textContent = (lam / Math.PI).toFixed(2) + ' m';
+  }
+  ['hx-n', 'hx-f'].forEach(id => bindRange(id, hxCalc, v => String(v)));
+
+  // ---- gain table
+  (function gt() {
+    const tb = document.querySelector('#gaintab tbody');
+    [[0.3, '0.3 m (patch panel / horn)'], [0.7, '0.7 m (reflector option)'], [1.0, '1.0 m'], [2.0, '2.0 m (large deployable)']].forEach(([D, lab]) => {
+      const tr = U.el('tr', {}); let h = `<td>${lab}</td>`;
+      [300, 1000, 3000, 10000].forEach(f => {
+        const lam = RF.wavelength(f);
+        if (D / lam < 1) h += `<td class="num es">electrically small (${(D / lam).toFixed(1)} λ)</td>`;
+        else { const g = RF.apertureGain(D, f, 0.55), bw = RF.beamwidth(D, f); h += `<td class="num">${g.toFixed(1)} dBi / ${bw.toFixed(1)}° <span class="muted">(${(1000 * bw * Math.PI / 180).toFixed(0)} km)</span></td>`; }
+      });
+      tr.innerHTML = h; tb.append(tr);
+    });
+  })();
+
+  // ---- antenna type sketches
+  const NS = 'http://www.w3.org/2000/svg';
+  function sv(tag, attrs, txt) { const e = document.createElementNS(NS, tag); for (const k in attrs) if (attrs[k] != null) e.setAttribute(k, attrs[k]); if (txt != null) e.textContent = txt; return e; }
+  function sketch(draw) { const s = sv('svg', { viewBox: '0 0 200 110', role: 'img' }); draw(s); return s; }
+  const SK = {
+    helix: s => { s.append(sv('line', { x1: 20, y1: 95, x2: 180, y2: 95, class: 'sk gnd' })); s.append(sv('rect', { x: 30, y: 80, width: 60, height: 10, class: 'sk thin' })); s.append(sv('line', { x1: 60, y1: 80, x2: 60, y2: 20, class: 'sk thin' }));
+      for (let i = 0; i < 7; i++) s.append(sv('ellipse', { cx: 60, cy: 72 - i * 8.5, rx: 22, ry: 5, class: 'sk' }));
+      s.append(sv('path', { d: 'M120,55 l30,0 m-8,-6 l8,6 l-8,6', class: 'sk thin' })); s.append(sv('text', { x: 118, y: 40, class: 'lbl xs' }, 'axial beam')); s.append(sv('text', { x: 118, y: 78, class: 'lbl xs' }, 'C ≈ λ, S ≈ λ/4')); },
+    qfh: s => { s.append(sv('line', { x1: 100, y1: 15, x2: 100, y2: 95, class: 'sk thin' })); s.append(sv('path', { d: 'M78,18 C120,40 80,70 122,92', class: 'sk' })); s.append(sv('path', { d: 'M122,18 C80,40 120,70 78,92', class: 'sk' })); s.append(sv('path', { d: 'M88,18 C128,42 88,68 112,92', class: 'sk', style: 'opacity:.6' })); s.append(sv('path', { d: 'M112,18 C72,42 112,68 88,92', class: 'sk', style: 'opacity:.6' })); s.append(sv('line', { x1: 78, y1: 18, x2: 122, y2: 18, class: 'sk' })); s.append(sv('line', { x1: 78, y1: 92, x2: 122, y2: 92, class: 'sk' })); s.append(sv('text', { x: 134, y: 58, class: 'lbl xs' }, 'cardioid, CP')); },
+    dipole: s => { s.append(sv('line', { x1: 15, y1: 50, x2: 92, y2: 50, class: 'sk' })); s.append(sv('line', { x1: 108, y1: 50, x2: 185, y2: 50, class: 'sk' })); s.append(sv('line', { x1: 92, y1: 50, x2: 92, y2: 80, class: 'sk thin' })); s.append(sv('line', { x1: 108, y1: 50, x2: 108, y2: 80, class: 'sk thin' })); s.append(sv('rect', { x: 86, y: 80, width: 28, height: 12, class: 'sk thin' })); s.append(sv('text', { x: 15, y: 36, class: 'lbl xs' }, 'λ/2 tape-spring elements')); s.append(sv('text', { x: 120, y: 90, class: 'lbl xs' }, 'feed')); },
+    lpda: s => { s.append(sv('line', { x1: 20, y1: 55, x2: 185, y2: 55, class: 'sk' })); [[30, 42], [52, 34], [72, 27], [90, 21], [106, 16], [120, 12], [132, 9], [142, 7]].forEach(([x, l]) => { s.append(sv('line', { x1: x, y1: 55 - l, x2: x, y2: 55 + l, class: 'sk' })); }); s.append(sv('text', { x: 100, y: 102, class: 'lbl xs' }, 'active region moves with f →')); s.append(sv('text', { x: 24, y: 104, class: 'lbl xs' }, 'low f')); },
+    spiral: s => { s.append(sv('circle', { cx: 100, cy: 55, r: 48, class: 'sk thin' })); let d = ''; for (let t = 0; t <= 6 * Math.PI; t += 0.15) { const r = 2 + 7 * t / Math.PI; const x = 100 + r * Math.cos(t), y = 55 + r * Math.sin(t); d += (t ? 'L' : 'M') + x.toFixed(1) + ',' + y.toFixed(1); } s.append(sv('path', { d, class: 'sk' })); let d2 = ''; for (let t = 0; t <= 6 * Math.PI; t += 0.15) { const r = 2 + 7 * t / Math.PI; const x = 100 - r * Math.cos(t), y = 55 - r * Math.sin(t); d2 += (t ? 'L' : 'M') + x.toFixed(1) + ',' + y.toFixed(1); } s.append(sv('path', { d: d2, class: 'sk', style: 'opacity:.55' })); s.append(sv('text', { x: 152, y: 20, class: 'lbl xs' }, 'cavity')); s.append(sv('text', { x: 152, y: 100, class: 'lbl xs' }, 'Ø ≈ λ/π')); },
+    vivaldi: s => { for (let i = 0; i < 4; i++) { const x = 20 + i * 44; s.append(sv('path', { d: `M${x},95 V60 C${x},40 ${x + 4},25 ${x + 6},12 M${x + 36},95 V60 C${x + 36},40 ${x + 32},25 ${x + 30},12`, class: 'sk' })); s.append(sv('path', { d: `M${x + 6},12 L${x + 30},12`, class: 'sk thin' })); s.append(sv('rect', { x: x, y: 95, width: 36, height: 6, class: 'sk thin' })); } s.append(sv('text', { x: 20, y: 108, class: 'lbl xs' }, 'tapered slots, λ/2 pitch, DBF')); },
+    patch: s => { s.append(sv('rect', { x: 40, y: 10, width: 120, height: 90, rx: 3, class: 'sk thin' })); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) s.append(sv('rect', { x: 50 + i * 27, y: 18 + j * 20, width: 18, height: 13, class: 'sk fillp' })); s.append(sv('text', { x: 168, y: 58, class: 'lbl xs' }, '4×4')); s.append(sv('text', { x: 4, y: 58, class: 'lbl xs' }, 'λ/2')); },
+    horn: s => { s.append(sv('path', { d: 'M40,45 h40 l60,-30 v80 l-60,-30 h-40 z', class: 'sk' })); s.append(sv('line', { x1: 110, y1: 30, x2: 110, y2: 80, class: 'sk thin' })); s.append(sv('line', { x1: 80, y1: 45, x2: 140, y2: 15, class: 'sk thin' })); s.append(sv('text', { x: 40, y: 36, class: 'lbl xs' }, 'waveguide')); s.append(sv('text', { x: 104, y: 102, class: 'lbl xs' }, 'quad-ridged: dual-linear')); },
+    reflector: s => { let d = ''; for (let y = -45; y <= 45; y += 3) { const x = 150 - y * y / 60; d += (d ? 'L' : 'M') + x + ',' + (55 + y); } s.append(sv('path', { d, class: 'sk' })); s.append(sv('circle', { cx: 100, cy: 55, r: 4, class: 'sk fillp' })); s.append(sv('line', { x1: 100, y1: 55, x2: 140, y2: 25, class: 'sk thin' })); s.append(sv('line', { x1: 100, y1: 55, x2: 140, y2: 85, class: 'sk thin' })); for (let y = -36; y <= 36; y += 18) s.append(sv('line', { x1: 20, y1: 55 + y, x2: 150 - y * y / 60, y2: 55 + y, class: 'sk thin', style: 'opacity:.5' })); s.append(sv('text', { x: 20, y: 102, class: 'lbl xs' }, 'rib / mesh, feed at focus')); s.append(sv('text', { x: 158, y: 24, class: 'lbl xs' }, 'ribs')); },
+    conformal: s => { s.append(sv('path', { d: 'M50,30 l60,-15 l50,15 l-60,15 z', class: 'sk' })); s.append(sv('path', { d: 'M50,30 v50 l60,15 v-50 z', class: 'sk' })); s.append(sv('path', { d: 'M110,45 l50,-15 v50 l-50,15 z', class: 'sk' })); for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) s.append(sv('rect', { x: 58 + i * 15, y: 40 + j * 12 + i * 3.8, width: 10, height: 7, class: 'sk fillp', transform: '' })); for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) s.append(sv('rect', { x: 118 + i * 13, y: 46 + j * 12 - i * 4, width: 9, height: 7, class: 'sk fillp' })); s.append(sv('text', { x: 20, y: 104, class: 'lbl xs' }, 'patches on bus faces')); },
+  };
+  const TYPES = [
+    ['helix', 'Deployable axial-mode helix', 'The UHF workhorse: gain from length. TALOS-1 flies two (RHCP + LHCP).', '225–1000 MHz · 8–13 dBi · CP · TRL 9'],
+    ['qfh', 'Quadrifilar helix', 'Hemispheric coverage with almost no gain; the fallback if the deployable helix is descoped.', '137–500 MHz · 3–5 dBi · CP · TRL 9'],
+    ['dipole', 'Deployable tape dipoles', 'Cheapest VHF/UHF coverage; HawkEye Pathfinder flew quarter-wave dipoles. Not in TALOS-1 (no VHF).', '30–500 MHz · 0–2 dBi · linear'],
+    ['lpda', 'Log-periodic dipole array', 'Frequency-independent 10:1 coverage; phase centre moves with frequency, so not used for DF here.', '0.3–3 GHz · 6–8 dBi · linear'],
+    ['spiral', 'Cavity-backed spiral / sinuous', 'The ESM/DF element: stable phase centre, 70–90° beam, dual polarisation from a sinuous. TALOS-1 DF elements.', '1–18 GHz · 2–6 dBi · TRL 5 (space, custom)'],
+    ['vivaldi', 'Vivaldi / tapered-slot array', 'One aperture for S/C/X with digital beamforming; the Stage 3 route to an electronically steered zoom channel.', '2–18 GHz · 15–25 dBi arrays · dual-linear'],
+    ['patch', 'Microstrip patch array', 'Low-profile radar-band gain. TALOS-1: S-band 4×4 (18 dBi) and X-band 8×8 (22 dBi), dual-linear.', 'per band · 18–26 dBi · TRL 8–9'],
+    ['horn', 'Wideband quad-ridged horn', 'Robust 10–20 dBi with a clean phase centre; HawkEye\'s choice for Ku. Alternative to the X-band array.', '2–18 GHz · 10–20 dBi · dual-linear'],
+    ['reflector', 'Deployable reflector', 'The cued zoom channel: 14 dBi at L to 34 dBi at X from 0.7 m. TALOS-1 growth option, deferred.', '2–12 GHz · 25–40 dBi · TRL 7 · long lead'],
+    ['conformal', 'Conformal body-mounted array', 'Uses the bus faces; attractive at 1 m scale but demands a phase-stable structure. Stage 3 study item.', '1–12 GHz · 10–20 dBi with DBF'],
+  ];
+  const tg = document.getElementById('types');
+  TYPES.forEach(t => { const c = U.el('div', { class: 'card' }); c.append(sketch(SK[t[0]])); c.append(U.el('h3', {}, t[1])); c.append(U.el('p', {}, t[2])); c.append(U.el('p', { class: 'spec' }, t[3])); tg.append(c); });
+
+  // ---- field of regard
+  const fp10 = ORB.footprintRadiusKm(alt, 10), fp5 = ORB.footprintRadiusKm(alt, 5);
+  document.getElementById('fp10').textContent = fp10.toFixed(0); document.getElementById('fp10a').textContent = (Math.PI * fp10 * fp10 / 1e6).toFixed(1);
+  document.getElementById('nadir10').textContent = ORB.nadirAngle(alt, 10).toFixed(1); document.getElementById('nadir5').textContent = ORB.nadirAngle(alt, 5).toFixed(1);
+  document.getElementById('fp5c').textContent = fp5.toFixed(0); document.getElementById('sl5').textContent = ORB.slantRange(alt, 5).toFixed(0);
+  (function forSvg() {
+    const W = 1000, H = 320, Rpx = 1500, scale = Rpx / ORB.RE, cx = 500, satY = 70, cyE = satY + alt * scale + Rpx;
+    const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img' });
+    const amax = Math.asin(495 / Rpx);
+    let d = ''; for (let a = -amax; a <= amax; a += 0.01) d += (d ? 'L' : 'M') + (cx + Rpx * Math.sin(a)).toFixed(1) + ',' + (cyE - Rpx * Math.cos(a)).toFixed(1);
+    svg.append(sv('path', { d: d + ` L${cx + 495},${H} L${cx - 495},${H} Z`, fill: 'var(--surface-2)', stroke: 'none' }));
+    svg.append(sv('path', { d, class: 'sk' }));
+    const pt = el => { const g = ORB.centralAngle(alt, el); return [cx + Rpx * Math.sin(g), cyE - Rpx * Math.cos(g), cx - Rpx * Math.sin(g)]; };
+    const cones = [[5, 'var(--band-uhf)', `5° horizon: cone ±${ORB.nadirAngle(alt, 5).toFixed(1)}°, footprint radius ${fp5.toFixed(0)} km, slant range ${ORB.slantRange(alt, 5).toFixed(0)} km`], [10, 'var(--band-l)', `10° line: cone ±${ORB.nadirAngle(alt, 10).toFixed(1)}°, radius ${fp10.toFixed(0)} km`], [30, 'var(--band-s)', `30° line: cone ±${ORB.nadirAngle(alt, 30).toFixed(1)}°, radius ${ORB.footprintRadiusKm(alt, 30).toFixed(0)} km`]];
+    cones.forEach(([el, col, lab], i) => { const p = pt(el); svg.append(sv('path', { d: `M${cx},${satY} L${p[0]},${p[1]} M${cx},${satY} L${p[2]},${p[1]}`, stroke: col, 'stroke-width': 1.6, fill: 'none' })); svg.append(sv('circle', { cx: p[0], cy: p[1], r: 3, fill: col })); svg.append(sv('circle', { cx: p[2], cy: p[1], r: 3, fill: col })); svg.append(sv('line', { x1: 20, x2: 44, y1: 22 + i * 16, y2: 22 + i * 16, stroke: col, 'stroke-width': 2 })); svg.append(sv('text', { x: 50, y: 26 + i * 16, class: 'lbl s' }, lab)); });
+    [[20, 'var(--band-s)', 'S 4×4, 20° beam'], [8, 'var(--band-x)', 'X 8×8, 8° beam']].forEach(([bw, col, lab], i) => { const half = Math.tan(bw / 2 * Math.PI / 180) * alt * scale; const y = cyE - Rpx; svg.append(sv('path', { d: `M${cx},${satY} L${cx - half},${y} L${cx + half},${y} Z`, fill: col, opacity: .4 })); svg.append(sv('line', { x1: 20, x2: 44, y1: 70 + i * 16, y2: 70 + i * 16, stroke: col, 'stroke-width': 6, opacity: .5 })); svg.append(sv('text', { x: 50, y: 74 + i * 16, class: 'lbl s' }, `${lab}: footprint ${(2 * Math.tan(bw / 2 * Math.PI / 180) * alt).toFixed(0)} km at nadir`)); });
+    svg.append(sv('rect', { x: cx - 8, y: satY - 6, width: 16, height: 12, class: 'box hi' })); svg.append(sv('line', { x1: cx - 26, y1: satY, x2: cx + 26, y2: satY, stroke: 'var(--accent)', 'stroke-width': 2.5 }));
+    svg.append(sv('text', { x: cx + 32, y: satY - 4, class: 'lbl s' }, `TALOS-1, ${alt} km`));
+    svg.append(sv('text', { x: cx, y: H - 12, class: 'lbl xs', 'text-anchor': 'middle' }, 'Earth surface — true scale (1 px ≈ 4.3 km); Earth radius 6378 km'));
+    document.getElementById('for-svg').append(svg);
+  })();
+  Charts.line(document.getElementById('fp-chart'), { title: 'Footprint radius vs minimum elevation', xLabel: 'minimum elevation (°)', yLabel: 'footprint radius (km)', series: B.orbit.altOptions.filter(a => [450, 530, 600].includes(a)).map(a => ({ name: a + ' km', points: d3.range(0, 61, 2).map(e => [e, ORB.footprintRadiusKm(a, e)]) })), height: 280, xFormat: v => v.toFixed(0) + '°' });
+
+  // ---- AOA calculator
+  function aoa() {
+    const D = +document.getElementById('aoa-d').value, f = Math.pow(10, +document.getElementById('aoa-f').value), p = +document.getElementById('aoa-p').value * Math.PI / 180, th = +document.getElementById('aoa-t').value * Math.PI / 180, r = +document.getElementById('aoa-r').value, e = +document.getElementById('aoa-e').value * Math.PI / 180;
+    const lam = RF.wavelength(f), st = lam * p / (2 * Math.PI * D * Math.cos(th));
+    document.getElementById('aoa-dl').textContent = (D / lam).toFixed(2);
+    document.getElementById('aoa-s').textContent = (st * 1000).toFixed(2) + ' mrad';
+    document.getElementById('aoa-x').textContent = (r * st).toFixed(2) + ' km';
+    document.getElementById('aoa-y').textContent = (r * st / Math.sin(e)).toFixed(2) + ' km';
+    const wraps = 2 * D / lam; document.getElementById('aoa-amb').textContent = wraps <= 1 ? 'none' : '≈ ' + Math.ceil(wraps);
+    document.getElementById('aoa-ua').textContent = lam / (2 * D) >= 1 ? '±90° (unambiguous)' : '±' + (Math.asin(lam / (2 * D)) * 180 / Math.PI).toFixed(1) + '°';
+  }
+  ['aoa-d', 'aoa-p', 'aoa-t', 'aoa-r', 'aoa-e'].forEach(id => bindRange(id, aoa, v => String(v)));
+  bindRange('aoa-f', aoa, v => fmtF(Math.pow(10, v)));
+
+  // ---- boom SVG
+  (function boom() {
+    const W = 470, H = 470, cx = 235, cy = 210, s = 250; // 1 m = 250 px
+    const svg = sv('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img' });
+    svg.append(sv('rect', { x: cx - 55, y: cy - 55, width: 110, height: 110, rx: 6, class: 'box' })); svg.append(sv('text', { x: cx, y: cy - 36, class: 'lbl xs', 'text-anchor': 'middle' }, 'bus, −Z face'));
+    svg.append(sv('line', { x1: cx - 0.6 * s, y1: cy, x2: cx + 0.6 * s, y2: cy, class: 'sk' })); svg.append(sv('line', { x1: cx, y1: cy - 0.6 * s, x2: cx, y2: cy + 0.6 * s, class: 'sk' }));
+    const tips = [[0, -0.6, 'N', 0, -46], [0.6, 0, 'E', 0, 50], [0, 0.6, 'S', 0, 52], [-0.6, 0, 'W', 0, 50]];
+    tips.forEach(t => { const x = cx + t[0] * s, y = cy + t[1] * s; svg.append(sv('circle', { cx: x, cy: y, r: 0.15 * s, class: 'sk fillp' })); let d = ''; for (let a = 0; a <= 4 * Math.PI; a += 0.2) { const rr = 1 + 7.4 * a / Math.PI; d += (d ? 'L' : 'M') + (x + rr * Math.cos(a)).toFixed(1) + ',' + (y + rr * Math.sin(a)).toFixed(1); } svg.append(sv('path', { d, class: 'sk thin' })); svg.append(sv('text', { x: x + t[3], y: y + t[4], class: 'lbl s', 'text-anchor': 'middle' }, t[2])); });
+    svg.append(sv('circle', { cx: cx, cy: cy, r: 10, class: 'sk fillp' })); svg.append(sv('text', { x: cx + 14, y: cy + 30, class: 'lbl xs' }, 'hub: wideband CP ref.'));
+    const bl = (x1, y1, x2, y2) => svg.append(sv('line', { x1, y1, x2, y2, class: 'wire time' }));
+    bl(cx - 0.6 * s, cy + 0.15 * s + 14, cx + 0.6 * s, cy + 0.15 * s + 14); svg.append(sv('text', { x: cx, y: cy + 0.15 * s + 30, class: 'lbl xs', 'text-anchor': 'middle' }, '1.2 m — opposite pairs (fine)'));
+    bl(cx + 0.11 * s, cy - 0.6 * s + 0.11 * s, cx + 0.6 * s - 0.11 * s, cy - 0.11 * s); svg.append(sv('text', { x: cx + 0.36 * s + 10, y: cy - 0.36 * s - 8, class: 'lbl xs' }, '0.85 m — adjacent'));
+    bl(cx - 14, cy + 0.04 * s, cx - 14, cy + 0.6 * s - 0.15 * s); svg.append(sv('text', { x: cx - 20, y: cy + 0.4 * s, class: 'lbl xs', 'text-anchor': 'end' }, '0.6 m — hub to tip (coarse)'));
+    svg.append(sv('text', { x: 10, y: 428, class: 'lbl xs' }, 'Elements: Ø 0.3 m cavity-backed sinuous, 1–12 GHz, dual-circular.'));
+    svg.append(sv('text', { x: 10, y: 444, class: 'lbl xs' }, 'Boom: carbon fibre, deployed from the nadir face; calibration comb at each element.'));
+    svg.append(sv('text', { x: 10, y: 460, class: 'lbl xs' }, 'Coherent 8-chain bank: 4 DF elements + S 4×4 H/V + X 8×8 H/V.'));
+    document.getElementById('boom-svg').append(svg);
+  })();
+
+  // ---- sweep table
+  (function sw() {
+    const tb = document.getElementById('sweep'); const passMin = 8;
+    [['Staring wide-FOV (survey element)', 7, 70], ['S-band 4×4 (fixed nadir)', 18, 20], ['X-band 8×8 (fixed nadir)', 22, 8], ['Steered 0.7 m reflector at X', 34, 3]].forEach(([n, g, bw]) => {
+      const cells = Math.round((70 / bw) ** 2); const dwell = passMin * 60 / cells;
+      const tr = U.el('tr', {}); tr.innerHTML = `<td>${n}</td><td class="num">${g} dBi</td><td class="num">${bw}°</td><td class="num">${cells}</td><td class="num">${dwell >= 60 ? (dwell / 60).toFixed(1) + ' min' : dwell.toFixed(1) + ' s'}</td><td class="sm">${bw >= 60 ? 'everything, all the time; alarm channel' : bw >= 15 ? 'radars through sidelobes anywhere; mainlobe bonus at nadir' : 'cued characterisation, VSAT sidelobes, LPI radars'}</td><td class="sm">${bw >= 60 ? 'weak signals (VSAT, LPI)' : bw >= 15 ? 'comms bursts away from nadir' : 'search; PTT comms; anything not cued'}</td>`; tb.append(tr);
+    });
+  })();
+
+  // ---- suite table
+  (function suite() {
+    const roles = { 'ant-uhf': 'UHF survey with 8–10 dBi where every tactical net lives; opposite senses give polarisation diversity.', 'ant-wb': 'Alarm channels: see the whole ±66° cone at once across 0.3–4 GHz so nothing is missed while the gain apertures dwell.', 'ant-df': 'Single-satellite AOA; the three non-collinear baselines turn one snapshot into a 2-D line of bearing.', 'ant-sarr': 'Radar-band gain for AEW&C and naval surveillance radars; 20° beam is acceptable because sidelobe detection works everywhere.', 'ant-xarr': 'Gain for marine, coastal and fire-control X-band radars; placed opposite the downlink antenna, notched at 8.0–8.4 GHz.', 'ant-refl': 'Cued zoom channel for weak emitters (VSAT sidelobes, LPI radars) — Stage 2 option, needs 0.05° pointing.' };
+    const tb = document.querySelector('#suite tbody');
+    ants.forEach(a => {
+      const gain = (a.spec.match(/[\d.–]+ dBi[^,;]*/) || [''])[0], beam = (a.spec.match(/[\d.]+° (beam|useful cone)/) || [''])[0];
+      const tr = U.el('tr', {}); tr.innerHTML = `<td style="min-width:13rem"><a href="payload_explorer.html#${a.id}">${a.name}</a>${a.optional ? ' <span class="tag">option</span>' : ''}<div class="sm">${a.size}</div></td><td style="min-width:5.5rem">${a.band.map(b => `<span class="band-chip ${b}">${b.toUpperCase()}</span>`).join(' ')}</td><td class="sm">${gain}${beam ? '<br>' + beam : ''}</td><td class="num">${a.kg.toFixed(1)}</td><td class="sm" style="min-width:18rem">${roles[a.id] || ''}</td><td class="sm" style="min-width:14rem">${a.suppliers}</td><td class="num"><span class="tag trl ${a.trl >= 8 ? 'ok' : a.trl >= 6 ? 'warn' : 'critical'}">${a.trl}</span></td><td class="sm">${a.risks.map(r => { const rk = RISKS.find(x => x.id === r); return `<a href="risks.html#${r}" data-tip="${rk ? rk.title : ''}">${r}</a>`; }).join(', ')}</td>`; tb.append(tr);
+    });
+    document.getElementById('ant-mass').textContent = sum(ants.filter(a => !a.optional), 'kg').toFixed(1);
+    document.getElementById('ant-opt').textContent = sum(ants.filter(a => a.optional), 'kg').toFixed(1);
+  })();
+
+  // ---- suppliers B
+  (function sup() {
+    const cat = SUPPLIERS.find(c => c.id === 'B'); const tb = document.querySelector('#suptab tbody');
+    cat.items.forEach(it => { const tr = U.el('tr', {}); tr.innerHTML = `<td style="min-width:9rem"><b>${it.supplier}</b>${it.urls && it.urls.length ? ` <a href="${it.urls[0]}" target="_blank" rel="noopener" title="${it.urls[0]}">↗</a>` : ''}</td><td>${it.country}</td><td style="min-width:10rem">${it.product}</td><td class="sm" style="min-width:18rem">${it.specs}</td><td class="sm">${it.trl}</td><td class="sm">${it.price}</td><td class="sm">${it.export}${it.itarRisk ? ' <span class="tag warn">ITAR risk</span>' : ''}</td>`; tb.append(tr); });
+  })();
+
+  function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  renderRefs(['R3-1', 'R3-2', 'R3-3', 'R3-4', 'R3-6', 'R3-8', 'R3-9', 'R3-10', 'R3-24', 'R2-x63', 'R2-x75']);
+})();
+</script>
+</body>
+</html>

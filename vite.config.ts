@@ -26,7 +26,13 @@ export default defineConfig({
     chunkSizeWarningLimit: 6000,
     rollupOptions: {
       output: {
-        manualChunks: { cesium: ['cesium'] },
+        // Cesium in its own chunk, loaded only with the simulator tab. Bundler helpers go to a
+        // small chunk of their own: left alone, Rollup puts them in the Cesium chunk (which uses
+        // them too) and the link page would then have to download all of Cesium.
+        manualChunks: (id) => {
+          if (/[\\/]node_modules[\\/]@?cesium[\\/]/.test(id)) return 'cesium';
+          if (/commonjsHelpers|preload-helper|[\\/]node_modules[\\/]tslib[\\/]/.test(id)) return 'helpers';
+        },
       },
     },
   },

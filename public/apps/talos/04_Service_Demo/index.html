@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Operations console (demo) — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<script>document.documentElement.setAttribute('data-theme','dark');</script>
+<style>
+/* ---- console tokens (page-specific; the console is dark by design) ---- */
+.console{
+  --k-bg:#070b12; --k-panel:#0e1521; --k-panel2:#141d2c; --k-line:#1f2a3c; --k-line2:#2c3a50;
+  --k-ink:#dbe3ee; --k-ink2:#9aa8ba; --k-ink3:#66748a; --k-acc:#4fb0dc; --k-amber:#f0b429; --k-red:#ef5b5b; --k-green:#2fb380; --k-blue:#3987e5;
+  font-family:var(--font-ui); background:var(--k-bg); color:var(--k-ink); font-size:.82rem; line-height:1.4;
+  border:1px solid var(--k-line); border-radius:10px; overflow:hidden; margin:1rem 0 2rem; display:flex; flex-direction:column;
+}
+.console *{ scrollbar-width:thin; scrollbar-color:var(--k-line2) transparent; }
+.console p{ max-width:none; margin:.3rem 0; font-family:var(--font-ui); }
+.console h3,.console h4{ margin:.6rem 0 .3rem; font-size:.8rem; color:var(--k-ink2); text-transform:none; letter-spacing:0; font-weight:600; }
+.console h3:first-child,.console h4:first-child{ margin-top:0; }
+.console button{ background:var(--k-panel2); border:1px solid var(--k-line2); color:var(--k-ink); font-size:.76rem; padding:.3rem .6rem; border-radius:5px; }
+.console button:hover{ border-color:var(--k-acc); }
+.console button.primary{ background:var(--k-acc); color:#06121c; border-color:var(--k-acc); }
+.console button.ghost{ background:transparent; border-color:transparent; color:var(--k-ink2); }
+.console button[aria-pressed="true"]{ background:color-mix(in srgb,var(--k-acc) 22%,transparent); border-color:var(--k-acc); color:var(--k-ink); }
+.console input,.console select,.console textarea{ background:var(--k-panel2); border:1px solid var(--k-line2); color:var(--k-ink); font-size:.78rem; padding:.28rem .45rem; border-radius:5px; }
+.console input[type="range"]{ padding:0; accent-color:var(--k-acc); }
+.console label{ color:var(--k-ink2); font-size:.76rem; }
+.console :focus-visible{ outline:2px solid var(--k-acc); outline-offset:1px; }
+.cls-banner{ background:#1f7a3c; color:#fff; text-align:center; font-weight:700; font-size:.7rem; letter-spacing:.12em; padding:2px 0; }
+.con-top{ display:flex; align-items:center; gap:.7rem 1rem; padding:.45rem .8rem; border-bottom:1px solid var(--k-line); background:var(--k-panel); flex-wrap:wrap; }
+.con-brand{ font-weight:700; font-size:.95rem; display:flex; align-items:center; gap:.5rem; letter-spacing:-.01em; }
+.con-brand .mark{ width:22px; height:22px; }
+.con-brand .ver{ color:var(--k-ink3); font-weight:500; font-size:.72rem; }
+.demo-banner{ background:color-mix(in srgb,var(--k-amber) 16%,transparent); color:var(--k-amber); border:1px solid color-mix(in srgb,var(--k-amber) 45%,transparent); border-radius:4px; padding:2px 8px; font-weight:600; font-size:.7rem; letter-spacing:.02em; }
+.con-ctl{ display:flex; align-items:center; gap:.4rem; }
+.con-ctl label{ white-space:nowrap; }
+.con-clock{ margin-left:auto; display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
+.con-clock .t{ font-family:var(--font-data); font-size:.8rem; background:var(--k-bg); border:1px solid var(--k-line2); padding:.25rem .55rem; border-radius:5px; min-width:17ch; text-align:center; }
+.con-clock .t.replay{ color:var(--k-amber); border-color:color-mix(in srgb,var(--k-amber) 50%,transparent); }
+.con-body{ display:grid; grid-template-columns:208px minmax(0,1fr) 336px; height:clamp(560px,calc(100vh - 250px),860px); }
+.console.left-collapsed .con-body{ grid-template-columns:0 minmax(0,1fr) 336px; }
+@media (min-width:1181px){ .console{ margin-left:-1.25rem; margin-right:-1.25rem; } }
+.console.left-collapsed .con-left{ display:none; }
+.con-left,.con-right{ background:var(--k-panel); min-height:0; }
+.con-left{ border-right:1px solid var(--k-line); overflow:auto; padding:.6rem .7rem .9rem; }
+.con-right{ border-left:1px solid var(--k-line); display:flex; flex-direction:column; }
+.con-map{ position:relative; min-width:0; background:#0b1220; }
+#map{ position:absolute; inset:0; }
+#map canvas{ outline-offset:-3px; }
+.map-ctl{ position:absolute; right:.6rem; top:.6rem; display:flex; flex-direction:column; gap:.25rem; z-index:3; }
+.map-ctl button{ width:30px; height:30px; padding:0; font-size:1rem; line-height:1; }
+.map-legend{ position:absolute; left:.6rem; bottom:1.9rem; background:color-mix(in srgb,var(--k-panel) 86%,transparent); border:1px solid var(--k-line); border-radius:6px; padding:.4rem .6rem; font-size:.7rem; color:var(--k-ink2); display:grid; grid-template-columns:auto auto; gap:.15rem .9rem; z-index:3; backdrop-filter:blur(4px); }
+.map-legend span::before{ content:""; display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--c); margin-right:.35em; vertical-align:-1px; }
+.map-legend .sym{ font-family:var(--font-data); }
+.map-legend .sym::before{ display:none; }
+.map-status{ position:absolute; left:0; right:0; bottom:0; background:color-mix(in srgb,var(--k-panel) 90%,transparent); border-top:1px solid var(--k-line); font-family:var(--font-data); font-size:.68rem; color:var(--k-ink2); padding:.18rem .6rem; display:flex; gap:1.2rem; flex-wrap:wrap; z-index:3; }
+.map-loading{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(7,11,18,.72); z-index:5; color:var(--k-ink); font-weight:600; gap:.6rem; }
+.map-loading[hidden]{ display:none; }
+.spin{ width:16px; height:16px; border:2px solid var(--k-line2); border-top-color:var(--k-acc); border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+.draw-hint{ position:absolute; left:50%; top:.6rem; transform:translateX(-50%); background:var(--k-panel); border:1px solid var(--k-amber); color:var(--k-ink); border-radius:6px; padding:.35rem .7rem; z-index:4; display:flex; gap:.5rem; align-items:center; font-size:.76rem; }
+.draw-hint[hidden]{ display:none; }
+.map-filter{ position:absolute; left:.6rem; top:.6rem; z-index:3; display:flex; gap:.3rem; flex-wrap:wrap; }
+.chip{ display:inline-flex; align-items:center; gap:.3rem; background:var(--k-panel); border:1px solid var(--k-acc); color:var(--k-ink); border-radius:999px; padding:.1rem .55rem; font-size:.7rem; }
+.chip button{ padding:0 .3rem; border:0; background:none; color:var(--k-ink2); font-size:.8rem; }
+/* left panel */
+.lp-sec{ margin-bottom:.9rem; }
+.lp-sec h4{ display:flex; justify-content:space-between; align-items:baseline; }
+.lp-sec h4 small{ color:var(--k-ink3); font-weight:500; }
+.chk{ display:flex; align-items:center; gap:.45rem; padding:.14rem 0; color:var(--k-ink); font-size:.76rem; cursor:pointer; }
+.chk input{ margin:0; }
+.bands{ display:flex; gap:.3rem; flex-wrap:wrap; }
+.bands button{ padding:.18rem .5rem; font-size:.72rem; border-radius:999px; display:inline-flex; align-items:center; gap:.3rem; }
+.bands button::before{ content:""; width:8px; height:8px; border-radius:50%; background:var(--c); opacity:.5; }
+.bands button[aria-pressed="true"]{ background:color-mix(in srgb,var(--c) 22%,transparent); border-color:var(--c); }
+.bands button[aria-pressed="true"]::before{ opacity:1; }
+.aoi-list{ list-style:none; margin:0; padding:0; max-width:none; }
+.aoi-list li{ margin:0; }
+.aoi-list button{ width:100%; text-align:left; background:none; border:0; border-radius:4px; padding:.22rem .4rem; color:var(--k-ink); display:flex; justify-content:space-between; gap:.4rem; }
+.aoi-list button:hover{ background:var(--k-panel2); }
+.aoi-list button[aria-pressed="true"]{ background:color-mix(in srgb,var(--k-acc) 18%,transparent); }
+.aoi-list small{ color:var(--k-ink3); font-family:var(--font-data); }
+.ctl-row{ display:flex; justify-content:space-between; align-items:baseline; gap:.4rem; color:var(--k-ink2); font-size:.74rem; white-space:nowrap; }
+.ctl-row output{ font-family:var(--font-data); color:var(--k-ink); }
+/* right panel tabs */
+.ctabs{ display:flex; border-bottom:1px solid var(--k-line); background:var(--k-panel); overflow-x:auto; flex:0 0 auto; }
+.ctabs button{ flex:1 0 auto; border:0; border-radius:0; background:none; border-bottom:2px solid transparent; margin-bottom:-1px; padding:.5rem .45rem; font-size:.72rem; color:var(--k-ink2); white-space:nowrap; position:relative; }
+.ctabs button[aria-selected="true"]{ color:var(--k-acc); border-bottom-color:var(--k-acc); }
+.ctabs button .badge{ display:inline-block; min-width:1.3em; padding:0 .3em; margin-left:.3em; border-radius:999px; background:var(--k-red); color:#fff; font-size:.62rem; font-weight:700; line-height:1.5; vertical-align:1px; }
+.ctabs button .badge:empty{ display:none; }
+.cpanel{ padding:.7rem .8rem .9rem; overflow:auto; flex:1; min-height:0; }
+.cpanel[hidden]{ display:none; }
+.empty{ color:var(--k-ink3); border:1px dashed var(--k-line2); border-radius:6px; padding:.9rem; text-align:center; font-size:.76rem; margin:.5rem 0; }
+.empty b{ color:var(--k-ink2); display:block; margin-bottom:.2rem; }
+.kv{ display:grid; grid-template-columns:minmax(9ch,auto) 1fr; gap:.15rem .7rem; font-size:.75rem; margin:.4rem 0; }
+.kv dt{ color:var(--k-ink3); }
+.kv dd{ margin:0; color:var(--k-ink); font-family:var(--font-data); overflow-wrap:anywhere; }
+.em-head{ display:flex; gap:.5rem; align-items:flex-start; justify-content:space-between; }
+.em-head h3{ font-size:.92rem; color:var(--k-ink); margin:0; }
+.em-head .id{ font-family:var(--font-data); color:var(--k-ink3); font-size:.7rem; }
+.mat{ display:inline-block; font-size:.66rem; font-weight:700; padding:.05em .5em; border-radius:4px; letter-spacing:.02em; border:1px solid transparent; }
+.mat.candidate{ background:color-mix(in srgb,var(--k-ink3) 25%,transparent); color:var(--k-ink); }
+.mat.provisional{ background:color-mix(in srgb,var(--k-blue) 25%,transparent); color:#bcd6ff; }
+.mat.confirmed{ background:color-mix(in srgb,var(--k-green) 25%,transparent); color:#a9e8cc; }
+.mat.characterised{ background:color-mix(in srgb,var(--k-amber) 25%,transparent); color:#ffe2a3; }
+.conf{ height:6px; background:var(--k-panel2); border-radius:3px; overflow:hidden; margin:.25rem 0 .5rem; }
+.conf i{ display:block; height:100%; background:var(--k-acc); }
+.btn-row{ display:flex; gap:.4rem; flex-wrap:wrap; margin:.6rem 0; }
+.hist{ list-style:none; padding:0; margin:.3rem 0; max-width:none; font-family:var(--font-data); font-size:.7rem; }
+.hist li{ display:grid; grid-template-columns:11ch 1fr auto; gap:.5rem; padding:.18rem 0; border-bottom:1px solid var(--k-line); margin:0; color:var(--k-ink2); }
+.hist li b{ color:var(--k-ink); font-weight:500; }
+.console .table-wrap{ border-color:var(--k-line); background:transparent; margin:.5rem 0; border-radius:6px; }
+.console table{ font-size:.72rem; }
+.console thead th{ background:var(--k-panel2); color:var(--k-ink2); border-color:var(--k-line); position:sticky; top:0; padding:.35rem .5rem; cursor:pointer; user-select:none; }
+.console thead th.asc::after{ content:" ↑"; color:var(--k-acc); } .console thead th.desc::after{ content:" ↓"; color:var(--k-acc); }
+.console tbody td{ border-color:var(--k-line); padding:.3rem .5rem; }
+.console tbody tr:hover td{ background:var(--k-panel2); }
+.console tbody tr.sel td{ background:color-mix(in srgb,var(--k-acc) 18%,transparent); }
+.console tbody tr[tabindex]{ cursor:pointer; }
+.console .num{ font-family:var(--font-data); } .console td.num{ white-space:nowrap; }
+.form{ display:grid; gap:.45rem; }
+.form .f{ display:grid; gap:.15rem; }
+.form .f.row{ grid-template-columns:1fr 1fr; gap:.5rem; }
+.form .bands{ margin-top:.1rem; }
+.pass-list{ list-style:none; padding:0; margin:.3rem 0; max-width:none; font-family:var(--font-data); font-size:.7rem; }
+.pass-list li{ display:grid; grid-template-columns:auto 1fr auto; gap:.6rem; padding:.2rem 0; border-bottom:1px solid var(--k-line); margin:0; }
+.pass-list .el{ color:var(--k-ink2); }
+.kpis{ display:grid; grid-template-columns:repeat(3,1fr); gap:.4rem; margin:.5rem 0; }
+.kpis div{ background:var(--k-panel2); border-radius:6px; padding:.4rem .5rem; }
+.kpis .v{ font-family:var(--font-data); font-size:.95rem; font-weight:600; color:var(--k-ink); }
+.kpis .k{ font-size:.66rem; color:var(--k-ink3); }
+.alert{ display:grid; grid-template-columns:4px 1fr auto; gap:.5rem; border:1px solid var(--k-line); border-radius:6px; padding:.4rem .5rem .4rem 0; margin:.35rem 0; background:var(--k-bg); }
+.alert .sev{ border-radius:3px; background:var(--k-blue); }
+.alert.high .sev{ background:var(--k-red); } .alert.med .sev{ background:var(--k-amber); }
+.alert .t{ font-family:var(--font-data); font-size:.66rem; color:var(--k-ink3); }
+.alert .m{ font-size:.75rem; }
+.alert .m a{ color:var(--k-acc); cursor:pointer; }
+.alert.ack{ opacity:.45; }
+.rule{ display:flex; gap:.5rem; align-items:flex-start; padding:.25rem 0; border-bottom:1px solid var(--k-line); }
+.rule small{ display:block; color:var(--k-ink3); }
+.spec-wrap{ position:relative; }
+#spec{ display:block; width:100%; height:220px; border:1px solid var(--k-line); border-radius:6px; background:var(--k-bg); cursor:crosshair; }
+.spec-foot{ display:flex; justify-content:space-between; color:var(--k-ink3); font-size:.68rem; font-family:var(--font-data); margin-top:.2rem; }
+.occ{ display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.3rem; margin-top:.5rem; }
+.occ div{ background:var(--k-panel2); border-radius:5px; padding:.3rem .4rem; border-top:3px solid var(--c); }
+.occ .v{ font-family:var(--font-data); font-weight:600; } .occ .k{ font-size:.62rem; color:var(--k-ink3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* bottom timeline */
+.con-bottom{ border-top:1px solid var(--k-line); background:var(--k-panel); padding:.4rem .8rem .5rem; }
+.tl-head{ display:flex; justify-content:space-between; align-items:baseline; font-size:.72rem; color:var(--k-ink2); margin-bottom:.25rem; gap:.6rem; flex-wrap:wrap; }
+.tl-head b{ color:var(--k-ink); font-weight:600; }
+.tl{ position:relative; height:74px; }
+.tl canvas{ position:absolute; inset:0; width:100%; height:100%; border-radius:6px; }
+.tl input{ position:absolute; inset:0; width:100%; height:100%; opacity:0; margin:0; cursor:ew-resize; }
+.tl.focus canvas{ outline:2px solid var(--k-acc); }
+/* toasts */
+.toasts{ position:fixed; right:1rem; bottom:1rem; display:flex; flex-direction:column; gap:.4rem; z-index:300; max-width:min(360px,calc(100vw - 2rem)); }
+.toast{ background:#0e1521; color:#dbe3ee; border:1px solid #2c3a50; border-left:3px solid #4fb0dc; padding:.5rem .8rem; border-radius:6px; font:.78rem/1.4 var(--font-ui); box-shadow:0 8px 24px -8px rgba(0,0,0,.7); animation:tin .15s ease-out; }
+.toast.warn{ border-left-color:#f0b429; } .toast.ok{ border-left-color:#2fb380; }
+@keyframes tin{ from{ transform:translateY(6px); opacity:0; } }
+/* responsive */
+@media (max-width:1180px){
+  .con-body{ grid-template-columns:220px minmax(0,1fr); grid-template-rows:460px auto; height:auto; }
+  .console.left-collapsed .con-body{ grid-template-columns:0 minmax(0,1fr); }
+  .con-right{ grid-column:1 / -1; border-left:0; border-top:1px solid var(--k-line); max-height:520px; }
+}
+@media (max-width:760px){
+  .con-body{ grid-template-columns:minmax(0,1fr); grid-template-rows:auto 380px auto; }
+  .console.left-collapsed .con-body{ grid-template-columns:minmax(0,1fr); }
+  .console.left-collapsed .con-left{ display:none; }
+  .con-left{ border-right:0; border-bottom:1px solid var(--k-line); max-height:260px; }
+  .con-right{ max-height:none; }
+  .con-clock{ margin-left:0; width:100%; }
+  .kpis{ grid-template-columns:repeat(3,1fr); }
+  .occ{ grid-template-columns:repeat(3,1fr); }
+  .map-legend{ display:none; }
+}
+</style>
+</head>
+<body>
+<div class="content wide">
+  <header class="page-head">
+    <div class="kicker"><b>04 Service demo</b> · Operations console</div>
+    <h1>Operations console (demo)</h1>
+    <p class="lead">A working mock of the end product: the web application a customer analyst or collection manager would use to see what TALOS has detected, where emitters are, when the next pass comes and what to task. Everything below runs in the browser from synthetic data generated at load time; the orbits, passes and contact windows are computed with the study's orbit engine for the baseline 530 km / 53° constellation.</p>
+    <div class="meta"><span>Baseline: TALOS-1 v0.3</span><span>Sources: research notes 03 §5, 04 §4–§8</span><span>Data: synthetic, seeded, regenerated per constellation stage</span></div>
+  </header>
+
+  <div class="callout note"><div class="t">The console is dark by design</div><p>Operations rooms run dark displays to keep map contrast high and to match the common operating pictures analysts already use (TAK, SitaWare, ArcGIS dashboards). This page forces the dark theme; the rest of the study follows your theme setting. The banners say <em>UNCLASSIFIED // DEMO</em> because every emitter, detection, alert and vessel identity here is generated by a seeded random process tied to the simulated satellite passes — none of it describes a real unit or site.</p></div>
+
+  <section class="console" id="console" aria-label="TALOS Mission Console demo">
+    <div class="cls-banner">UNCLASSIFIED // DEMO — SYNTHETIC DATA</div>
+    <div class="con-top">
+      <div class="con-brand"><svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="14" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 16c4-9 20-9 24 0" fill="none" stroke="var(--band-uhf)" stroke-width="1.8"/><path d="M7 20c3.5-6 14.5-6 18 0" fill="none" stroke="var(--band-s)" stroke-width="1.8"/><path d="M10.5 24c1.8-3 9.2-3 11 0" fill="none" stroke="var(--band-x)" stroke-width="1.8"/><circle cx="16" cy="12" r="1.8" fill="currentColor"/></svg>TALOS Mission Console <span class="ver">v0.3 · demo build</span></div>
+      <span class="demo-banner">DEMO DATA — all emitters, detections and alerts are synthetic</span>
+      <div class="con-ctl"><label for="stage">Constellation</label>
+        <select id="stage">
+          <option value="1">Stage 1 — 1 satellite (2030)</option>
+          <option value="3" selected>Stage 2 — 3-sat cluster (2032)</option>
+          <option value="9">Stage 3 — 9 sats, 3 planes (2034)</option>
+          <option value="12">Stage 4 — 12 sats, 4 planes (2036)</option>
+        </select></div>
+      <button id="toggle-left" class="small" aria-pressed="true" title="Show / hide layers panel">Layers</button>
+      <div class="con-clock">
+        <span class="t" id="clock" aria-live="off">—</span>
+        <button id="play" class="primary" aria-pressed="false">Play</button>
+        <select id="speed" aria-label="Simulation speed"><option value="1">×1</option><option value="10">×10</option><option value="60" selected>×60</option><option value="600">×600</option><option value="3600">×3600</option></select>
+        <button id="live" title="Return the view to the current simulated time">Live</button>
+      </div>
+    </div>
+
+    <div class="con-body">
+      <aside class="con-left" id="left" aria-label="Layers and filters">
+        <div class="lp-sec"><h4>Layers</h4>
+          <label class="chk"><input type="checkbox" id="ly-em" checked> Emitter geolocations</label>
+          <label class="chk"><input type="checkbox" id="ly-ell" checked> 95 % error ellipses</label>
+          <div class="ctl-row" style="padding-left:1.4rem"><label for="ellx">Ellipse scale</label><select id="ellx"><option value="1">true scale</option><option value="10" selected>×10</option><option value="50">×50</option></select></div>
+          <label class="chk"><input type="checkbox" id="ly-sat" checked> Satellites &amp; footprints</label>
+          <label class="chk"><input type="checkbox" id="ly-trk" checked> Ground tracks (next 90 min)</label>
+          <label class="chk"><input type="checkbox" id="ly-gs" checked> Ground stations &amp; masks</label>
+          <label class="chk"><input type="checkbox" id="ly-aoi" checked> Areas of interest</label>
+        </div>
+        <div class="lp-sec"><h4>Bands <small>click to toggle</small></h4><div class="bands" id="bands"></div></div>
+        <div class="lp-sec"><h4>Emitter groups</h4><div id="groups"></div></div>
+        <div class="lp-sec"><h4>Filters</h4>
+          <div class="ctl-row"><label for="conf">Confidence ≥</label><output for="conf" id="conf-out">0.40</output></div>
+          <input type="range" id="conf" min="0.3" max="0.95" step="0.05" value="0.4">
+          <div class="ctl-row" style="margin-top:.4rem"><label for="win">Time window</label>
+            <select id="win"><option value="1">last 1 h</option><option value="6">last 6 h</option><option value="24" selected>last 24 h</option><option value="72">last 72 h</option></select></div>
+        </div>
+        <div class="lp-sec"><h4>Areas of interest <small id="aoi-n"></small></h4><ul class="aoi-list" id="aois"></ul></div>
+      </aside>
+
+      <div class="con-map">
+        <div id="map" style="position:absolute;inset:0" aria-label="Operations map"></div>
+        <div class="map-filter" id="filters"></div>
+        <div class="map-ctl"><button id="zin" title="Zoom in" aria-label="Zoom in">+</button><button id="zout" title="Zoom out" aria-label="Zoom out">−</button><button id="zreset" title="Reset view" aria-label="Reset view" style="font-size:.7rem">⌂</button></div>
+        <div class="map-legend" id="legend"></div>
+        <div class="map-status" id="status"><span id="st-cur">—</span><span id="st-n">—</span><span id="st-stage">—</span></div>
+        <div class="draw-hint" id="drawhint" hidden><span id="drawmsg">Click 3 or more points on the map to outline the AOI.</span><button id="draw-done" class="primary">Finish</button><button id="draw-cancel">Cancel</button></div>
+        <div class="map-loading" id="loading"><span class="spin" aria-hidden="true"></span><span id="loadmsg">Generating synthetic catalogue…</span></div>
+      </div>
+
+      <aside class="con-right" aria-label="Detail panels">
+        <div class="ctabs" role="tablist" id="ctabs">
+          <button role="tab" data-p="emitter" aria-selected="true">Emitter</button>
+          <button role="tab" data-p="catalogue">Catalogue</button>
+          <button role="tab" data-p="tasking">Tasking</button>
+          <button role="tab" data-p="passes">Passes</button>
+          <button role="tab" data-p="alerts">Alerts<span class="badge" id="alert-badge"></span></button>
+          <button role="tab" data-p="spectrum">Spectrum</button>
+        </div>
+        <div class="cpanel" data-p="emitter" id="p-emitter"></div>
+        <div class="cpanel" data-p="catalogue" id="p-catalogue" hidden>
+          <div class="form"><input type="search" id="cat-q" placeholder="Search id, name, class, band…" aria-label="Search catalogue"></div>
+          <div id="cat-sum" class="muted" style="font-size:.7rem;margin:.4rem 0;color:var(--k-ink3)"></div>
+          <div class="table-wrap" style="max-height:none"><table class="compact" id="cat"><thead><tr><th data-k="id">ID</th><th data-k="name">Emitter</th><th data-k="band">Band</th><th data-k="f">f (MHz)</th><th data-k="mat">Maturity</th><th data-k="last">Last seen</th><th data-k="n">Dets</th><th data-k="conf">Conf.</th></tr></thead><tbody></tbody></table></div>
+        </div>
+        <div class="cpanel" data-p="tasking" id="p-tasking" hidden></div>
+        <div class="cpanel" data-p="passes" id="p-passes" hidden></div>
+        <div class="cpanel" data-p="alerts" id="p-alerts" hidden></div>
+        <div class="cpanel" data-p="spectrum" id="p-spectrum" hidden></div>
+      </aside>
+    </div>
+
+    <div class="con-bottom">
+      <div class="tl-head"><span>Timeline — last 24 h · detections per 15 min (filtered) · pass markers for <b id="tl-aoi">—</b></span><span id="tl-view">view: live</span></div>
+      <div class="tl" id="tl"><canvas id="tlc"></canvas><input type="range" id="tlr" min="-1440" max="0" step="1" value="0" aria-label="Replay time offset in minutes"></div>
+    </div>
+    <div class="cls-banner">UNCLASSIFIED // DEMO</div>
+  </section>
+  <div class="toasts" id="toasts" aria-live="polite"></div>
+
+  <h2>How an analyst would use it</h2>
+  <p>The console follows the feature set that the public descriptions of HawkEye 360 Mission Space, Kleos Guardian LOCATE, the Kratos satID/Monics spectrum tools and military common operating pictures converge on: a layered map with confidence ellipses, a timeline with pass markers, a per-pass spectrum view, AOI tasking with pass prediction, an alert rule set and a catalogue browser with maturity levels<sup class="ref"><a href="#ref-R4-12">[R4-12]</a></sup><sup class="ref"><a href="#ref-R4-8">[R4-8]</a></sup><sup class="ref"><a href="#ref-R4-34">[R4-34]</a></sup>. A typical morning for the three roles the research identifies looks like this<sup class="ref"><a href="#ref-R4-29">[R4-29]</a></sup>:</p>
+  <ol>
+    <li><strong>Collection manager</strong> opens <em>Passes</em> to see the day's contacts per ground station, then <em>Tasking</em> to check that the standing AOIs (Aegean, Levant, Black Sea) have passes with usable geometry in the next 24 h; new customer requests are drawn on the map, the predicted dwell and CEP class are read off before the task is accepted, and the capacity impact is checked against the roughly 70 collection-minutes per satellite per day that a Kleos-class cluster could deliver<sup class="ref"><a href="#ref-R4-8">[R4-8]</a></sup>.</li>
+    <li><strong>RF / ELINT analyst</strong> works the <em>Alerts</em> feed: a jammer activation near a port, a radar whose PRI mode changed, a dark vessel with its navigation radar on. Each alert links to the emitter, whose panel shows the parametric set, the geolocation history and the ellipse; the analyst can cue SAR/EO on a fix, as HawkEye 360 and Airbus did for the Galápagos fleet<sup class="ref"><a href="#ref-R4-7">[R4-7]</a></sup>, or add the emitter to a watchlist.</li>
+    <li><strong>EW database manager</strong> uses <em>Catalogue</em> to promote emitters along the maturity ladder (Candidate → Provisional → Confirmed → Characterised), exports the parametric observations that feed the national or NATO library, and watches the <em>Spectrum</em> strip to spot occupancy changes in a band before any single emitter is classified.</li>
+  </ol>
+  <p>Drag the timeline to replay the last 24 h: detections disappear when no satellite was overhead, which is the honest picture of what a one-satellite or one-cluster service delivers at mid-latitudes — a handful of passes a day, clustered into two groups, with gaps of ten hours or more in between<sup class="ref"><a href="#ref-R4-17">[R4-17]</a></sup>. Switch the constellation stage to see how the picture fills in with three clusters and four planes.</p>
+
+  <details id="about"><summary>About this demo — what is simulated, and what the real system would do differently</summary>
+    <div class="grid c2">
+      <div><h4>Simulated here</h4><ul>
+        <li><strong>Orbits</strong>: circular 530 km / 53° orbits with J2 secular drift (<code>ORB.makeOrbit</code>), one satellite, a 3-satellite along-track cluster (150 km spacing, ±20 km cross-track), three clusters in three planes, or four clusters in four planes. Positions, footprints, ground tracks, passes over AOIs and ground-station contacts are all propagated live.</li>
+        <li><strong>Emitters</strong>: about 270 synthetic instances placed along shipping lanes, on coasts, at plausible inland radar sites, in conflict regions and at teleport-class locations, with frequency, bandwidth, modulation, PRI/PW/scan and EIRP drawn from the ranges of the emitter classes in <code>emitters.js</code>.</li>
+        <li><strong>Detections</strong>: generated only inside the computed visibility windows (elevation ≥ 10° at the emitter) of each cluster, with a class-dependent detection probability (continuous emitters almost always, bursty nets about 60 %, fire-control illuminators rarely). SNR is computed from the link budget at the pass geometry using sidelobe EIRP for radars.</li>
+        <li><strong>Ellipses</strong>: a simple model — radars 0.2–1 km, jammers 0.3–1.5 km, communications 1–5 km semi-major axis for a cluster, ×3 for the single satellite, worsened at low elevation — not a full CRLB (that lives in the <a href="../03_Scenarios_Services/geolocation_sim.html">TDOA/FDOA simulator</a>). Ellipses are drawn ×10 by default because kilometre-class ellipses are sub-pixel at regional zoom; switch to true scale in the Layers panel.</li>
+        <li><strong>Alerts, maturity and confidence</strong>: rule-based on the synthetic detections (first detection in an AOI, jammer activation after a quiet period, flagged radar mode change, dark vessel with radar on).</li>
+      </ul></div>
+      <div><h4>The real system</h4><ul>
+        <li>Orbit knowledge from GNSS-derived state vectors and precise orbit determination (metre-class), not Keplerian propagation; passes from the mission planning system with antenna masks and station schedules.</li>
+        <li>Detections from on-board channelisation, CFAR detection and PDW formation, downlinked as reports plus IQ snapshots, then cross-correlated on the ground (CAF) for TDOA/FDOA; see <a href="../02_Technical_Understanding/processing_data.html">on-board processing</a> and the <a href="software_architecture.html">software architecture</a>.</li>
+        <li>Ellipses from the measurement covariance (timing, frequency, geometry, clock bias), terrain-adjusted; the predicted CEP shown in Tasking would come from the same estimator run on the planned geometry, as the research recommends<sup class="ref"><a href="#ref-R4-16">[R4-16]</a></sup>.</li>
+        <li>Platform association from AIS, ADS-B and customer ground truth; maturity transitions logged for audit; classification banners, release caveats and per-customer data rights enforced by the platform, not by a label.</li>
+        <li>Basemaps (nautical, aeronautical, imagery), APP-6 symbology, STANAG 4676 track export, OGC API Features and webhook delivery into the customer's own COP<sup class="ref"><a href="#ref-R4-44">[R4-44]</a></sup>.</li>
+      </ul></div>
+    </div>
+  </details>
+
+  <h2>Design notes</h2>
+  <p><strong>Classification and provenance banners</strong> are not decoration: MoD demos are refused without them, and the audit trail behind maturity transitions is what government customers ask for<sup class="ref"><a href="#ref-R4-28">[R4-28]</a></sup>. <strong>Predicted CEP before tasking</strong> is the single most important honesty feature — the market quotes "few hundred metres to few kilometres" and the customer must see which conditions apply to their AOI, signal bandwidth and geometry<sup class="ref"><a href="#ref-R4-29">[R4-29]</a></sup>. <strong>Time is the primary axis</strong>: with 2–4 useful passes a day per cluster the question "when was this true?" matters as much as "where?", so the scrubber sits under the map and every panel re-evaluates against the view time. <strong>Spectrum before emitters</strong>: occupancy per pass is a Stage 1 product that needs no geolocation, which is why the spectrum strip filters the map by frequency rather than the other way round<sup class="ref"><a href="#ref-R4-13">[R4-13]</a></sup>.</p>
+  <p>Performance choices for the demo: the constellation's leader states are precomputed once per stage at 60 s steps over the 96 h synthetic window; emitter visibility is a dot product against those states; ground tracks are cached per minute of view time; the map redraws at 5 Hz only while the clock is playing. The whole page works from <code>file://</code> with no network.</p>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/emitters.js"></script>
+<script src="../assets/data/programmatics.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/data/world.js"></script>
+<script src="../assets/js/geo.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+'use strict';
+document.documentElement.setAttribute('data-theme','dark');
+document.addEventListener('themechange', () => {
+  if (document.documentElement.getAttribute('data-theme') !== 'dark') {
+    document.documentElement.setAttribute('data-theme','dark');
+    toast('The console is dark by design — the theme toggle is disabled on this page.', 'warn');
+    if (map) map.draw();
+  }
+});
+function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+renderRefs(['R4-12','R4-8','R4-34','R4-29','R4-7','R4-17','R4-16','R4-44','R4-28','R4-13']);
+
+/* ---------------- utilities ---------------- */
+const D2R = Math.PI/180, R2D = 180/Math.PI;
+const $ = id => document.getElementById(id);
+function h(tag, attrs, ...kids){ const el=document.createElement(tag); if(attrs) for(const k in attrs){ if(k==='class') el.className=attrs[k]; else if(k.startsWith('on')) el.addEventListener(k.slice(2),attrs[k]); else if(k==='html') el.innerHTML=attrs[k]; else if(attrs[k]!=null) el.setAttribute(k,attrs[k]); } kids.flat().forEach(k=>{ if(k==null) return; el.append(k.nodeType?k:document.createTextNode(String(k))); }); return el; }
+function rng(seed){ let a=seed>>>0; return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+const uni=(r,a,b)=>a+(b-a)*r();
+const pick=(r,arr)=>arr[Math.floor(r()*arr.length)];
+function gauss(r){ let u=0,v=0; while(!u) u=r(); v=r(); return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+const pad2=n=>String(n).padStart(2,'0');
+function fmtT(ms){ const d=new Date(ms); return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())}Z`; }
+function fmtHM(ms){ const d=new Date(ms); return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}Z`; }
+function fmtDHM(ms){ const d=new Date(ms); return `${pad2(d.getUTCDate())} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()]} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}Z`; }
+function rel(ms, ref){ const dm=Math.round((ref-ms)/60000); if(dm<1) return 'now'; if(dm<60) return dm+' min ago'; const hh=Math.floor(dm/60); if(hh<48) return hh+' h '+pad2(dm%60)+' min ago'; return Math.round(hh/24)+' d ago'; }
+function fmtF(mhz){ return mhz>=1000 ? (mhz/1000).toFixed(mhz>=10000?2:3)+' GHz' : mhz.toFixed(mhz<100?2:1)+' MHz'; }
+function fmtBW(hz){ return hz>=1e6 ? (hz/1e6).toFixed(hz>=10e6?0:1)+' MHz' : (hz/1e3).toFixed(0)+' kHz'; }
+function pip(lon,lat,ring){ let inside=false; for(let i=0,j=ring.length-1;i<ring.length;j=i++){ const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1]; if(((yi>lat)!==(yj>lat)) && (lon < (xj-xi)*(lat-yi)/(yj-yi)+xi)) inside=!inside; } return inside; }
+function centroid(ring){ let x=0,y=0; ring.forEach(p=>{x+=p[0];y+=p[1];}); return [x/ring.length,y/ring.length]; }
+function toast(msg, kind){ const t=h('div',{class:'toast'+(kind?' '+kind:''),role:'status'},msg); $('toasts').append(t); setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),320); }, 4200); }
+const BC = {}; ['uhf','l','s','c','x'].forEach(b=>BC[b]=U.bandColor(b));
+const BANDNAME = {uhf:'UHF',l:'L',s:'S',c:'C',x:'X'};
+const CL = Object.fromEntries(EMITTERS.map(e=>[e.id,e]));
+
+/* ---------------- time base ---------------- */
+const ALT=BASELINE.orbit.altKm, INC=BASELINE.orbit.incDeg, MINEL=10;
+const T0=Date.UTC(2032,4,18,6,0,0), PAST=72*3600e3, FUT=24*3600e3, STEP=60e3, TSTART=T0-PAST, TEND=T0+FUT, NSTEP=Math.round((PAST+FUT)/STEP)+1;
+const LAM=ORB.centralAngle(ALT,MINEL), FP5=ORB.footprintRadiusKm(ALT,BASELINE.ground.minElDeg), FP10=ORB.footprintRadiusKm(ALT,MINEL);
+const T = { now:T0, offsetMin:0, playing:false, speed:60 };
+const view = () => T.now + T.offsetMin*60e3;
+
+/* ---------------- constellation ---------------- */
+let cons=null;
+function buildCons(stage){
+  const epoch=new Date(T0); const P={1:1,3:1,9:3,12:4}[stage]; const per=stage===1?1:3; const clusters=[], sats=[];
+  for(let p=0;p<P;p++){
+    const spec={alt:ALT,inc:INC,raan:210+360*p/P,ta:129+(P>1?120*p/P:0),name:P>1?`C${p+1}`:'TALOS',epoch};
+    const members = per===1 ? [ORB.makeOrbit({...spec,name:'TALOS-1'})] : ORB.cluster(spec,3,BASELINE.constellation.cluster.alongTrackKm,BASELINE.constellation.cluster.crossTrackKm,epoch);
+    const c={name:spec.name,idx:p,members,leader:members[per===1?0:1],rx:new Float64Array(NSTEP),ry:new Float64Array(NSTEP),rz:new Float64Array(NSTEP),ux:new Float64Array(NSTEP),uy:new Float64Array(NSTEP),uz:new Float64Array(NSTEP),lat:new Float32Array(NSTEP),lon:new Float32Array(NSTEP)};
+    for(let i=0;i<NSTEP;i++){ const s=ORB.stateEcef(c.leader,new Date(TSTART+i*STEP)); const n=Math.hypot(s.r[0],s.r[1],s.r[2]); c.rx[i]=s.r[0]; c.ry[i]=s.r[1]; c.rz[i]=s.r[2]; c.ux[i]=s.r[0]/n; c.uy[i]=s.r[1]/n; c.uz[i]=s.r[2]/n; c.lat[i]=s.lat; c.lon[i]=s.lon; }
+    clusters.push(c); sats.push(...members);
+  }
+  const stIdx = {1:0,3:1,9:2,12:3}[stage];
+  return {stage,P,per,clusters,sats,info:BASELINE.constellation.stages[stIdx]};
+}
+function visIntervals(c, lat, lon, extraRad){ const p=ORB.geodeticToEcef(lat,lon,0); const n=Math.hypot(p[0],p[1],p[2]); const ex=p[0]/n,ey=p[1]/n,ez=p[2]/n; const cl=Math.cos(LAM+(extraRad||0)); const out=[]; let s=-1; for(let i=0;i<NSTEP;i++){ const v=ex*c.ux[i]+ey*c.uy[i]+ez*c.uz[i]>=cl; if(v&&s<0) s=i; else if(!v&&s>=0){ out.push([s,i-1]); s=-1; } } if(s>=0) out.push([s,NSTEP-1]); return out; }
+
+/* ---------------- synthetic geography ---------------- */
+const LANES = {
+  'Med main (Sicily–Suez)': [[11.5,37.6],[15.6,36.9],[21,34.8],[26,34.6],[30,32.8],[32.3,31.4]],
+  'Aegean (Dardanelles–Piraeus)': [[26.2,40.1],[25.6,39.3],[24.6,38.0],[23.7,37.9]],
+  'Marmara–Bosporus': [[26.2,40.1],[26.9,40.6],[28.9,41.0],[29.1,41.3]],
+  'Black Sea W (Bosporus–Odesa)': [[29.1,41.3],[30.7,43.6],[30.7,46.4]],
+  'Black Sea E (Bosporus–Novorossiysk)': [[29.1,41.3],[33.5,43.0],[37.8,44.6]],
+  'Black Sea S (Bosporus–Batumi)': [[29.1,41.3],[36.0,41.6],[41.6,41.7]],
+  'Levant (Port Said–Beirut)': [[32.3,31.4],[33.9,34.6],[35.5,34.0]],
+  'Red Sea (Suez–Bab el-Mandeb)': [[32.55,29.9],[34.0,27.5],[36.5,24.0],[38.5,20.5],[40.5,16.0],[42.5,13.5],[43.4,12.6]],
+  'Gulf (Hormuz–Kuwait)': [[56.4,26.5],[54.5,26.0],[52.0,27.3],[49.5,28.8],[48.0,29.5]],
+  'Libya offshore': [[12,33.5],[15.5,32.7],[20,32.5],[23,32.8]],
+};
+const COASTAL=[['Dardanelles approach',26.1,40.0],['Bosporus north',29.1,41.25],['Bosporus south',28.98,41.0],['Lesbos north',26.3,39.4],['Chios strait',26.0,38.4],['Samos strait',26.9,37.75],['Rhodes',28.2,36.4],['Karpathos',27.2,35.5],['Crete south',25.1,34.95],['Cape Greco',34.05,34.95],['Cyprus north',33.3,35.35],['Latakia coast',35.75,35.55],['Beirut north',35.55,33.95],['Haifa bay',34.95,32.85],['Alexandria',29.85,31.25],['Port Said',32.3,31.3],['Marsa Matruh',27.2,31.35],['Tobruk',23.95,32.1],['Benghazi',20.05,32.15],['Sirte',16.6,31.2],['Tripoli',13.15,32.9],['Misrata',15.1,32.4],['Izmir gulf',26.65,38.4],['Antalya',30.7,36.85],['Mersin',34.6,36.75],['Constanța',28.65,44.15],['Odesa approach',30.75,46.45],['Sevastopol',33.45,44.6],['Novorossiysk',37.75,44.7],['Varna',27.95,43.2],['Suez north',32.55,29.95],['Jeddah',39.1,21.5],['Hodeidah',42.9,14.8],['Bab el-Mandeb',43.4,12.65],['Bandar Abbas',56.25,27.15],['Fujairah',56.35,25.1]];
+const GBAD=[[26.5,41.3,'s'],[27.9,38.8,'s'],[32.8,40.1,'l'],[35.3,37.1,'c'],[34.1,45.2,'s'],[33.5,45.1,'c'],[38.9,45.1,'s'],[39.7,47.3,'l'],[36.05,35.4,'s'],[36.0,34.9,'x'],[36.4,33.5,'c'],[35.3,32.7,'c'],[34.8,31.2,'s'],[30.3,30.9,'s'],[31.6,30.6,'c'],[32.2,30.3,'x'],[16.5,30.6,'s'],[16.0,29.2,'l'],[13.4,32.4,'c'],[20.3,31.8,'s'],[56.5,27.6,'s'],[50.9,28.9,'c'],[49.9,26.4,'c'],[44.2,15.3,'s'],[49.6,40.4,'s'],[25.9,42.6,'s'],[27.9,44.6,'l'],[33.4,35.1,'s'],[24.1,35.5,'x']];
+const GNSSJ=[['Sevastopol area',33.55,44.55],['Kerch area',35.4,45.1],['Novorossiysk area',37.9,44.75],['Odesa area',30.6,46.5],['Kherson coast',32.6,46.6],['Kaliningrad W',20.5,54.7],['Kaliningrad E',21.2,54.9],['Syrian coast',35.9,35.5],['Damascus area',36.3,33.6],['Northern Israel',35.4,33.1],['Central Israel',34.9,31.9],['Southern Lebanon',35.3,33.2],['Tripoli area',13.2,32.8],['Benghazi area',20.1,32.0],['Sirte area',16.6,31.1],['Hormuz north shore',56.3,27.1],['Bandar Lengeh',54.9,26.5],['Bushehr area',50.8,28.95],['Hodeidah area',43.0,14.8],['Sanaa area',44.2,15.4],['Jeddah area',39.3,21.6],['Gulf of Aqaba',34.95,29.55],['Port Sudan',37.2,19.6],['Sochi area',39.7,43.6],['Istanbul (PPD-class)',29.0,41.1],['Ankara area',32.6,39.9]];
+const TAC=[['Thrace training area',26.3,41.5],['Evros',26.4,41.0],['Crimea training area',34.5,45.4],['Kherson',33.2,46.7],['Krasnodar',39.3,45.4],['Idlib',36.6,35.9],['Homs east',37.3,34.7],['Southern Lebanon',35.4,33.25],['Negev training area',34.7,31.0],['Golan',35.75,33.0],['North Sinai',33.8,31.0],['South Sinai',33.9,29.9],['Sirte',17.0,31.0],['Tripoli south',13.3,32.4],['Benghazi south',20.2,31.6],['Marib',45.3,15.4],['Taiz',44.0,13.6],['Northern Saudi',40.5,29.0],['Hormuz shore',56.0,27.3],['Cyprus training area',33.6,35.0],['Bulgaria training area',26.4,42.4],['Dobruja training area',28.3,44.7],['Western Georgia',41.7,42.0],['Western desert (Egypt)',28.5,30.5],['Central Anatolia',33.5,39.5]];
+const TETRA=[['Athens',23.73,37.98],['Thessaloniki',22.95,40.64],['Heraklion',25.13,35.34],['Istanbul',28.98,41.02],['Izmir',27.14,38.42],['Ankara',32.86,39.93],['Antalya',30.71,36.9],['Nicosia',33.36,35.17],['Limassol',33.03,34.68],['Beirut',35.5,33.89],['Tel Aviv',34.78,32.08],['Cairo',31.24,30.04],['Alexandria',29.92,31.2],['Tripoli',13.19,32.9],['Benghazi',20.07,32.12],['Bucharest',26.1,44.43],['Sofia',23.32,42.7],['Odesa',30.73,46.48],['Varna',27.91,43.21],['Baku',49.87,40.41],['Dubai',55.27,25.2],['Doha',51.53,25.29],['Jeddah',39.19,21.54],['Tbilisi',44.83,41.69]];
+const VSAT=[['Thermopylae-class',22.55,38.8,'c'],['Nemea-class',22.66,37.82,'x'],['Cyprus south',33.0,34.85,'c'],['Central Anatolia',32.8,39.8,'c'],['Beirut',35.6,33.9,'c'],['Cairo south',31.25,29.95,'c'],['Jeddah',39.2,21.6,'c'],['Dubai',55.4,25.1,'c'],['Baku',49.8,40.5,'c'],['Wallachia',26.0,45.5,'x'],['Fucino-class',13.6,42.0,'c'],['Varna',27.9,43.3,'x'],['Judean hills',34.95,31.7,'x'],['Abu Dhabi',54.6,24.4,'c'],['Sicily east',15.2,37.4,'x']];
+const EWJ=[['Northern Crimea',34.0,45.9,'uhf'],['Southern Crimea',33.9,44.9,'l'],['Kherson',33.0,46.5,'uhf'],['Krasnodar',38.6,45.2,'s'],['Rostov',39.3,47.0,'l'],['Kaliningrad',20.8,54.6,'uhf'],['Syrian coast',35.95,35.4,'s'],['Tartus hinterland',35.95,34.85,'x'],['Sirte',16.8,31.0,'uhf'],['Al Jufra',16.2,29.3,'l'],['Northern Israel',35.3,32.9,'c'],['Hormuz shore',56.2,27.3,'s'],['Yemen highlands',44.3,15.2,'uhf'],['Brest region',23.7,52.1,'l']];
+const IFF=[[23.9,38.1],[22.6,38.0],[26.3,41.2],[28.8,41.2],[27.0,38.3],[31.1,36.8],[33.0,40.1],[35.4,37.0],[33.6,35.0],[35.0,32.6],[31.0,30.1],[34.3,45.0],[39.1,45.0],[36.0,35.4]];
+const AEW=[['Northern Aegean',25.3,39.5,'s'],['Southern Aegean',25.8,36.5,'l'],['Eastern Mediterranean',33.0,33.8,'s'],['Western Black Sea',29.5,43.5,'s'],['Southern Black Sea',33.5,42.2,'l'],['Gulf',52.5,26.5,'s']];
+const NAVAL=[['Eastern Mediterranean',32.5,34.3],['Eastern Mediterranean',31.0,33.5],['Eastern Mediterranean',33.9,34.2],['Aegean',25.0,37.4],['Aegean',24.3,36.3],['Black Sea',33.0,43.8],['Black Sea',36.8,43.3],['Black Sea',30.0,44.0],['Red Sea',41.0,18.0],['Gulf of Aden',43.0,13.5],['Gulf',52.5,26.0],['Gulf',56.3,25.8],['Ionian Sea',19.5,38.0],['Libyan Sea',19.0,33.5]];
+const SEAS=[['Aegean',23.5,25.8,36.5,39.5],['Ionian',17.5,21,36,39.5],['Levant basin',31,35,32.5,35.5],['Libyan Sea',14,24,32.8,34.5],['Black Sea',29,40,41.8,46],['Red Sea',34.5,41,16,27],['Gulf',49,56.5,24.5,29.5]];
+const UAS=[['Thrace',26.2,41.4,'uhf'],['Crimea',34.2,45.3,'l'],['Idlib',36.7,35.8,'uhf'],['Sirte',16.9,31.1,'s'],['Marib',45.2,15.5,'uhf'],['North Sinai',33.6,31.1,'l'],['Kherson',33.4,46.6,'uhf'],['Southern Lebanon',35.35,33.3,'s']];
+const SATU=[['Thrace',26.4,41.6],['Crimea',34.3,45.5],['Idlib',36.5,35.9],['Southern Lebanon',35.45,33.2],['Sirte',16.7,31.0],['Negev',34.75,31.1]];
+const AOIS=[
+  {id:'aegean',name:'Aegean & Dardanelles',ring:[[22.5,41.2],[27.5,41.2],[29.3,40.2],[28.5,36.0],[23.0,35.2],[22.0,37.5]]},
+  {id:'levant',name:'Eastern Med / Levant',ring:[[29.5,36.6],[36.3,36.6],[36.3,31.0],[29.5,31.0]]},
+  {id:'blacksea',name:'Black Sea west',ring:[[27.5,46.8],[35.0,46.8],[35.0,41.3],[27.5,41.3]]},
+  {id:'libya',name:'Libya coast',ring:[[11.5,34.0],[25.0,34.0],[25.0,30.0],[11.5,30.0]]},
+  {id:'redsea',name:'Red Sea south',ring:[[37.5,20.5],[45.0,20.5],[45.0,11.5],[37.5,11.5]]},
+  {id:'gulf',name:'Gulf / Hormuz',ring:[[48.0,30.0],[57.5,30.0],[57.5,23.5],[48.0,23.5]]},
+];
+let userAoiN=0;
+
+/* lane helpers */
+function laneGeom(pts){ const cum=[0]; for(let i=1;i<pts.length;i++) cum.push(cum[i-1]+ORB.greatCircleKm(pts[i-1][1],pts[i-1][0],pts[i][1],pts[i][0])); return {pts,cum,L:cum[cum.length-1]}; }
+function laneAt(g,s){ const L=g.L; let x=((s%(2*L))+2*L)%(2*L); if(x>L) x=2*L-x; let i=1; while(i<g.cum.length-1 && g.cum[i]<x) i++; const a=g.pts[i-1], b=g.pts[i], f=(x-g.cum[i-1])/Math.max(1e-6,g.cum[i]-g.cum[i-1]); return [a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f]; }
+
+/* ---------------- emitter population ---------------- */
+let EMS=[];
+function freqSpec(cls, band, r){
+  switch(cls){
+    case 'marine-nav': return band==='x' ? {f:uni(r,9380,9440),bw:pick(r,[2e6,5e6,10e6,20e6,40e6]),mod:r()<0.6?'magnetron pulse':'solid-state chirp',pri:uni(r,333,2500),pw:uni(r,0.08,1.0),scan:uni(r,1.25,2.5)} : {f:uni(r,3030,3070),bw:pick(r,[5e6,10e6,20e6]),mod:'magnetron pulse',pri:uni(r,400,2000),pw:uni(r,0.2,1.0),scan:uni(r,2.0,3.0)};
+    case 'coastal': return {f:uni(r,9200,9500),bw:pick(r,[5e6,10e6,20e6,50e6]),mod:'solid-state chirp (LFM)',pri:uni(r,200,1000),pw:uni(r,5,50),scan:uni(r,1.5,6)};
+    case 'gbad': return band==='l' ? {f:uni(r,1215,1400),bw:pick(r,[1e6,2e6,5e6]),mod:'pulse-compressed, 3-frequency agile',pri:uni(r,1500,3000),pw:uni(r,20,100),scan:uni(r,6,12)} : band==='s' ? {f:uni(r,2900,3400),bw:pick(r,[2e6,5e6,10e6]),mod:'pulse-compressed, frequency agile, e-scan',pri:uni(r,300,1500),pw:uni(r,5,60),scan:uni(r,4,10)} : band==='c' ? {f:uni(r,5400,5900),bw:pick(r,[5e6,10e6,20e6]),mod:'phase-coded, e-scan',pri:uni(r,200,800),pw:uni(r,1,20),scan:0} : {f:uni(r,9000,10000),bw:pick(r,[10e6,20e6]),mod:'high-PRF PD, e-scan',pri:uni(r,20,100),pw:uni(r,0.5,5),scan:0};
+    case 'aewc': return band==='l' ? {f:uni(r,1215,1400),bw:pick(r,[1e6,3e6,5e6]),mod:'pulse-Doppler, PRF stagger',pri:uni(r,300,1500),pw:uni(r,10,100),scan:0} : {f:uni(r,2900,3300),bw:pick(r,[1e6,5e6,10e6]),mod:'pulse-Doppler, pulse-compressed',pri:uni(r,200,1500),pw:uni(r,10,100),scan:10};
+    case 'naval-surv': return band==='x' ? {f:uni(r,8500,9600),bw:pick(r,[2e6,10e6,20e6]),mod:'chirp, frequency agile',pri:uni(r,500,2000),pw:uni(r,5,50),scan:uni(r,2,6)} : {f:uni(r,3100,3500),bw:pick(r,[1e6,5e6,10e6]),mod:'phase-coded, e-scan',pri:uni(r,300,1500),pw:uni(r,10,50),scan:0};
+    case 'naval-fc': return {f:uni(r,9500,10000),bw:pick(r,[1e6,20e6,50e6]),mod:'CW illumination / high-PRF PD',pri:uni(r,10,50),pw:uni(r,0.2,2),scan:0};
+    case 'tac-vhf-uhf': return {f:uni(r,225,400),bw:r()<0.7?25e3:pick(r,[500e3,2e6,5e6]),mod:pick(r,['FM voice','CPM','FH net (hop set 5 MHz)']),sym:'16–64 kbit/s'};
+    case 'tetra': return {f:uni(r,390,395),bw:25e3,mod:'π/4-DQPSK',sym:'36 kbit/s'};
+    case 'satcom-uhf': return {f:uni(r,292,318),bw:pick(r,[5e3,25e3]),mod:'FSK/PSK DAMA bursts',sym:'2.4–16 kbit/s'};
+    case 'satcom-l': return r()<0.5 ? {f:uni(r,1616,1626),bw:31.5e3,mod:'DE-QPSK bursts (TDMA)',sym:'50 kbit/s'} : {f:uni(r,1626,1660),bw:pick(r,[50e3,200e3]),mod:'QPSK bursts',sym:'33.6–170 kbit/s'};
+    case 'gnss-jam': { const b=pick(r,[1575.42,1575.42,1227.6,1176.45]); return {f:b+uni(r,-2,2),bw:pick(r,[2e6,8e6,20e6,40e6]),mod:pick(r,['chirp ≈9 µs sweep','CW multi-tone','band-limited noise','chirp + spoofing-like structure']),sym:'—'}; }
+    case 'ew-jam': { const f={uhf:uni(r,250,470),l:uni(r,1100,1600),s:uni(r,2300,3500),c:uni(r,4400,5900),x:uni(r,8600,9600)}[band]; return {f,bw:pick(r,[5e6,20e6,50e6,100e6]),mod:pick(r,['noise barrage','swept noise','DRFM repeater','multi-tone']),sym:'—'}; }
+    case 'vsat': return band==='c' ? {f:uni(r,5925,6425),bw:pick(r,[1e6,4e6,9e6,36e6]),mod:'DVB-S2 QPSK/8PSK',sym:'1–30 Msym/s'} : {f:uni(r,7900,8400),bw:pick(r,[2e6,5e6,10e6]),mod:'DVB-S2 QPSK',sym:'2–8 Msym/s'};
+    case 'link16': return {f:uni(r,969,1206),bw:3e6,mod:'MSK, FH/TDMA (51 hop frequencies)',sym:'slotted 7.8 ms'};
+    case 'iff': return {f:1030,bw:8e6,mod:'PPM/DPSK interrogations (Mode S / Mode 4/5)',sym:'—'};
+    case 'uas-mil': { const f={uhf:uni(r,430,440),l:uni(r,900,930),s:uni(r,2400,2480)}[band]; return {f,bw:pick(r,[100e3,500e3,2e6]),mod:pick(r,['GFSK','LoRa CSS','OFDM']),sym:'0.1–2 Mbit/s'}; }
+  }
+  return {f:1000,bw:1e6,mod:'—'};
+}
+function buildEmitters(){
+  const out=[]; let n=0; const R=rng(20321805);
+  const add=(cls,band,lon,lat,name,platform,mobile,extra)=>{ n++; const r=rng(n*7919+17); const c=CL[cls]; const fs=freqSpec(cls,band,r); const e=Object.assign({ idx:n, id:'E-'+String(n).padStart(4,'0'), cls, group:c.group, band, lon0:lon, lat0:lat, name, platform, mobile:mobile||null, eirp:Math.round(uni(r,c.eirpRange[0],c.eirpRange[1])), eirpSl:c.eirpSl, duty:c.duty, mobility:c.mobility, firstSeen:T0-uni(r,4,420)*86400e3, agile:[], siteCode:null, aisMatch:null },fs,extra||{}); if(/radar|ew/.test(c.group)&&/agile/.test(e.mod)) e.agile=[e.f,e.f+uni(r,20,80),e.f-uni(r,20,80)].map(v=>+v.toFixed(1)); out.push(e); return e; };
+  const sites={uhf:0,l:0,s:0,c:0,x:0}; const code=(b)=>`${BANDNAME[b].slice(0,1)}-${pad2(++sites[b])}`;
+  // marine navigation radars along lanes
+  Object.entries(LANES).forEach(([lname,pts])=>{ const g=laneGeom(pts); const k=Math.max(3,Math.round(g.L/230)); for(let i=0;i<k;i++){ const s0=uni(R,0,g.L), band=R()<0.78?'x':'s', p=laneAt(g,s0); const v=uni(R,18,32)*(R()<0.5?1:-1); const ais=R()<0.72; add('marine-nav',band,p[0],p[1],`Marine navigation radar (${BANDNAME[band]}) — ${lname} #${i+1}`, ais?`AIS-correlated vessel (demo id V-${pad2(i+1)}${lname.length})`:'No AIS match — dark vessel', {kind:'lane',g,s0,v}, {aisMatch:ais}); } });
+  COASTAL.forEach(([nm,lon,lat])=>{ add('coastal','x',lon,lat,`Coastal surveillance radar — ${nm}`,`Fixed site ${code('x')}`); });
+  GBAD.forEach(([lon,lat,b])=>{ const role={uhf:'early-warning radar',l:'early-warning radar',s:'air-surveillance radar',c:'engagement radar',x:'fire-control radar'}[b]; const cd=code(b); add('gbad',b,lon,lat,`${BANDNAME[b]}-band ${role} — site ${cd}`,`Relocatable site ${cd} (vehicle-mounted; 2 historical positions)`); });
+  GNSSJ.forEach(([nm,lon,lat])=>{ const e=add('gnss-jam','l',lon,lat,`GNSS jammer — ${nm}`,`Ground emitter, ${nm}`); e.name=`GNSS jammer (${e.f>1500?'L1':e.f>1200?'L2':'L5'}) — ${nm}`; if(/PPD/.test(nm)) e.eirp=Math.min(e.eirp,42); });
+  TAC.forEach(([nm,lon,lat])=>{ add('tac-vhf-uhf','uhf',lon,lat,`Tactical UHF net — ${nm}`,`Ground mobile net, ${nm}`); });
+  TETRA.forEach(([nm,lon,lat])=>{ add('tetra','uhf',lon,lat,`TETRA base station — ${nm}`,`Fixed infrastructure, ${nm} (clutter reference)`); });
+  VSAT.forEach(([nm,lon,lat,b])=>{ add('vsat',b,lon,lat,`${BANDNAME[b]}-band VSAT uplink — teleport-class site, ${nm}`,`Fixed teleport-class site, ${nm}`); });
+  EWJ.forEach(([nm,lon,lat,b])=>{ add('ew-jam',b,lon,lat,`EW jammer (${BANDNAME[b]}) — ${nm}`,`Vehicle-mounted, ${nm}`); });
+  IFF.forEach(([lon,lat],i)=>{ add('iff','l',lon,lat,`IFF/SSR interrogator — airbase site A-${pad2(i+1)}`,`Fixed interrogator, airbase site A-${pad2(i+1)}`); });
+  AEW.forEach(([nm,lon,lat,b],i)=>{ const e=add('aewc',b,lon,lat,`AEW&C radar (${BANDNAME[b]}) — ${nm} orbit`,`Airborne platform, track T-${pad2(i+1)} (no Mode S correlation)`,{kind:'orbit',radiusKm:uni(R,60,100),periodS:uni(R,1800,2700),phase:uni(R,0,360),onH:uni(R,4,9),offH:uni(R,0,24)}); if(i<2) add('link16','l',lon,lat,`L-band TDMA data link — ${nm} AEW net`,`Airborne net, track T-${pad2(i+1)}`,e.mobile); });
+  NAVAL.forEach(([nm,lon,lat],i)=>{ const b=R()<0.5?'s':'x'; const g=laneGeom([[lon-0.7,lat-0.3],[lon+0.7,lat+0.3]]); const mob={kind:'lane',g,s0:uni(R,0,g.L),v:uni(R,10,18)*(R()<0.5?1:-1)}; add('naval-surv',b,lon,lat,`Naval surveillance radar (${BANDNAME[b]}) — ${nm} group ${i+1}`,`Naval unit, ${nm} group ${i+1} (no AIS)`,mob); if(i%4===0) add('naval-fc','x',lon,lat,`Fire-control illuminator (X) — ${nm} group ${i+1}`,`Naval unit, ${nm} group ${i+1}`,mob); if(i%3===0) add('link16','l',lon,lat,`L-band TDMA data link — ${nm} group ${i+1}`,`Naval net, ${nm} group ${i+1}`,mob); });
+  SEAS.forEach(([nm,x0,x1,y0,y1])=>{ const k=nm==='Aegean'?5:3; for(let i=0;i<k;i++){ const lon=uni(R,x0,x1),lat=uni(R,y0,y1); const g=laneGeom([[lon-0.4,lat-0.2],[lon+0.4,lat+0.2]]); add('satcom-l','l',lon,lat,`L-band satphone — ${nm}`,`Mobile terminal at sea, ${nm}`,{kind:'lane',g,s0:uni(R,0,g.L),v:uni(R,6,14)*(R()<0.5?1:-1)}); } });
+  UAS.forEach(([nm,lon,lat,b])=>{ add('uas-mil',b,lon,lat,`UAS C2 ground station (${BANDNAME[b]}) — ${nm}`,`Ground control station, ${nm}`); });
+  SATU.forEach(([nm,lon,lat])=>{ add('satcom-uhf','uhf',lon,lat,`UHF SATCOM terminal — ${nm}`,`Manpack / vehicle terminal, ${nm}`); });
+  return out;
+}
+function posAt(e,t){ if(!e.mobile) return [e.lon0,e.lat0]; const m=e.mobile, dtH=(t-T0)/3600e3; if(m.kind==='lane') return laneAt(m.g,m.s0+m.v*dtH); if(m.kind==='orbit'){ const ang=m.phase+((t-T0)/1000/m.periodS)*360; return ORB.destination(e.lat0,e.lon0,ang,m.radiusKm); } return [e.lon0,e.lat0]; }
+function airborneActive(e,t){ const m=e.mobile; if(!m||m.kind!=='orbit') return true; const hod=(((t-T0)/3600e3)+m.offH)%24; return hod>=0 && hod<m.onH; }
+function detectProb(e,t){ if(e.cls==='naval-fc') return 0.08; if(e.cls==='aewc'||e.cls==='link16'&&e.mobile&&e.mobile.kind==='orbit') return airborneActive(e,t)?0.85:0; const d=e.duty||''; if(/continuous/.test(d)&&!/bursty/.test(d)) return 0.93; if(/PTT|bursty|slotted|reply/.test(d)) return 0.58; if(/engagement/.test(d)) return 0.08; if(/\d+–\d+%/.test(d)) return 0.9; return 0.75; }
+function gRx(band){ return {uhf:5,l:8,s:10,c:12,x:15}[band]; }
+
+/* ---------------- detections ---------------- */
+function genDetections(e){
+  const r=rng(e.idx*104729+cons.stage*7); const dets=[];
+  const single=cons.per===1; const c=CL[e.cls];
+  cons.clusters.forEach(cl=>{
+    const ints=visIntervals(cl,e.lat0,e.lon0,e.mobile?6*D2R:0);
+    for(const [a,b] of ints){
+      let maxEl=-90, tcaI=a; const tA=TSTART+a*STEP, tB=TSTART+b*STEP;
+      for(let i=a;i<=b;i++){ const t=TSTART+i*STEP; const p=posAt(e,t); const la=ORB.lookAngles(p[1],p[0],0,[cl.rx[i],cl.ry[i],cl.rz[i]]); if(la.el>maxEl){ maxEl=la.el; tcaI=i; } }
+      if(maxEl<MINEL) continue;
+      const tTca=TSTART+tcaI*STEP; if(r()>detectProb(e,tTca)) continue;
+      const t=Math.round(tTca+(r()-0.5)*0.8*(tB-tA)); if(t<TSTART||t>TEND) continue;
+      const pos=posAt(e,t);
+      const base = e.group==='radar'?uni(r,0.2,1.0): e.group==='ew'?uni(r,0.3,1.5): uni(r,1,5);
+      const geom = 1/Math.sqrt(Math.sin(Math.max(maxEl,15)*D2R));
+      const smaj = base*geom*(single?3:1)*(single&&e.mobile?1.5:1), smin=smaj*uni(r,0.35,0.8), ang=uni(r,0,180);
+      const k=2.448; const dMaj=gauss(r)*smaj/k, dMin=gauss(r)*smin/k; const a_=ang*D2R; const dE=dMaj*Math.cos(a_)-dMin*Math.sin(a_), dN=dMaj*Math.sin(a_)+dMin*Math.cos(a_);
+      const fix=ORB.destination(pos[1],pos[0],Math.atan2(dE,dN)*R2D,Math.hypot(dE,dN));
+      const f = e.agile.length? pick(r,e.agile) : e.f + (e.group==='radar'?uni(r,-0.5,0.5):uni(r,-0.002,0.002)*e.f/10);
+      const slant=ORB.slantRange(ALT,maxEl); const eirp=(e.group==='radar'&&e.eirpSl!=null)? e.eirpSl + (e.eirp-c.eirp) : e.eirp;
+      const snr=ORB.RF.rxPower(eirp,slant,f,gRx(e.band))-ORB.RF.sensitivity(e.bw,BASELINE.payload.nfDb,0);
+      dets.push({t,cl:cl.name,sats:cl.members.map(m=>m.name),lon:fix[0],lat:fix[1],smaj,smin,ang,cep:0.59*(smaj+smin)/k,method:single?(e.mobile?'Doppler/AOA single pass':'Multi-pass Doppler/AOA'):'TDOA/FDOA (cluster)',snr:Math.round(snr),f,el:Math.round(maxEl),mode:null});
+    }
+  });
+  dets.sort((a,b)=>a.t-b.t);
+  if(e.group==='radar'&&dets.length>=4){ const i=2+Math.floor(r()*(dets.length-3)); dets[i].mode = e.scan? 'PRI stagger → constant; scan period changed' : 'PRF set changed (new mode B)'; }
+  e.dets=dets;
+}
+function stateAt(e,v,winMs){ let n=0,nWin=0,last=null; for(const d of e.dets){ if(d.t>v) break; n++; last=d; if(d.t>=v-winMs) nWin++; } return {n,nWin,last}; }
+function maturity(e,s){ if(s.n===0) return null; if(s.n<3) return 'Candidate'; if(s.n<6) return 'Provisional'; if(s.n>=10&&e.group==='radar') return 'Characterised'; return e.aisMatch||!e.mobile?'Confirmed':'Provisional'; }
+function confidence(e,s){ return Math.min(0.97, 0.35+0.08*s.n+(e.aisMatch||(!e.mobile&&e.group!=='comms')?0.1:0)+(e.group==='radar'?0.05:0)); }
+
+/* ---------------- state & filters ---------------- */
+const F = { bands:new Set(['uhf','l','s','c','x']), groups:new Set(Object.keys(EMITTER_GROUPS)), conf:0.4, winH:24, freq:null, layers:{em:true,ell:true,sat:true,trk:true,gs:true,aoi:true}, ellx:10 };
+let sel=null, activeAoi=AOIS[0], shown=[], hitList=[], acked=new Set(), watch=new Set(), tasks=[], drawing=null, trackCache={key:null,tracks:[]};
+function passesFilter(e,s){ return s.n>0 && s.nWin>0 && F.bands.has(e.band) && F.groups.has(e.group) && confidence(e,s)>=F.conf && (!F.freq || (e.f>=F.freq[0]&&e.f<=F.freq[1])); }
+function recomputeShown(){ const v=view(), w=F.winH*3600e3; shown=[]; for(const e of EMS){ const s=stateAt(e,v,w); e._s=s; e._mat=maturity(e,s); e._conf=confidence(e,s); e.pos=s.last?[s.last.lon,s.last.lat]:null; if(passesFilter(e,s)) shown.push(e); } }
+
+/* ---------------- map ---------------- */
+let map=null;
+function initMap(){
+  map=new GeoMap($('map'),{projection:'equirect',center:[28,37],interactive:true});
+  map.canvas.tabIndex=0; map.canvas.setAttribute('aria-label','Operations map: arrow keys pan, + and − zoom, Escape clears selection');
+  fitSpan(58);
+  map.on('click',({lon,lat,event})=>{ if(drawing){ drawing.push([lon,lat]); $('drawmsg').textContent=`${drawing.length} point${drawing.length>1?'s':''} — ${drawing.length>=3?'click Finish or add more':'add '+(3-drawing.length)+' more'}`; redraw(); return; } const rect=map.canvas.getBoundingClientRect(); const x=event.clientX-rect.left,y=event.clientY-rect.top; const hit=nearest(x,y,12); select(hit? hit.e:null); });
+  map.on('move',({lon,lat,x,y})=>{ $('st-cur').textContent = lon!=null? `${lat.toFixed(2)}°, ${lon.toFixed(2)}°` : '—'; const hit = (x!=null)? nearest(x,y,9):null; if(hit){ showTip(`${hit.e.name} · ${fmtF(hit.e.f)} · ${hit.e._mat}`, x+map.canvas.getBoundingClientRect().left, y+map.canvas.getBoundingClientRect().top); map.canvas.style.cursor='pointer'; } else { hideTip(); map.canvas.style.cursor=drawing?'copy':'crosshair'; } });
+  map.canvas.addEventListener('keydown',ev=>{ const k=ev.key; if(k==='+'||k==='='){ map.setZoom(map.zoomK*1.3); } else if(k==='-'||k==='_'){ map.setZoom(map.zoomK/1.3); } else if(k.startsWith('Arrow')){ const d=40; if(k==='ArrowLeft') map.tx=(map.tx||0)+d; if(k==='ArrowRight') map.tx=(map.tx||0)-d; if(k==='ArrowUp') map.ty=(map.ty||0)+d; if(k==='ArrowDown') map.ty=(map.ty||0)-d; map.fit(); map.draw(); } else if(k==='Escape'){ if(drawing) cancelDraw(); else select(null); } else return; ev.preventDefault(); });
+  $('zin').onclick=()=>map.setZoom(map.zoomK*1.3); $('zout').onclick=()=>map.setZoom(map.zoomK/1.3); $('zreset').onclick=()=>{ map.tx=0; map.ty=0; map.setCenter([28,37],false); fitSpan(58); };
+}
+function fitSpan(spanDeg){ map.fit(); const k=(map.w/(spanDeg*D2R))/map.baseScale; map.setZoom(k); }
+function zoomTo(lon,lat,spanDeg){ map.tx=0; map.ty=0; map.setCenter([lon,lat],false); fitSpan(spanDeg); }
+function nearest(x,y,rad){ let best=null; for(const hRec of hitList){ const d=Math.hypot(hRec.x-x,hRec.y-y); if(d<=rad&&(!best||d<best.d)) best={d,e:hRec.e}; } return best; }
+function shape(ctx,x,y,group,s){ ctx.beginPath(); if(group==='radar'){ ctx.moveTo(x,y-s*1.3); ctx.lineTo(x+s*1.3,y); ctx.lineTo(x,y+s*1.3); ctx.lineTo(x-s*1.3,y); ctx.closePath(); } else if(group==='ew'){ ctx.moveTo(x,y-s*1.4); ctx.lineTo(x+s*1.3,y+s); ctx.lineTo(x-s*1.3,y+s); ctx.closePath(); } else if(group==='datalink'){ ctx.rect(x-s,y-s,2*s,2*s); } else { ctx.arc(x,y,s,0,2*Math.PI); } ctx.fill(); ctx.stroke(); }
+function satTracks(v){ const key=cons.stage+':'+Math.floor(v/60000); if(trackCache.key===key) return trackCache.tracks; const tracks=cons.clusters.map(c=>({name:c.name,pts:ORB.groundTrack(c.leader,new Date(v),5400,60).map(p=>[p[0],p[1]])})); trackCache={key,tracks}; return tracks; }
+function splitAntimeridian(pts){ const segs=[]; let cur=[]; for(let i=0;i<pts.length;i++){ if(i&&Math.abs(pts[i][0]-pts[i-1][0])>180){ segs.push(cur); cur=[]; } cur.push(pts[i]); } segs.push(cur); return segs; }
+function buildLayers(){
+  const v=view(), L=[]; const T=map.theme;
+  if(F.layers.aoi){ for(const a of AOIS){ const act=a===activeAoi; L.push({type:'polygon',coords:a.ring,fill:act?'rgba(79,176,220,0.10)':'rgba(79,176,220,0.04)',stroke:act?'#4fb0dc':'rgba(79,176,220,0.55)',width:act?1.4:1,dash:act?null:[4,3]}); const c=centroid(a.ring); L.push({type:'text',coords:c,text:a.name,color:'rgba(154,168,186,0.9)',size:10,dx:-30,dy:-8}); } }
+  if(drawing&&drawing.length){ L.push({type:'line',coords:drawing.length>1?drawing:[drawing[0],drawing[0]],stroke:'#f0b429',width:1.5,dash:[5,3]}); drawing.forEach(p=>L.push({type:'point',coords:p,r:3.5,fill:'#f0b429',stroke:'#070b12'})); if(drawing.length>=3) L.push({type:'polygon',coords:drawing,fill:'rgba(240,180,41,0.12)',stroke:'#f0b429',width:1}); }
+  if(F.layers.gs){ for(const g of BASELINE.ground.stations){ L.push({type:'circle',center:[g.lon,g.lat],radiusKm:FP5,stroke:'rgba(47,179,128,0.45)',dash:[3,4],width:1}); } L.push({type:'custom',draw:(ctx,m)=>{ for(const g of BASELINE.ground.stations){ const p=m.project([g.lon,g.lat]); if(!p) continue; ctx.fillStyle='#2fb380'; ctx.strokeStyle='#070b12'; ctx.lineWidth=1; ctx.beginPath(); ctx.rect(p[0]-4,p[1]-4,8,8); ctx.fill(); ctx.stroke(); ctx.font='10px "Avenir Next","Segoe UI",system-ui,sans-serif'; ctx.fillStyle='rgba(169,232,204,0.95)'; ctx.textBaseline='middle'; ctx.fillText(g.id==='athens'?'Athens TT&C':g.name.split(' (')[0],p[0]+7,p[1]); } }}); }
+  if(F.layers.trk){ for(const tr of satTracks(v)) for(const seg of splitAntimeridian(tr.pts)) L.push({type:'line',coords:seg,stroke:'rgba(219,227,238,0.45)',width:1,dash:[2,4]}); }
+  if(F.layers.sat){ const sats=cons.sats.map(o=>({o,s:ORB.stateEcef(o,new Date(v))})); for(const {s} of sats){ L.push({type:'circle',center:[s.lon,s.lat],radiusKm:FP5,fill:'rgba(219,227,238,0.035)',stroke:'rgba(219,227,238,0.35)',width:1}); } L.push({type:'custom',draw:(ctx,m)=>{ for(const {o,s} of sats){ const p=m.project([s.lon,s.lat]); if(!p) continue; ctx.fillStyle='#ffffff'; ctx.strokeStyle='#070b12'; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(p[0],p[1]-7); ctx.lineTo(p[0]+6,p[1]+5); ctx.lineTo(p[0]-6,p[1]+5); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.font='bold 10px "Avenir Next","Segoe UI",system-ui,sans-serif'; ctx.fillStyle='#ffffff'; ctx.textBaseline='middle'; ctx.fillText(o.name,p[0]+9,p[1]); } }}); }
+  if(F.layers.ell){ for(const e of shown){ const d=e._s.last; L.push({type:'ellipse',center:[d.lon,d.lat],semiMajorKm:d.smaj*F.ellx,semiMinorKm:d.smin*F.ellx,angleDeg:d.ang,fill:BC[e.band].replace(')',', 0.18)').replace('rgb(','rgba(').replace(/^#(..)(..)(..)$/,(m,r,g,b)=>`rgba(${parseInt(r,16)},${parseInt(g,16)},${parseInt(b,16)},0.16)`),stroke:BC[e.band],width:e===sel?1.6:0.8}); } }
+  if(F.layers.em){ L.push({type:'custom',draw:(ctx,m)=>{ hitList=[]; ctx.lineWidth=1; for(const e of shown){ const p=m.project(e.pos); if(!p) continue; hitList.push({x:p[0],y:p[1],e}); ctx.fillStyle=BC[e.band]; ctx.strokeStyle='#070b12'; shape(ctx,p[0],p[1],e.group,e===sel?5:3.4); } if(sel&&sel.pos){ const p=m.project(sel.pos); if(p){ ctx.strokeStyle='#ffffff'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(p[0],p[1],11,0,2*Math.PI); ctx.stroke(); ctx.setLineDash([3,3]); ctx.beginPath(); ctx.arc(p[0],p[1],16,0,2*Math.PI); ctx.stroke(); ctx.setLineDash([]); } } }}); }
+  else hitList=[];
+  return L;
+}
+function redraw(){ if(!cons) return; map.layers=buildLayers(); map.draw(); }
+
+/* ---------------- left panel ---------------- */
+function initLeft(){
+  const bb=$('bands'); ['uhf','l','s','c','x'].forEach(b=>{ const btn=h('button',{'aria-pressed':'true',style:`--c:${BC[b]}`,onclick:()=>{ if(F.bands.has(b)) F.bands.delete(b); else F.bands.add(b); btn.setAttribute('aria-pressed',F.bands.has(b)); update(); }},BANDNAME[b]); bb.append(btn); });
+  const gg=$('groups'); Object.entries(EMITTER_GROUPS).forEach(([k,name])=>{ const inp=h('input',{type:'checkbox',checked:''}); inp.addEventListener('change',()=>{ if(inp.checked) F.groups.add(k); else F.groups.delete(k); update(); }); gg.append(h('label',{class:'chk'},inp,name)); });
+  bindRange('conf',v=>{ F.conf=v; if(EMS.length) update(); },v=>v.toFixed(2));
+  $('win').addEventListener('change',e=>{ F.winH=+e.target.value; update(); });
+  [['em','ly-em'],['ell','ly-ell'],['sat','ly-sat'],['trk','ly-trk'],['gs','ly-gs'],['aoi','ly-aoi']].forEach(([k,id])=>$(id).addEventListener('change',e=>{ F.layers[k]=e.target.checked; redraw(); }));
+  $('ellx').addEventListener('change',e=>{ F.ellx=+e.target.value; redraw(); });
+  $('toggle-left').addEventListener('click',()=>{ const c=$('console'); c.classList.toggle('left-collapsed'); $('toggle-left').setAttribute('aria-pressed',!c.classList.contains('left-collapsed')); setTimeout(()=>map.resize(),30); });
+  renderAoiList();
+  const lg=$('legend'); ['uhf','l','s','c','x'].forEach(b=>lg.append(h('span',{style:`--c:${BC[b]}`},BANDNAME[b]+' band'))); lg.append(h('span',{class:'sym'},'◆ radar · ● comms · ▲ EW · ■ data link'),h('span',{class:'sym'},'▲ white: satellite · ■ green: station'));
+}
+function renderAoiList(){ const ul=$('aois'); ul.innerHTML=''; AOIS.forEach(a=>{ const c=centroid(a.ring); const n=shown.filter(e=>pip(e.pos[0],e.pos[1],a.ring)).length; const b=h('button',{'aria-pressed':String(a===activeAoi),onclick:()=>{ activeAoi=a; zoomTo(c[0],c[1],Math.max(10,(Math.max(...a.ring.map(p=>p[0]))-Math.min(...a.ring.map(p=>p[0])))*2.2)); renderAoiList(); updateTimeline(); redraw(); $('tl-aoi').textContent=a.name; renderSpectrum(); }},h('span',null,a.name),h('small',null,n+' em.')); ul.append(h('li',null,b)); }); $('aoi-n').textContent=AOIS.length+' areas'; }
+
+/* ---------------- right panel: tabs ---------------- */
+function initTabs(){ const btns=[...$('ctabs').querySelectorAll('button')]; btns.forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.p))); }
+function showTab(id){ [...$('ctabs').querySelectorAll('button')].forEach(b=>b.setAttribute('aria-selected',String(b.dataset.p===id))); document.querySelectorAll('.cpanel').forEach(p=>p.hidden=p.dataset.p!==id); if(id==='passes') renderPasses(); if(id==='spectrum') renderSpectrum(); if(id==='catalogue') renderCatalogue(); if(id==='tasking') renderTasking(); if(id==='alerts') renderAlerts(); }
+
+/* ---------------- emitter panel ---------------- */
+function select(e,opts){ sel=e; renderEmitter(); redraw(); if(e&&opts&&opts.zoom) zoomTo(e.pos[0],e.pos[1],6); if(e) showTab('emitter'); markCatalogueRow(); }
+function markCatalogueRow(){ document.querySelectorAll('#cat tbody tr').forEach(tr=>tr.classList.toggle('sel',sel&&tr.dataset.id===sel.id)); }
+function ellipseSvg(d){ const sm=d.smaj, sn=d.smin; const W=220,H=120; const scale=80/sm; const bar=[0.1,0.2,0.5,1,2,5,10,20,50].reverse().find(x=>x*scale<=70)||0.1; const a=-d.ang; return `<svg viewBox="0 0 ${W} ${H}" style="max-width:260px;height:auto;display:block" aria-label="95% error ellipse at true scale"><rect width="${W}" height="${H}" fill="var(--k-bg)" rx="6"/><g transform="translate(${W/2},${H/2-6})"><line x1="-100" x2="100" y1="0" y2="0" stroke="var(--k-line)"/><line y1="-50" y2="50" x1="0" x2="0" stroke="var(--k-line)"/><ellipse rx="${(sm*scale).toFixed(1)}" ry="${(sn*scale).toFixed(1)}" transform="rotate(${a.toFixed(1)})" fill="${BC[sel.band]}22" stroke="${BC[sel.band]}" stroke-width="1.5"/><circle r="2.2" fill="#fff"/><circle r="${(d.cep*scale).toFixed(1)}" fill="none" stroke="#fff" stroke-dasharray="2 2" stroke-width="0.8"/></g><g transform="translate(12,${H-12})"><line x1="0" x2="${(bar*scale).toFixed(1)}" y1="0" y2="0" stroke="var(--k-ink2)" stroke-width="2"/><text x="0" y="-4" fill="var(--k-ink2)" font-size="9" font-family="var(--font-ui)">${bar} km</text></g><text x="${W-8}" y="${H-8}" text-anchor="end" fill="var(--k-ink3)" font-size="9" font-family="var(--font-ui)">N up · dashed = CEP</text></svg>`; }
+function renderEmitter(){
+  const P=$('p-emitter'); P.innerHTML='';
+  if(!sel){ P.append(h('div',{class:'empty'},h('b',null,'No emitter selected'),'Click a symbol on the map, pick a row in the Catalogue or follow a link from an Alert. Hover a symbol to see its name.')); return; }
+  const e=sel, s=e._s, d=s.last, c=CL[e.cls], v=view();
+  const head=h('div',{class:'em-head'},h('div',null,h('div',{class:'id'},`${e.id} · ${EMITTER_GROUPS[e.group]} · ${c.name.split(' (')[0]}`),h('h3',null,e.name)),h('span',{class:'mat '+(e._mat||'').toLowerCase()},e._mat||'—'));
+  P.append(head);
+  P.append(h('div',{style:'display:flex;justify-content:space-between;font-size:.7rem;color:var(--k-ink3);margin-top:.4rem'},h('span',null,'Confidence'),h('span',{class:'num'},e._conf.toFixed(2))),h('div',{class:'conf'},h('i',{style:`width:${(e._conf*100).toFixed(0)}%`})));
+  const par=h('dl',{class:'kv'});
+  const kv=(k,val)=>{ par.append(h('dt',null,k),h('dd',null,val)); };
+  kv('Band', h('span',{class:'band-chip '+e.band},BANDNAME[e.band]));
+  kv('Frequency', fmtF(e.f)+(e.agile.length?` · agile set ${e.agile.map(x=>fmtF(x)).join(' / ')}`:''));
+  kv('Bandwidth', fmtBW(e.bw));
+  if(e.group==='radar'){ kv('PRI / PW', `${e.pri.toFixed(0)} µs / ${e.pw<1?e.pw.toFixed(2):e.pw.toFixed(1)} µs`); kv('Scan', e.scan? `${e.scan.toFixed(1)} s period (${(60/e.scan).toFixed(0)} rpm)` : 'electronic scan (no mechanical period)'); kv('Intra-pulse', e.mod); }
+  else { kv('Modulation', e.mod); if(e.sym) kv('Rate', e.sym); }
+  kv('EIRP class', `${e.eirp} dBm (${U.si(U.dBm2W(e.eirp),'W',U.dBm2W(e.eirp)<10?1:0)})`+(e.group==='radar'?` · sidelobes ≈ ${e.eirpSl} dBm (what the satellite usually sees)`:''));
+  kv('Mobility', e.mobility);
+  kv('Platform', e.platform);
+  kv('First seen', fmtDHM(e.firstSeen)+' (catalogue)');
+  kv('Last seen', d? `${fmtDHM(d.t)} · ${rel(d.t,v)}` : '—');
+  kv('Detections', `${s.n} total · ${s.nWin} in window`);
+  P.append(h('h4',null,'Parametrics'),par);
+  if(d){
+    P.append(h('h4',null,'Latest geolocation'));
+    const g=h('dl',{class:'kv'}); const gk=(k,val)=>g.append(h('dt',null,k),h('dd',null,val));
+    gk('Position', `${d.lat.toFixed(3)}°, ${d.lon.toFixed(3)}°`); gk('Method', d.method); gk('Satellites', d.sats.join(', ')+` · max el ${d.el}°`); gk('95 % ellipse', `${d.smaj.toFixed(2)} × ${d.smin.toFixed(2)} km, ${d.ang.toFixed(0)}° from E`); gk('CEP', `${d.cep<1?(d.cep*1000).toFixed(0)+' m':d.cep.toFixed(2)+' km'}`); gk('SNR', `${d.snr} dB in ${fmtBW(e.bw)}`);
+    P.append(g); const sv=h('div'); sv.innerHTML=ellipseSvg(d); P.append(sv);
+  }
+  const br=h('div',{class:'btn-row'},
+    h('button',{class:'primary',onclick:()=>{ const t=v+uni(rng(e.idx),40,200)*60e3; toast(`Cue sent (demo): partner SAR/EO tasked on a 20 × 20 km box around ${e.id}; earliest partner pass ${fmtHM(t)}.`,'ok'); }},'Cue SAR/EO'),
+    h('button',{onclick:(ev)=>{ if(watch.has(e.id)){ watch.delete(e.id); toast(`${e.id} removed from watchlist.`); } else { watch.add(e.id); toast(`${e.id} added to watchlist — alerts on every new detection (demo).`,'ok'); } ev.target.textContent=watch.has(e.id)?'Remove from watchlist':'Add to watchlist'; }},watch.has(e.id)?'Remove from watchlist':'Add to watchlist'),
+    h('button',{onclick:()=>zoomTo(e.pos[0],e.pos[1],4)},'Zoom to'),
+    h('button',{onclick:()=>exportGeoJSON(e)},'Export GeoJSON'));
+  P.append(br);
+  P.append(h('h4',null,`Geolocation history (${Math.min(s.n,12)} of ${s.n} shown)`));
+  const ul=h('ul',{class:'hist'}); const dets=e.dets.filter(x=>x.t<=v).slice(-12).reverse(); dets.forEach(x=>ul.append(h('li',null,h('span',null,fmtDHM(x.t)),h('b',null,`${x.cl} · ${x.method.split(' ')[0]} · ${x.smaj.toFixed(1)} km${x.mode?' · MODE CHANGE':''}`),h('span',null,`${x.snr} dB`)))); P.append(ul);
+}
+function exportGeoJSON(e){ const v=view(); const gj={type:'FeatureCollection',_notice:'SYNTHETIC DEMO DATA — TALOS study',features:e.dets.filter(x=>x.t<=v).map(x=>({type:'Feature',geometry:{type:'Point',coordinates:[+x.lon.toFixed(5),+x.lat.toFixed(5)]},properties:{emitter:e.id,name:e.name,class:e.cls,band:e.band,time:new Date(x.t).toISOString(),f_MHz:+x.f.toFixed(3),bw_Hz:e.bw,method:x.method,satellites:x.sats,ellipse95_km:{semi_major:+x.smaj.toFixed(3),semi_minor:+x.smin.toFixed(3),orientation_deg_from_east:+x.ang.toFixed(1)},cep_km:+x.cep.toFixed(3),snr_dB:x.snr}}))}; try{ const blob=new Blob([JSON.stringify(gj,null,1)],{type:'application/geo+json'}); const a=h('a',{href:URL.createObjectURL(blob),download:`${e.id}.geojson`}); document.body.append(a); a.click(); a.remove(); toast(`${gj.features.length} geolocations exported as GeoJSON (demo).`,'ok'); }catch(err){ toast('Export not available in this browser context.','warn'); } }
+
+/* ---------------- catalogue ---------------- */
+let catSort={k:'last',asc:false};
+function renderCatalogue(){
+  const q=($('cat-q').value||'').toLowerCase(), v=view();
+  let rows=EMS.filter(e=>e._s.n>0 && (!q || (e.id+' '+e.name+' '+e.cls+' '+BANDNAME[e.band]+' '+(e._mat||'')).toLowerCase().includes(q)));
+  const key={id:e=>e.id,name:e=>e.name,band:e=>e.band,f:e=>e.f,mat:e=>['Candidate','Provisional','Confirmed','Characterised'].indexOf(e._mat),last:e=>e._s.last.t,n:e=>e._s.n,conf:e=>e._conf}[catSort.k];
+  rows.sort((a,b)=>{ const x=key(a),y=key(b); const c=typeof x==='string'?x.localeCompare(y):x-y; return catSort.asc?c:-c; });
+  const tb=$('cat').tBodies[0]; tb.innerHTML='';
+  rows.slice(0,400).forEach(e=>{ const tr=h('tr',{tabindex:'0','data-id':e.id,class:e===sel?'sel':''},h('td',{class:'num'},e.id),h('td',null,e.name),h('td',null,h('span',{class:'band-chip '+e.band},BANDNAME[e.band])),h('td',{class:'num'},e.f.toFixed(e.f<1000?1:0)),h('td',null,h('span',{class:'mat '+(e._mat||'').toLowerCase()},e._mat)),h('td',{class:'num'},rel(e._s.last.t,v)),h('td',{class:'num'},e._s.n),h('td',{class:'num'},e._conf.toFixed(2))); const go=()=>select(e,{zoom:true}); tr.addEventListener('click',go); tr.addEventListener('keydown',ev=>{ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); go(); } }); tb.append(tr); });
+  $('cat-sum').textContent = rows.length? `${rows.length} emitter instances in catalogue at view time (${EMS.length} synthetic instances total; ${shown.length} pass the map filters)` : '';
+  if(!rows.length){ tb.append(h('tr',null,h('td',{colspan:'8'},h('div',{class:'empty'},h('b',null,'Nothing matches'),q?'Clear the search or widen the time window.':'No emitter has been detected yet at this view time — move the timeline forward.')))); }
+  [...$('cat').querySelectorAll('th')].forEach(th=>{ th.classList.toggle('asc',th.dataset.k===catSort.k&&catSort.asc); th.classList.toggle('desc',th.dataset.k===catSort.k&&!catSort.asc); });
+}
+function initCatalogue(){ $('cat-q').addEventListener('input',renderCatalogue); [...$('cat').querySelectorAll('th')].forEach(th=>{ th.tabIndex=0; const f=()=>{ if(catSort.k===th.dataset.k) catSort.asc=!catSort.asc; else catSort={k:th.dataset.k,asc:th.dataset.k==='name'||th.dataset.k==='id'}; renderCatalogue(); }; th.addEventListener('click',f); th.addEventListener('keydown',ev=>{ if(ev.key==='Enter') f(); }); }); }
+
+/* ---------------- tasking ---------------- */
+const TK={aoi:AOIS[0].id,bands:new Set(['s','x']),prio:'routine',revisit:'every',level:'L2'};
+function aoiById(id){ return AOIS.find(a=>a.id===id); }
+function predictPasses(ring,fromMs,hours){ const c=centroid(ring); const out=[]; cons.clusters.forEach(cl=>{ for(const p of ORB.passes(cl.leader,c[1],c[0],0,new Date(fromMs),hours*3600,MINEL,30)) out.push({cl:cl.name,aos:p.aos.getTime(),los:p.los.getTime(),maxEl:p.maxEl,dur:p.duration}); }); out.sort((a,b)=>a.aos-b.aos); return out; }
+function renderTasking(){
+  const P=$('p-tasking'); P.innerHTML='';
+  const form=h('div',{class:'form'});
+  const aoiSel=h('select',{id:'tk-aoi'}); AOIS.forEach(a=>aoiSel.append(h('option',{value:a.id,selected:a.id===TK.aoi?'':null},a.name))); aoiSel.addEventListener('change',()=>{ TK.aoi=aoiSel.value; activeAoi=aoiById(TK.aoi); renderAoiList(); renderTasking(); redraw(); updateTimeline(); });
+  form.append(h('div',{class:'f'},h('label',{for:'tk-aoi'},'Area of interest'),h('div',{style:'display:flex;gap:.4rem'},aoiSel,h('button',{onclick:startDraw,title:'Draw a new AOI by clicking 3 or more points on the map'},'Draw'))));
+  const bands=h('div',{class:'bands'}); ['uhf','l','s','c','x'].forEach(b=>{ const btn=h('button',{'aria-pressed':String(TK.bands.has(b)),style:`--c:${BC[b]}`,onclick:()=>{ if(TK.bands.has(b)) TK.bands.delete(b); else TK.bands.add(b); renderTasking(); }},BANDNAME[b]); bands.append(btn); });
+  form.append(h('div',{class:'f'},h('label',null,'Bands'),bands));
+  const mk=(id,label,opts,key)=>{ const s=h('select',{id}); opts.forEach(([v,t])=>s.append(h('option',{value:v,selected:TK[key]===v?'':null},t))); s.addEventListener('change',()=>{ TK[key]=s.value; renderTasking(); }); return h('div',{class:'f'},h('label',{for:id},label),s); };
+  form.append(h('div',{class:'f row'},mk('tk-prio','Priority',[['routine','Routine'],['priority','Priority'],['urgent','Urgent (pre-empts)']],'prio'),mk('tk-rev','Revisit',[['every','Every pass'],['2d','2 per day'],['1d','Daily'],['once','One collection']],'revisit')));
+  form.append(mk('tk-lvl','Product level',[['L1','L1 detections / occupancy'],['L2','L2 geolocations + ellipses'],['L3','L3 catalogue update'],['IQ','IQ snapshots (dedicated tasking)']],'level'));
+  P.append(form);
+  const aoi=aoiById(TK.aoi), v=view(); const ps=predictPasses(aoi.ring,v,48);
+  const nPasses24=ps.filter(p=>p.aos<v+86400e3).length; const dwell24=ps.filter(p=>p.aos<v+86400e3).reduce((s,p)=>s+Math.min(p.dur,540),0)/60;
+  const nSat=cons.sats.length; const cap=70*nSat; const impact=100*dwell24/cap;
+  const radarOnly=[...TK.bands].every(b=>b==='s'||b==='c'||b==='x'); const commsOnly=[...TK.bands].every(b=>b==='uhf'||b==='l');
+  const cep = cons.per===1 ? '5–20 km single pass; 1–5 km after several passes (fixed emitters)' : radarOnly ? '100–500 m (pulsed radars, TDOA/FDOA)' : commsOnly ? '0.3–3 km (communications, TDOA/FDOA)' : '100–500 m radars · 0.3–3 km comms';
+  P.append(h('h4',null,'Prediction for this AOI'));
+  P.append(h('div',{class:'kpis'},h('div',null,h('div',{class:'v'},nPasses24),h('div',{class:'k'},'passes next 24 h (≥10° el)')),h('div',null,h('div',{class:'v'},dwell24.toFixed(0)+' min'),h('div',{class:'k'},'visibility / dwell next 24 h')),h('div',null,h('div',{class:'v',style:impact>40?'color:var(--k-amber)':''},impact.toFixed(1)+' %'),h('div',{class:'k'},`of ${cap} collection-min/day (${nSat} sat)`))));
+  P.append(h('div',{class:'kv',style:'grid-template-columns:auto 1fr'},h('dt',null,'Predicted CEP class'),h('dd',null,cep),h('dt',null,'Stage'),h('dd',null,cons.info.name),h('dt',null,'Latency'),h('dd',null,cons.stage>=9?'NRT < 90 min (polar/Dubai complement)':'standard < 6 h via Nemea; < 90 min when a KSAT complement is booked')));
+  if(!TK.bands.size) P.append(h('div',{class:'empty'},h('b',null,'Select at least one band'),'The payload tunes the comms path (UHF/L) and the RFSoC radar path (S/C/X) independently; a task needs at least one.'));
+  const ul=h('ul',{class:'pass-list'}); ps.slice(0,8).forEach(p=>ul.append(h('li',null,h('span',null,fmtDHM(p.aos)),h('span',null,`${p.cl} · ${(p.dur/60).toFixed(1)} min`),h('span',{class:'el'},`max el ${p.maxEl.toFixed(0)}°`)))); if(!ps.length) ul.append(h('li',null,h('span',{style:'grid-column:1/-1'},'No passes above 10° in the next 48 h — the AOI is outside the 53° orbit\'s useful latitude band.')));
+  P.append(h('h4',null,'Next passes over the AOI centroid'),ul);
+  P.append(h('div',{class:'btn-row'},h('button',{class:'primary',disabled:TK.bands.size?null:'',onclick:()=>{ const id='TSK-'+pad2(tasks.length+1); tasks.unshift({id,aoi:aoi.name,bands:[...TK.bands].map(b=>BANDNAME[b]).join('/'),prio:TK.prio,level:TK.level,rev:TK.revisit,next:ps[0]?ps[0].aos:null,status:'Queued',at:v}); toast(`${id} submitted: ${aoi.name}, ${[...TK.bands].map(b=>BANDNAME[b]).join('/')}, ${TK.level}. First collection ${ps[0]?fmtDHM(ps[0].aos):'—'} (demo).`,'ok'); renderTasking(); }},'Submit task')));
+  P.append(h('h4',null,`Task list (${tasks.length})`));
+  if(!tasks.length) P.append(h('div',{class:'empty'},h('b',null,'No tasks yet'),'Standing AOIs are collected by default; submit a task to add bands, priority or IQ snapshots.'));
+  else { const tw=h('div',{class:'table-wrap'}); const t=h('table',{class:'compact'}); t.innerHTML='<thead><tr><th>ID</th><th>AOI</th><th>Bands</th><th>Prio</th><th>Level</th><th>First pass</th><th>Status</th></tr></thead>'; const tb=h('tbody'); tasks.forEach(k=>tb.append(h('tr',null,h('td',{class:'num'},k.id),h('td',null,k.aoi),h('td',null,k.bands),h('td',null,k.prio),h('td',null,k.level),h('td',{class:'num'},k.next?fmtDHM(k.next):'—'),h('td',null,h('span',{class:'tag '+(k.next&&k.next<v?'ok':'accent')},k.next&&k.next<v?'Collected':'Queued'))))); t.append(tb); tw.append(t); P.append(tw); }
+}
+function startDraw(){ drawing=[]; $('drawhint').hidden=false; $('drawmsg').textContent='Click 3 or more points on the map to outline the AOI.'; map.canvas.style.cursor='copy'; map.canvas.focus(); redraw(); }
+function cancelDraw(){ drawing=null; $('drawhint').hidden=true; redraw(); }
+$('draw-cancel').addEventListener('click',cancelDraw);
+$('draw-done').addEventListener('click',()=>{ if(!drawing||drawing.length<3){ toast('An AOI needs at least three points.','warn'); return; } userAoiN++; const a={id:'user'+userAoiN,name:`User AOI ${userAoiN}`,ring:drawing.slice()}; AOIS.push(a); TK.aoi=a.id; activeAoi=a; drawing=null; $('drawhint').hidden=true; renderAoiList(); renderTasking(); showTab('tasking'); updateTimeline(); redraw(); toast(`${a.name} created with ${a.ring.length} vertices; pass prediction updated.`,'ok'); });
+
+/* ---------------- passes (ground contacts) ---------------- */
+let passCache={key:null,rows:null};
+function renderPasses(){
+  const P=$('p-passes'); const v=view(); const key=cons.stage+':'+Math.floor(v/3600e3);
+  if(passCache.key!==key){ P.innerHTML=''; P.append(h('div',{class:'map-loading',style:'position:static;background:none;justify-content:flex-start;padding:.6rem 0'},h('span',{class:'spin'}),h('span',null,`Computing ${cons.sats.length} × ${BASELINE.ground.stations.length} contact schedules for the next 24 h…`))); setTimeout(()=>{ const rows=[]; for(const g of BASELINE.ground.stations) for(const o of cons.sats) for(const p of ORB.passes(o,g.lat,g.lon,0,new Date(v),86400,BASELINE.ground.minElDeg,30)) rows.push({g,sat:o.name,aos:p.aos.getTime(),los:p.los.getTime(),maxEl:p.maxEl,dur:p.duration}); rows.sort((a,b)=>a.aos-b.aos); passCache={key,rows}; renderPasses(); },30); return; }
+  const rows=passCache.rows; P.innerHTML='';
+  const xRows=rows.filter(r=>r.g.bands.includes('X')); const minutes=xRows.reduce((s,r)=>s+r.dur,0)/60; const gb=xRows.reduce((s,r)=>s+r.dur*BASELINE.comms.xband.rateMbps/8/1000,0);
+  P.append(h('div',{class:'kpis'},h('div',null,h('div',{class:'v'},rows.length),h('div',{class:'k'},'contacts next 24 h (all sites, ≥5°)')),h('div',null,h('div',{class:'v'},minutes.toFixed(0)+' min'),h('div',{class:'k'},'X-band contact time')),h('div',null,h('div',{class:'v'},gb.toFixed(0)+' GB'),h('div',{class:'k'},`downlink capacity at ${BASELINE.comms.xband.rateMbps/1000} Gbit/s`))));
+  const per={}; BASELINE.ground.stations.forEach(g=>per[g.id]=rows.filter(r=>r.g.id===g.id).length);
+  P.append(h('p',{style:'font-size:.72rem;color:var(--k-ink2)'},BASELINE.ground.stations.map(g=>`${g.name.split(' (')[0]}: ${per[g.id]}`).join(' · ')));
+  const polar=BASELINE.ground.stations.filter(g=>per[g.id]===0); if(polar.length) P.append(h('div',{class:'callout note',style:'margin:.4rem 0;padding:.4rem .7rem;font-size:.72rem;background:var(--k-bg);border-color:var(--k-line)'},h('div',{class:'t',style:'color:var(--k-ink)'},'No contacts: '+polar.map(g=>g.name.split(' (')[0]).join(', ')),h('p',{style:'color:var(--k-ink2)'},'A 53° orbit never rises above 5° at polar sites. They matter only for the SSO alternative — see the ground segment page.')));
+  const tw=h('div',{class:'table-wrap'}); const t=h('table',{class:'compact'}); t.innerHTML='<thead><tr><th>AOS</th><th>LOS</th><th>Station</th><th>Sat</th><th class="num">Max el</th><th class="num">Dur</th><th class="num">Volume</th><th>Product by</th></tr></thead>'; const tb=h('tbody');
+  rows.forEach(r=>{ const x=r.g.bands.includes('X'); tb.append(h('tr',null,h('td',{class:'num'},fmtDHM(r.aos)),h('td',{class:'num'},fmtHM(r.los)),h('td',null,r.g.id==='athens'?'Athens TT&C (S)':r.g.name.split(' (')[0]+' ('+r.g.bands.join('/')+')'),h('td',{class:'num'},r.sat),h('td',{class:'num'},r.maxEl.toFixed(0)+'°'),h('td',{class:'num'},(r.dur/60).toFixed(1)+' min'),h('td',{class:'num'},x?(r.dur*BASELINE.comms.xband.rateMbps/8/1000).toFixed(1)+' GB':'TT&C only'),h('td',{class:'num'},x?fmtHM(r.los+25*60e3):'—'))); });
+  if(!rows.length) tb.append(h('tr',null,h('td',{colspan:'8'},h('div',{class:'empty'},h('b',null,'No contacts'),'No station sees the constellation in the next 24 h.'))));
+  t.append(tb); tw.append(t); P.append(h('h4',null,'Contact schedule (next 24 h) · "product by" = LOS + 25 min processing (est.)'),tw);
+}
+
+/* ---------------- alerts ---------------- */
+const RULES=[{id:'new',name:'New emitter in AOI',desc:'First detection of an emitter instance inside any AOI',sev:'low',on:true},{id:'jam',name:'Jammer active',desc:'GNSS or EW jammer detected after ≥ 18 h of silence',sev:'high',on:true},{id:'mode',name:'Radar mode change',desc:'PRI / scan / PRF set differs from the catalogue entry',sev:'med',on:true},{id:'dark',name:'Dark vessel with radar on',desc:'Navigation radar geolocated with no AIS match within ± 60 min',sev:'med',on:true},{id:'watch',name:'Watchlist detection',desc:'Any detection of a watch-listed emitter',sev:'low',on:true}];
+function computeAlerts(){ const v=view(), from=v-24*3600e3, out=[]; for(const e of EMS){ const ds=e.dets; let prev=null; for(const d of ds){ if(d.t>v) break; if(d.t>=from){ const inA=AOIS.find(a=>pip(d.lon,d.lat,a.ring)); if(prev===null && inA) out.push({r:'new',t:d.t,e,msg:`New emitter in ${inA.name}: ${e.name}`,sev:'low'}); if(e.group==='ew' && (prev===null || d.t-prev.t>18*3600e3)) out.push({r:'jam',t:d.t,e,msg:`${e.cls==='gnss-jam'?'GNSS':'EW'} jammer active — ${e.name} (${fmtF(d.f)}, ${fmtBW(e.bw)})`,sev:'high'}); if(d.mode) out.push({r:'mode',t:d.t,e,msg:`Radar mode change — ${e.name}: ${d.mode}`,sev:'med'}); if(e.cls==='marine-nav'&&e.aisMatch===false&&(prev===null||d.t-prev.t>18*3600e3)) out.push({r:'dark',t:d.t,e,msg:`Dark vessel with ${BANDNAME[e.band]}-band radar on — ${e.name}`,sev:'med'}); if(watch.has(e.id)) out.push({r:'watch',t:d.t,e,msg:`Watchlist: ${e.name} detected by ${d.cl}`,sev:'low'}); } prev=d; } } return out.filter(a=>RULES.find(r=>r.id===a.r).on).sort((a,b)=>b.t-a.t); }
+function renderAlerts(){ const P=$('p-alerts'); P.innerHTML=''; P.append(h('h4',null,'Rules')); RULES.forEach(r=>{ const inp=h('input',{type:'checkbox',checked:r.on?'':null}); inp.addEventListener('change',()=>{ r.on=inp.checked; renderAlerts(); }); P.append(h('label',{class:'rule'},inp,h('span',null,r.name,h('small',null,r.desc+' · '+r.sev)))); }); const al=computeAlerts(); const live=al.filter(a=>!acked.has(a.e.id+a.r+a.t)); $('alert-badge').textContent=live.length?String(Math.min(99,live.length)):''; P.append(h('h4',null,`Feed — last 24 h (${al.length}, ${live.length} unacknowledged)`)); if(!al.length){ P.append(h('div',{class:'empty'},h('b',null,'No alerts in the last 24 h'),'Enable more rules, widen the view or move the timeline forward past the next pass.')); return; } al.slice(0,80).forEach(a=>{ const id=a.e.id+a.r+a.t; const el=h('div',{class:'alert '+a.sev+(acked.has(id)?' ack':'')},h('div',{class:'sev'}),h('div',null,h('div',{class:'t'},fmtDHM(a.t)+' · '+rel(a.t,view())),h('div',{class:'m'},a.msg+' ',h('a',{tabindex:'0',onclick:()=>select(a.e,{zoom:true}),onkeydown:ev=>{ if(ev.key==='Enter') select(a.e,{zoom:true}); }},a.e.id))),acked.has(id)?h('span',{class:'t'},'acked'):h('button',{class:'small',onclick:()=>{ acked.add(id); renderAlerts(); }},'Ack')); P.append(el); }); }
+
+/* ---------------- spectrum ---------------- */
+const FMIN=225, FMAX=12000; const fx=(f,w)=>w*Math.log(f/FMIN)/Math.log(FMAX/FMIN); const xf=(x,w)=>FMIN*Math.exp(x/w*Math.log(FMAX/FMIN));
+let specRows=[];
+function renderSpectrum(){
+  const P=$('p-spectrum'); if(P.hidden) return; P.innerHTML='';
+  const aoi=activeAoi, v=view(), c=centroid(aoi.ring);
+  P.append(h('div',{style:'display:flex;justify-content:space-between;align-items:baseline;gap:.5rem;flex-wrap:wrap'},h('h4',{style:'margin:0'},`Per-pass occupancy — ${aoi.name}`),h('span',{style:'font-size:.68rem;color:var(--k-ink3)'},'last 24 h · click a column to filter the map by frequency')));
+  const wrap=h('div',{class:'spec-wrap'}); const cv=h('canvas',{id:'spec'}); wrap.append(cv); P.append(wrap);
+  // rows = passes of each cluster over the AOI centroid in [v-24h, v]
+  specRows=[]; cons.clusters.forEach(cl=>{ for(const [a,b] of visIntervals(cl,c[1],c[0],0)){ const ta=TSTART+a*STEP, tb=TSTART+b*STEP; if(tb<v-24*3600e3||ta>v) continue; specRows.push({cl:cl.name,ta,tb}); } }); specRows.sort((a,b)=>b.ta-a.ta);
+  const inAoi=EMS.filter(e=>e.dets.length&&pip(e.lon0,e.lat0,aoi.ring)||(e.mobile&&e.dets.some(d=>pip(d.lon,d.lat,aoi.ring))));
+  specRows.forEach(r=>{ r.dets=[]; for(const e of inAoi) for(const d of e.dets){ if(d.t>=r.ta-120e3&&d.t<=r.tb+120e3&&d.t<=v&&pip(d.lon,d.lat,aoi.ring)) r.dets.push({e,d}); } });
+  const occ={uhf:0,l:0,s:0,c:0,x:0}; specRows.forEach(r=>r.dets.forEach(x=>occ[x.e.band]++));
+  const og=h('div',{class:'occ'}); ['uhf','l','s','c','x'].forEach(b=>og.append(h('div',{style:`--c:${BC[b]}`,title:BANDNAME[b]+'-band detections in these passes'},h('div',{class:'v'},occ[b]),h('div',{class:'k'},BANDNAME[b]+' band')))); P.append(og);
+  if(!specRows.length) P.append(h('div',{class:'empty'},h('b',null,'No passes over this AOI in the last 24 h'),'Move the timeline or pick another AOI; the strip fills one row per cluster pass.'));
+  P.append(h('p',{style:'font-size:.7rem;color:var(--k-ink3)'},'Background texture is a synthetic clutter floor (cellular 0.7–2.7 GHz heaviest over cities); detection bars are drawn at centre frequency ± bandwidth with brightness by SNR. The X-band receive path is blanked during own downlink (8.025–8.4 GHz, hatched).'));
+  cv.style.height = Math.max(120, 18+16+Math.max(1,specRows.length)*22)+'px';
+  requestAnimationFrame(drawSpectrum);
+  cv.addEventListener('click',ev=>{ const rect=cv.getBoundingClientRect(); const x=(ev.clientX-rect.left); const f=xf(x-44,rect.width-44-6); if(f<FMIN||f>FMAX) return; F.freq=[f/1.06,f*1.06]; renderFilterChips(); update(); toast(`Map filtered to ${fmtF(F.freq[0])} – ${fmtF(F.freq[1])}.`); });
+  cv.addEventListener('mousemove',ev=>{ const rect=cv.getBoundingClientRect(); const x=ev.clientX-rect.left; const f=xf(x-44,rect.width-44-6); if(f>=FMIN&&f<=FMAX) showTip(fmtF(f),ev.clientX,ev.clientY); else hideTip(); }); cv.addEventListener('mouseleave',hideTip);
+}
+function drawSpectrum(){
+  const cv=$('spec'); if(!cv||!cons) return; const rect=cv.getBoundingClientRect(); if(!rect.width) return; const dpr=devicePixelRatio||1; cv.width=rect.width*dpr; cv.height=rect.height*dpr; const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W=rect.width, H=rect.height, L=44, R=6, top=18, w=W-L-R; ctx.fillStyle='#070b12'; ctx.fillRect(0,0,W,H);
+  // band header
+  const edges=[[225,1000,'uhf'],[1000,2000,'l'],[2000,4000,'s'],[4000,8000,'c'],[8000,12000,'x']]; edges.forEach(([a,b,k])=>{ ctx.fillStyle=BC[k]; ctx.globalAlpha=.55; ctx.fillRect(L+fx(a,w),4,fx(b,w)-fx(a,w)-1,6); ctx.globalAlpha=1; ctx.fillStyle='rgba(219,227,238,.6)'; ctx.font='9px "Avenir Next","Segoe UI",system-ui,sans-serif'; ctx.fillText(BANDNAME[k],L+fx(a,w)+2,16); });
+  const n=Math.max(1,specRows.length), rh=Math.max(10,Math.min(26,(H-top-16)/n)); const rr=rng(99);
+  specRows.forEach((r,i)=>{ const y=top+i*rh; ctx.fillStyle=i%2?'#0b1220':'#0e1521'; ctx.fillRect(L,y,w,rh-1);
+    // clutter texture
+    for(let x=0;x<w;x+=3){ const f=xf(x,w); let a=0.04+0.05*rr(); if(f>700&&f<2700) a+=0.14*rr(); if(f>8025&&f<8400) a=0; ctx.fillStyle=`rgba(154,168,186,${a.toFixed(3)})`; ctx.fillRect(L+x,y+1,3,rh-3); }
+    // own downlink blanking hatch
+    ctx.save(); ctx.beginPath(); ctx.rect(L+fx(8025,w),y,fx(8400,w)-fx(8025,w),rh-1); ctx.clip(); ctx.strokeStyle='rgba(239,91,91,.35)'; for(let x=-rh;x<fx(8400,w)-fx(8025,w)+rh;x+=5){ ctx.beginPath(); ctx.moveTo(L+fx(8025,w)+x,y); ctx.lineTo(L+fx(8025,w)+x+rh,y+rh); ctx.stroke(); } ctx.restore();
+    // GNSS markers
+    [1176.45,1227.6,1575.42].forEach(f=>{ ctx.fillStyle='rgba(57,135,229,.25)'; ctx.fillRect(L+fx(f,w),y,1,rh-1); });
+    r.dets.forEach(({e,d})=>{ const x0=L+fx(Math.max(FMIN,d.f-e.bw/2e6),w), x1=L+fx(Math.min(FMAX,d.f+e.bw/2e6),w); const a=Math.max(.35,Math.min(1,(d.snr+5)/40)); ctx.fillStyle=BC[e.band]; ctx.globalAlpha=a; ctx.fillRect(x0-1,y+2,Math.max(2,x1-x0+2),rh-5); ctx.globalAlpha=1; });
+    ctx.fillStyle='rgba(154,168,186,.9)'; ctx.font='9px "SF Mono",Menlo,Consolas,monospace'; ctx.textBaseline='middle'; ctx.fillText(fmtHM(r.ta),2,y+rh/2-4); ctx.fillStyle='rgba(102,116,138,.9)'; ctx.fillText(r.cl,2,y+rh/2+5); });
+  ctx.fillStyle='rgba(102,116,138,.95)'; ctx.font='9px "SF Mono",Menlo,Consolas,monospace'; ctx.textBaseline='bottom'; [[225,'225 M'],[500,'500 M'],[1000,'1 G'],[2000,'2 G'],[4000,'4 G'],[8000,'8 G'],[12000,'12 G']].forEach(([f,l],i,arr)=>{ const X=L+fx(f,w); ctx.textAlign=i===arr.length-1?'right':i?'center':'left'; ctx.fillText(l,X,H-1); ctx.fillRect(X,H-12,1,3); }); ctx.textAlign='left';
+  if(!specRows.length){ ctx.fillStyle='rgba(102,116,138,.9)'; ctx.font='11px "Avenir Next","Segoe UI",system-ui,sans-serif'; ctx.textBaseline='top'; ctx.fillText('no passes in window',L+10,top+20); }
+  if(F.freq){ ctx.strokeStyle='#ffffff'; ctx.setLineDash([3,3]); ctx.strokeRect(L+fx(F.freq[0],w),top-1,fx(F.freq[1],w)-fx(F.freq[0],w),H-top); ctx.setLineDash([]); }
+}
+function renderFilterChips(){ const c=$('filters'); c.innerHTML=''; if(F.freq){ c.append(h('span',{class:'chip'},`f: ${fmtF(F.freq[0])} – ${fmtF(F.freq[1])}`,h('button',{'aria-label':'Clear frequency filter',onclick:()=>{ F.freq=null; renderFilterChips(); update(); }},'×'))); } if(T.offsetMin<0) c.append(h('span',{class:'chip',style:'border-color:var(--k-amber)'},`replay ${fmtDHM(view())}`)); }
+
+/* ---------------- timeline ---------------- */
+let tlFocus=false;
+function updateTimeline(){
+  if(!cons) return; const cv=$('tlc'); const rect=cv.getBoundingClientRect(); if(!rect.width) return; const dpr=devicePixelRatio||1; cv.width=rect.width*dpr; cv.height=rect.height*dpr; const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  const W=rect.width,H=rect.height, t1=T.now, t0=t1-24*3600e3, x=t=>(t-t0)/(t1-t0)*W;
+  ctx.fillStyle='#070b12'; ctx.fillRect(0,0,W,H);
+  // hour grid
+  ctx.strokeStyle='rgba(31,42,60,1)'; ctx.fillStyle='rgba(102,116,138,.9)'; ctx.font='9px "SF Mono",Menlo,Consolas,monospace'; ctx.textBaseline='top';
+  for(let t=Math.ceil(t0/3600e3)*3600e3;t<=t1;t+=3600e3){ const X=x(t); ctx.beginPath(); ctx.moveTo(X,14); ctx.lineTo(X,H); ctx.stroke(); if(new Date(t).getUTCHours()%3===0) ctx.fillText(fmtHM(t),X+2,H-11); }
+  // pass markers for active AOI
+  const c=centroid(activeAoi.ring); const cols=['#4fb0dc','#f0b429','#2fb380','#d55181'];
+  cons.clusters.forEach((cl,i)=>{ for(const [a,b] of visIntervals(cl,c[1],c[0],0)){ const ta=TSTART+a*STEP, tb=TSTART+(b+1)*STEP; if(tb<t0||ta>t1) continue; ctx.fillStyle=cols[i%4]; ctx.fillRect(x(Math.max(ta,t0)),1+i*3.5,Math.max(2,x(Math.min(tb,t1))-x(Math.max(ta,t0))),3); } });
+  // histogram of filtered detections per 15 min
+  const bins=new Array(96).fill(0); const v=view(); const bandCount={};
+  for(const e of EMS){ if(!(F.bands.has(e.band)&&F.groups.has(e.group))) continue; for(const d of e.dets){ if(d.t<t0) continue; if(d.t>t1) break; bins[Math.min(95,Math.floor((d.t-t0)/900e3))]++; } }
+  const mx=Math.max(1,...bins); const bw=W/96; ctx.fillStyle='rgba(79,176,220,.55)'; bins.forEach((n,i)=>{ if(!n) return; const hh=(H-30)*n/mx; ctx.fillRect(i*bw+0.5,H-14-hh,bw-1,hh); });
+  // future-of-view shading
+  if(v<t1){ ctx.fillStyle='rgba(7,11,18,.55)'; ctx.fillRect(x(v),14,W-x(v),H-14); }
+  // handle
+  const X=x(v); ctx.strokeStyle=tlFocus?'#ffffff':'#f0b429'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(X,0); ctx.lineTo(X,H); ctx.stroke(); ctx.fillStyle=tlFocus?'#ffffff':'#f0b429'; ctx.beginPath(); ctx.moveTo(X-6,0); ctx.lineTo(X+6,0); ctx.lineTo(X,8); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#dbe3ee'; ctx.font='10px "SF Mono",Menlo,Consolas,monospace'; ctx.textAlign=X>W-80?'right':'left'; ctx.fillText(fmtHM(v)+(T.offsetMin<0?' replay':' live'),X+(X>W-80?-6:6),12); ctx.textAlign='left';
+  $('tl-view').textContent = T.offsetMin<0 ? `view: ${fmtDHM(v)} (−${Math.floor(-T.offsetMin/60)}:${pad2(-T.offsetMin%60)} h)` : 'view: live';
+}
+function initTimeline(){ const r=$('tlr'); r.addEventListener('input',()=>{ T.offsetMin=+r.value; update(); }); r.addEventListener('focus',()=>{ tlFocus=true; $('tl').classList.add('focus'); updateTimeline(); }); r.addEventListener('blur',()=>{ tlFocus=false; $('tl').classList.remove('focus'); updateTimeline(); }); $('live').addEventListener('click',()=>{ T.offsetMin=0; r.value=0; update(); }); new ResizeObserver(()=>{ updateTimeline(); drawSpectrum(); }).observe($('tl')); }
+
+/* ---------------- clock ---------------- */
+let timer=null;
+function setPlaying(p){ T.playing=p; $('play').textContent=p?'Pause':'Play'; $('play').setAttribute('aria-pressed',String(p)); if(timer){ clearInterval(timer); timer=null; } if(p){ let last=performance.now(); timer=setInterval(()=>{ const nowP=performance.now(); const dt=(nowP-last)/1000; last=nowP; T.now+=dt*T.speed*1000; if(T.now>=TEND){ T.now=TEND; setPlaying(false); toast('End of the 96-hour synthetic data window reached.','warn'); } update(true); },200); } }
+$('play').addEventListener('click',()=>setPlaying(!T.playing));
+$('speed').addEventListener('change',e=>{ T.speed=+e.target.value; });
+$('stage').addEventListener('change',e=>{ setStage(+e.target.value); });
+
+/* ---------------- update orchestration ---------------- */
+let lastMinute=null;
+function update(fromClock){
+  const v=view(); const minute=Math.floor(v/60000);
+  $('clock').textContent=fmtT(v); $('clock').classList.toggle('replay',T.offsetMin<0);
+  if(!fromClock || minute!==lastMinute){ lastMinute=minute; recomputeShown(); renderFilterChips(); updateTimeline(); if(sel) renderEmitter(); if(!$('p-catalogue').hidden) renderCatalogue(); if(!$('p-alerts').hidden) renderAlerts(); else { const al=computeAlerts().filter(a=>!acked.has(a.e.id+a.r+a.t)); $('alert-badge').textContent=al.length?String(Math.min(99,al.length)):''; } if(!$('p-tasking').hidden&&!fromClock) renderTasking(); if(!$('p-spectrum').hidden&&!fromClock) renderSpectrum(); if(!$('p-passes').hidden&&!fromClock) renderPasses(); renderAoiList(); }
+  const nd=shown.reduce((s,e)=>s+e._s.nWin,0); $('st-n').textContent=`${shown.length} emitters · ${nd} detections in ${F.winH} h window`; $('st-stage').textContent=`${cons.info.name} · ${cons.sats.length} sat · ${cons.P} plane${cons.P>1?'s':''}`;
+  redraw();
+}
+function setStage(stage){
+  $('loading').hidden=false; $('loadmsg').textContent=`Propagating ${stage}-satellite constellation and regenerating synthetic detections…`;
+  setTimeout(()=>{ const t=performance.now(); cons=buildCons(stage); EMS.forEach(genDetections); trackCache={key:null}; passCache={key:null}; if(sel) sel=EMS.find(e=>e.id===sel.id); update(); $('loading').hidden=true; const nd=EMS.reduce((s,e)=>s+e.dets.length,0); toast(`${cons.info.name}: ${EMS.length} emitters, ${nd.toLocaleString()} synthetic detections over 96 h, computed in ${(performance.now()-t).toFixed(0)} ms.`,'ok'); },40);
+}
+
+/* ---------------- boot ---------------- */
+initMap(); initLeft(); initTabs(); initCatalogue(); initTimeline(); renderEmitter();
+EMS=buildEmitters();
+$('tl-aoi').textContent=activeAoi.name;
+setStage(+$('stage').value);
+window.addEventListener('resize',()=>{ updateTimeline(); });
+})();
+</script>
+</body>
+</html>

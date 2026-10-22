@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Target emitters &amp; detectability — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .katex-display { overflow-x:auto; overflow-y:hidden; padding:.2rem 0; }
+  .filters { display:flex; flex-wrap:wrap; gap:.5rem 1rem; align-items:center; font-family:var(--font-ui); font-size:.85rem; margin:.6rem 0; }
+  .filters select { font:inherit; padding:.3rem .5rem; border:1px solid var(--line-strong); border-radius:var(--radius); background:var(--surface); color:var(--ink); }
+  .tag.yes { background: color-mix(in srgb, var(--ok) 22%, transparent); }
+  .tag.marginal { background: color-mix(in srgb, var(--warn) 32%, transparent); }
+  .tag.no { background: color-mix(in srgb, var(--critical) 22%, transparent); }
+  td.small { font-size:.78rem; color:var(--ink-2); }
+  .spectrum .lbl.em { font-size: 10px; }
+  .ex td.num { white-space:nowrap; } .ex td:first-child { min-width:13rem; } .ex td:last-child { min-width:20rem; }
+  #emtab td { font-size:.8rem; } #emtab .band-chip { font-size:.68rem; padding:.05rem .35rem; }
+  .ex tr.sub td:first-child { padding-left:1.6rem; color:var(--ink-2); }
+  .verdict { font-family:var(--font-ui); font-weight:700; font-size:1.05rem; }
+  .takeaways .card ul { margin:.3rem 0 0 1rem; padding:0; font-size:.95rem; }
+  .takeaways .card li { margin:.25rem 0; }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>02 Technical understanding</b> · Target emitters</div>
+    <h1>Target emitters &amp; detectability</h1>
+    <p class="lead">Eighteen emitter classes from tactical radios to naval radars, and whether TALOS-1 can see them from 530 km. The short answer: radars and most military communications yes, strong jammers yes, 10 mW GNSS jammers and consumer drone links no. Radars are never limited by sensitivity but by dynamic range; communications are limited by being tuned to the right band at the right time. Every number on this page is computed with the same link-budget functions the rest of the study uses.</p>
+    <div class="meta"><span id="meta-baseline">Baseline: TALOS-1 v0.3</span><span>Source: research note 03 §1–§2</span><span>EIRP values marked est. in the research are estimates</span></div>
+  </header>
+
+  <div class="grid c4" id="kpis"></div>
+
+  <h2>The emitter catalogue</h2>
+  <p>The table is rendered from <code>emitters.js</code>, the same data that drives the use-case pages and the collection planner. "Verdict" is the detectability assessment for the baseline antenna suite (5–10 dBi at UHF/L, 18–22 dBi at S/X), a system noise figure of 2.5 dB and slant ranges of 1000–2000 km. EIRP figures for military systems are not published and are engineering estimates derived in research 03 §1; they should be read as order-of-magnitude anchors<sup class="ref"><a href="#ref-R3-16">[R3-16]</a></sup><sup class="ref"><a href="#ref-R3-17">[R3-17]</a></sup><sup class="ref"><a href="#ref-R3-18">[R3-18]</a></sup>. Sort by any column; filter by group or verdict. Hover a name, bandwidth or EIRP cell for the research note behind it.</p>
+  <div class="filters">
+    <label>Group <select id="f-group"><option value="">all</option></select></label>
+    <label>Verdict <select id="f-verdict"><option value="">all</option><option value="yes">yes</option><option value="marginal">marginal</option><option value="no">no</option></select></label>
+    <label>Band <select id="f-band"><option value="">all</option><option value="uhf">UHF</option><option value="l">L</option><option value="s">S</option><option value="c">C</option><option value="x">X</option></select></label>
+    <span class="muted" id="f-count"></span>
+  </div>
+  <div class="table-wrap"><table id="emtab"><thead><tr>
+    <th data-sort="str">Emitter class</th><th>Bands</th><th data-sort="num" class="num">f (MHz)</th><th data-sort="num" class="num">Det. BW</th><th data-sort="num" class="num">EIRP (dBm)</th><th>Modulation</th><th>Duty</th><th data-sort="str">Verdict</th>
+  </tr></thead><tbody></tbody></table></div>
+
+  <h2>Where they sit in the spectrum</h2>
+  <p>Each bar spans the frequency range of an emitter class on a logarithmic axis from 30 MHz to 18 GHz; the tick marks the typical frequency used in the calculations. Underneath, the TALOS-1 receiver band plan (from <code>baseline.js</code>) shows what the payload actually covers: 225–512 MHz through the UHF front-end, 960–1700 MHz through the L-band tuner path and 2–12 GHz in five 2 GHz blocks through the RFSoC. Two red notches are the satellite's own transmitters (S-band TT&amp;C 2200–2290 MHz, X-band downlink 8025–8400 MHz) where receive is gated or notched. The grey region below 225 MHz is a deliberate gap: VHF tactical radios (30–88 MHz), Nebo-class VHF radars and the 161 MHz AIS band need antennas 2–5 m long and are left for a later generation.</p>
+  <figure class="diagram spectrum">
+    <div id="spectrum"></div>
+    <figcaption><b>Emitter classes versus the TALOS-1 band plan.</b> Bars are coloured by the band of their typical frequency. Note how many classes straddle a band edge (cellular, GBAD, EW jammers): the frequency plan must be contiguous across 2–12 GHz for these, which is why the S/C/X path is built from five adjacent 2 GHz blocks rather than per-target filters.</figcaption>
+  </figure>
+
+  <h2>Link-budget calculator</h2>
+  <p>The budget is the standard passive-intercept equation (research 03 §2.3), with Earth-facing antenna temperature taken as 290 K so that \( N = -174 + 10\log B + NF \) dBm:</p>
+  $$ P_{rx} = EIRP - L_{fs}(d, f) + G_{rx} - L_{misc} $$
+  $$ SNR = P_{rx} - N $$
+  $$ L_{fs} = 32.45 + 20\log_{10} f_{MHz} + 20\log_{10} d_{km} $$
+  <p>Pick an emitter class to load its typical EIRP and detection bandwidth, then move the geometry and receiver sliders. Slant range follows from altitude and elevation through <code>ORB.slantRange</code>. "Processing gain" stands for coherent integration or de-chirp gain that a matched detector can add (10·log(BT) for known structure, ≈ 5·log N for non-coherent pulse integration); leave it at 0 dB for blind energy detection. The verdict compares the margin against the required SNR.</p>
+  <div class="panel">
+    <h3>Passive intercept budget</h3>
+    <div class="controls">
+      <div class="ctl" style="grid-column: 1 / -1"><label>Emitter class</label><select id="lb-em" style="width:100%;font:inherit;padding:.35rem;border:1px solid var(--line-strong);border-radius:var(--radius);background:var(--surface);color:var(--ink)"></select></div>
+      <div class="ctl"><label>EIRP <output for="lb-eirp">40</output> dBm</label><input type="range" id="lb-eirp" min="0" max="145" step="1" value="40"></div>
+      <div class="ctl"><label>Detection bandwidth <output for="lb-bw">25 kHz</output></label><input type="range" id="lb-bw" min="3.5" max="8" step="0.05" value="4.4"></div>
+      <div class="ctl"><label>Frequency <output for="lb-f">300</output> MHz</label><input type="range" id="lb-f" min="30" max="18000" step="10" value="300"></div>
+      <div class="ctl"><label>Altitude <output for="lb-alt">530</output> km</label><input type="range" id="lb-alt" min="400" max="700" step="10" value="530"></div>
+      <div class="ctl"><label>Elevation at emitter <output for="lb-el">15</output>°</label><input type="range" id="lb-el" min="5" max="90" step="1" value="15"></div>
+      <div class="ctl"><label>Receive gain <output for="lb-g">5</output> dBi</label><input type="range" id="lb-g" min="-3" max="40" step="0.5" value="5"></div>
+      <div class="ctl"><label>System noise figure <output for="lb-nf">2.5</output> dB</label><input type="range" id="lb-nf" min="0.5" max="6" step="0.1" value="2.5"></div>
+      <div class="ctl"><label>Polarisation / misc loss <output for="lb-loss">1</output> dB</label><input type="range" id="lb-loss" min="0" max="20" step="0.5" value="1"></div>
+      <div class="ctl"><label>SNR required <output for="lb-snr">10</output> dB</label><input type="range" id="lb-snr" min="3" max="20" step="0.5" value="10"></div>
+      <div class="ctl"><label>Processing gain <output for="lb-pg">0</output> dB</label><input type="range" id="lb-pg" min="0" max="35" step="0.5" value="0"></div>
+    </div>
+    <div class="readout">
+      <div><div class="k">Slant range</div><div class="v" id="o-d">—</div></div>
+      <div><div class="k">Free-space path loss</div><div class="v" id="o-fspl">—</div></div>
+      <div><div class="k">Received power</div><div class="v" id="o-prx">—</div></div>
+      <div><div class="k">Noise floor in B</div><div class="v" id="o-n">—</div></div>
+      <div><div class="k">Raw SNR</div><div class="v" id="o-snr">—</div></div>
+      <div><div class="k">Margin after processing</div><div class="v" id="o-margin">—</div></div>
+      <div><div class="k">Verdict</div><div class="v verdict" id="o-verdict">—</div></div>
+      <div><div class="k">Gain needed for +<span id="o-snrreq2">10</span> dB</div><div class="v" id="o-gneed">—</div></div>
+    </div>
+    <p class="muted" style="font-size:.8rem;margin:.8rem 0 0" id="o-note"></p>
+  </div>
+  <div id="snr-chart"></div>
+  <p class="muted" style="font-family:var(--font-ui);font-size:.85rem">The chart recomputes for the selected emitter: raw SNR against elevation angle at the current altitude for the chosen receive gain and two reference gains, with the required SNR as the dashed line. The steep part below 15° is where slant range doubles; most of the footprint area lies there, which is why budgets are quoted at 15–30° rather than at nadir.</p>
+
+  <h2>Worked examples (a)–(i)</h2>
+  <p>Research 03 §2.4 works nine budgets by hand at a 500 km orbit. The table recomputes them with <code>ORB.RF</code> from the same inputs (frequency, range, EIRP, gain, bandwidth, noise figure), so the study's calculators and the research agree to within rounding. The last column repeats the research conclusion. CaJacob et al.'s published AIS budget — 161 MHz, 12.5 W, 2843 km at 1° elevation, FSPL 145.3 dB, P<sub>rx</sub> −112.9 dBm, C/N<sub>0</sub> 15.6 dB in 25 kHz — is the external check that case (a) was validated against<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup>.</p>
+  <div class="table-wrap"><table class="ex compact" id="examples"><thead><tr><th>Case</th><th class="num">f (MHz)</th><th class="num">d (km)</th><th class="num">EIRP (dBm)</th><th class="num">G<sub>rx</sub> (dBi)</th><th class="num">B</th><th class="num">FSPL (dB)</th><th class="num">P<sub>rx</sub> (dBm)</th><th class="num">N (dBm)</th><th class="num">SNR (dB)</th><th>Research conclusion</th></tr></thead><tbody></tbody></table></div>
+
+  <h2>Mainlobe versus sidelobe, pulses and duty cycle</h2>
+  <p>Two facts about radars decide the receiver design. First, a radar's sidelobes are only 25–45 dB below its mainlobe, and from LEO even the sidelobes of a surveillance radar are tens of dB above the noise floor: an AN/SPY-1 at 2000 km gives ≈ 43 dB SNR in 10 MHz through −35 dB sidelobes and still 18 dB through −60 dB far sidelobes (case g). TALOS therefore treats <em>sidelobe detection as the baseline</em> and mainlobe hits as high-SNR bonus events for fine modulation-on-pulse analysis. Published sidelobe ranges: parabolic reflectors −20 to −30 dB (first) and −40 to −50 dB (far); planar phased arrays −30 to −45 dB; marine slotted waveguides −25 to −30 dB; backlobes −40 to −60 dB (research 03 §2.5).</p>
+  <p>Second, duty cycle decides the detector, not the budget. A 1 µs pulse at 1 kHz PRF is 0.1 % duty: integrated over a 1 ms FFT bin its energy is 30 dB below the peak, so a long-FFT comms detector would miss a radar that a microsecond-scale detector sees at full peak power. Radar detection therefore uses short-time energy detection on wideband channels, comms detection uses long FFTs on narrow channels — the dual-path architecture in <a href="rf_chain.html">the RF chain page</a> follows directly. The hardest radar class is the low-peak-power FMCW / solid-state type (coastal and modern marine radars at 1–10 W average spread over 10–50 MHz), which needs bandwidth-matched de-chirp or long integration.</p>
+  <figure class="diagram">
+    <div id="ml-svg"></div>
+    <figcaption><b>Left:</b> a rotating marine or naval radar seen from 530 km. The vertical fan beam (20–25° half-power for marine radars) puts the satellite inside the mainlobe only at low elevation (ε ≲ 12°); above that the satellite is in the vertical sidelobes, still 7 dB above the floor for a 25 kW marine set at 2000 km (case h). The mainlobe sweeps past every 1.25–2.5 s at 24–48 rpm. <b>Right:</b> why the two receiver paths use different detectors — the same pulse train seen with a 1 µs detector (full peak) and a 1 ms integration (30 dB lower at 0.1 % duty).</figcaption>
+  </figure>
+
+  <h2 id="sec-dynamic-range">Dynamic range and ADC saturation</h2>
+  <p>The payload must resolve a −120 dBm comms signal while a −24 dBm radar mainlobe pulse arrives in the same field of regard: roughly 95–100 dB of instantaneous dynamic range, more than any single ADC chain delivers (research 03 §2.6). The −24 dBm number comes from case (g): a 6 MW peak AN/SPY-1<sup class="ref"><a href="#ref-R3-16">[R3-16]</a></sup> with an estimated 42 dBi antenna gives ≈ 140 dBm EIRP; after 168.8 dB of path loss at 2000 km and 5 dBi of receive gain the mainlobe arrives at <span id="spy-prx"></span> dBm — about the level of a Wi-Fi router one metre away. A 14-bit converter clipped by such a pulse generates broadband intermodulation that destroys the whole 2 GHz Nyquist band for the duration of the pulse. The mitigations, in the order they appear in the chain:</p>
+  <div class="grid c2">
+    <div class="card"><h3>1 · Band segregation</h3><p>Separate RF chains and ADCs for UHF/L (comms-dominated) and S/C/X (radar-dominated), with &gt; 60 dB band filters between them, so a saturating S-band pulse cannot desensitise the UHF channel. This is the dual-path architecture.</p></div>
+    <div class="card"><h3>2 · Limiters and fast attenuators</h3><p>PIN limiters ahead of the LNA protect the first stage; 0–31 dB step attenuators with microsecond response implement a fast AGC. The chain must recover within a few µs of a strong pulse to preserve the time of arrival of the next one.</p></div>
+    <div class="card"><h3>3 · ADC headroom and processing gain</h3><p>A 14-bit RF ADC with ENOB ≈ 9–10 gives 56–62 dB over Nyquist; in a 1 MHz bin at 5 GSPS the processing gain 10·log(f<sub>s</sub>/2B) adds ≈ 34 dB, so ≈ 90–95 dB of spur-free range per bin — <em>only if the converter is not clipped</em>. Gain is set so the thermal floor sits 10–15 dB above the LSB, leaving 60–70 dB to full scale.</p></div>
+    <div class="card"><h3>4 · Pulse blanking and the high-ENOB comms path</h3><p>The ADC over-range flag blanks and tags the affected samples in the comms channels. The comms path itself uses 16-bit, 250 MSPS converters (ENOB 12–13) behind a tuner, giving a cleaner 80 dB range than direct RF sampling at 5 GSPS.</p></div>
+  </div>
+  <div class="callout note"><div class="t">What this means for the budgets</div><p>Sensitivity is cheap: a 2.5 dB noise figure and 5 dBi already see most military communications. Dynamic range is expensive: it costs a second receiver path, two sets of filters, limiters and attenuators in every chain, and most of the digitiser power. When someone proposes a lower-cost single-receiver payload, the question to ask is what happens to the UHF channel when an AEW&amp;C radar flies through the footprint.</p></div>
+
+  <h2>Key takeaways for sales</h2>
+  <p>These are the claims the engineering supports, written so that a proposal can quote them without qualification, and the claims it does not. The research is explicit that "drone detection from LEO" must be read as detection of ground control stations and military-class links, not of consumer aircraft (research 03 §1, takeaway iii).</p>
+  <div class="grid c2 takeaways">
+    <div class="card"><h3><span class="tag ok">can claim</span> Detect and characterise</h3><ul>
+      <li>Surveillance, air-defence, AEW&amp;C, naval, coastal and marine navigation radars — through their sidelobes, from anywhere in the footprint, including EMCON changes and new radar sites.</li>
+      <li>Tactical VHF/UHF push-to-talk, TETRA base stations, UHF SATCOM uplinks and L-band satphone bursts (SNR 15–40 dB in 25 kHz).</li>
+      <li>Link-16 / IFF network activity and hop statistics (per-pulse SNR ≈ 8–13 dB; robust with integration).</li>
+      <li>Military-class GNSS jammers (≥ 100 W) and all EW / communications jammers; the spectral shape classifies them.</li>
+      <li>Military UAS ground control stations (10–20 W directional links) and the pattern of life around them.</li>
+    </ul></div>
+    <div class="card"><h3><span class="tag critical">cannot claim</span> Below the floor or needs cueing</h3><ul>
+      <li>Consumer UAS links (DJI-class, 26–33 dBm EIRP): SNR −9 to −16 dB even at nadir; +10 dB would need a ≈ 30 dBi, 1.5 m dish.</li>
+      <li>10 mW GNSS "personal privacy devices": −46 dB SNR, −23 dB even after de-chirp; detectable only statistically as an elevated noise floor over dense areas.</li>
+      <li>C/X-band VSAT uplinks through sidelobes: ≈ 0 dB SNR with 15 dBi; marginal without the 0.7 m reflector option or external cueing.</li>
+      <li>Message content: the architecture extracts externals (frequency, time, bandwidth, modulation, power, location); demodulation is a separately governed mode, as for every commercial operator<sup class="ref"><a href="#ref-R3-30">[R3-30]</a></sup>.</li>
+      <li>Transmitter power: a detection is an EIRP lower bound, not a measurement, unless geolocation and antenna-pattern knowledge are combined.</li>
+    </ul></div>
+  </div>
+  <p>Operational precedents to cite with each claim: HawkEye 360 geolocates VHF/UHF push-to-talk radios, L-band satellite devices and marine radars as standing products<sup class="ref"><a href="#ref-R3-3">[R3-3]</a></sup>; Aireon and Spire receive 1090 MHz ADS-B from LEO with 8–10 dBi antennas; Unseenlabs and Kleos built their maritime products on X-band navigation radars<sup class="ref"><a href="#ref-R3-6">[R3-6]</a></sup><sup class="ref"><a href="#ref-R3-9">[R3-9]</a></sup>; the GNSS-jammer power classes come from an 18-jammer measurement study<sup class="ref"><a href="#ref-R3-15">[R3-15]</a></sup>.</p>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/emitters.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  const B = BASELINE, E = EMITTERS, RF = ORB.RF;
+  document.getElementById('meta-baseline').textContent = 'Baseline: ' + B.version;
+  const fmtF = f => f >= 1000 ? (f / 1000).toFixed(f % 1000 ? 2 : 0).replace(/\.?0+$/, '') + ' GHz' : f + ' MHz';
+  const fmtB = b => b >= 1e6 ? (b / 1e6).toFixed(b % 1e6 ? 1 : 0) + ' MHz' : (b / 1e3).toFixed(0) + ' kHz';
+  const bandOf = f => f < 1000 ? 'uhf' : f < 2000 ? 'l' : f < 4000 ? 's' : f < 8000 ? 'c' : f < 12000 ? 'x' : 'ku';
+
+  // KPIs
+  const n = v => E.filter(e => e.verdict === v).length;
+  const kp = document.getElementById('kpis');
+  [[E.length, 'emitter classes', 'from research 03 §1.1'], [n('yes'), 'detectable', 'all radars, most comms, SATCOM'], [n('marginal'), 'marginal', 'Link-16, jammers, mil-UAS, VSAT'], [n('no'), 'not detectable', 'consumer UAS links']]
+    .forEach(k => kp.append(U.el('div', { class: 'kpi' }, U.el('div', { class: 'v' }, String(k[0])), U.el('div', { class: 'l' }, k[1]), U.el('div', { class: 'd' }, k[2]))));
+
+  // ---- table with filters
+  const gsel = document.getElementById('f-group');
+  Object.entries(EMITTER_GROUPS).forEach(([k, v]) => gsel.append(U.el('option', { value: k }, v)));
+  const tb = document.querySelector('#emtab tbody');
+  function renderTable() {
+    const fg = gsel.value, fv = document.getElementById('f-verdict').value, fb = document.getElementById('f-band').value;
+    tb.innerHTML = '';
+    let cnt = 0;
+    E.forEach(e => {
+      if (fg && e.group !== fg) return; if (fv && e.verdict !== fv) return; if (fb && !e.bands.includes(fb)) return;
+      cnt++;
+      const tr = U.el('tr', {});
+      tr.innerHTML = `<td style="min-width:15rem"><b data-tip="${e.note.replace(/"/g, '&quot;')}">${e.name}</b><div class="muted" style="font-size:.72rem">${EMITTER_GROUPS[e.group]}</div></td>
+        <td style="white-space:nowrap">${e.bands.map(b => `<span class="band-chip ${b}">${b.toUpperCase()}</span>`).join(' ')}</td>
+        <td class="num" data-v="${e.fTyp}" style="white-space:nowrap" data-tip="typical ${e.fTyp} MHz used in calculations">${e.fMin}–${e.fMax}</td>
+        <td class="num" data-v="${e.bw}" data-tip="${e.bwNote.replace(/"/g, '&quot;')}">${fmtB(e.bw)}</td>
+        <td class="num" data-v="${e.eirp}" data-tip="range ${e.eirpRange[0]}–${e.eirpRange[1]} dBm${e.eirpSl != null ? '; sidelobe EIRP ' + e.eirpSl + ' dBm (' + e.slDb + ' dB)' : ''}">${e.eirp}${e.eirpSl != null ? ' <span class="muted">/ SL ' + e.eirpSl + '</span>' : ''}</td>
+        <td class="small" style="min-width:9rem">${e.mod}</td><td class="small" style="min-width:7rem">${e.duty}</td>
+        <td><span class="tag ${e.verdict}">${e.verdict}</span></td>`;
+      tb.append(tr);
+    });
+    document.getElementById('f-count').textContent = cnt + ' of ' + E.length + ' classes shown';
+  }
+  ['f-group', 'f-verdict', 'f-band'].forEach(id => document.getElementById(id).addEventListener('change', renderTable));
+  renderTable();
+
+  // ---- spectrum chart
+  function drawSpectrum() {
+    const el = document.getElementById('spectrum'); el.innerHTML = '';
+    const W = 960, rowH = 21, labW = 230, top = 24;
+    const sorted = [...E].sort((a, b) => a.fTyp - b.fTyp);
+    const bandsY = top + sorted.length * rowH + 26;
+    const H = bandsY + 90;
+    const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img');
+    const x = d3.scaleLog().domain([30, 18000]).range([labW, W - 110]);
+    // grid
+    [30, 100, 300, 1000, 3000, 10000, 18000].forEach(f => {
+      svg.append('line').attr('x1', x(f)).attr('x2', x(f)).attr('y1', top - 6).attr('y2', bandsY + 60).attr('class', 'grid-line');
+      svg.append('text').attr('x', x(f)).attr('y', 12).attr('text-anchor', 'middle').attr('class', 'lbl xs').text(fmtF(f));
+    });
+    sorted.forEach((e, i) => {
+      const y = top + i * rowH;
+      const col = `var(--band-${bandOf(e.fTyp)})`;
+      svg.append('text').attr('x', labW - 8).attr('y', y + 13).attr('text-anchor', 'end').attr('class', 'lbl em').text(e.name.length > 40 ? e.name.slice(0, 38) + '…' : e.name);
+      const r = svg.append('rect').attr('x', x(e.fMin)).attr('y', y + 4).attr('width', Math.max(3, x(Math.min(e.fMax, 18000)) - x(e.fMin))).attr('height', rowH - 8).attr('rx', 3).attr('fill', col).attr('opacity', e.verdict === 'no' ? 0.35 : e.verdict === 'marginal' ? 0.6 : 0.9);
+      r.append('title').text(`${e.name}: ${e.fMin}–${e.fMax} MHz, EIRP ${e.eirp} dBm, verdict ${e.verdict}`);
+      svg.append('line').attr('x1', x(e.fTyp)).attr('x2', x(e.fTyp)).attr('y1', y + 1).attr('y2', y + rowH - 1).attr('stroke', 'var(--ink)').attr('stroke-width', 1.5);
+    });
+    // band plan
+    svg.append('text').attr('x', labW - 8).attr('y', bandsY + 14).attr('text-anchor', 'end').attr('class', 'lbl s').text('TALOS-1 receiver bands');
+    svg.append('rect').attr('x', x(30)).attr('y', bandsY).attr('width', x(225) - x(30)).attr('height', 22).attr('fill', 'var(--ink-faint)').attr('opacity', .25);
+    svg.append('text').attr('x', (x(30) + x(225)) / 2).attr('y', bandsY + 14).attr('text-anchor', 'middle').attr('class', 'lbl xs').text('not covered (VHF)');
+    B.payload.bands.forEach(b => {
+      svg.append('rect').attr('x', x(b.fMin)).attr('y', bandsY).attr('width', x(b.fMax) - x(b.fMin)).attr('height', 22).attr('rx', 3).attr('fill', `var(--band-${b.id})`).attr('opacity', .85);
+      svg.append('text').attr('x', (x(b.fMin) + x(b.fMax)) / 2).attr('y', bandsY + 14).attr('text-anchor', 'middle').attr('class', 'lbl xs').attr('fill', '#fff').style('fill', '#fff').text(`${b.name} ${b.fMin >= 1000 ? b.fMin / 1000 + '–' + b.fMax / 1000 : b.fMin + '–' + b.fMax}`);
+    });
+    svg.append('text').attr('x', labW - 8).attr('y', bandsY + 44).attr('text-anchor', 'end').attr('class', 'lbl s').text('Receiver path');
+    [['comms tuner (16-bit, 200 MHz IBW)', 225, 1700, 'var(--accent)'], ['RFSoC direct sampling (5 × 2 GHz)', 2000, 12000, 'var(--accent-2)']].forEach(p => {
+      svg.append('rect').attr('x', x(p[1])).attr('y', bandsY + 30).attr('width', x(p[2]) - x(p[1])).attr('height', 20).attr('rx', 3).attr('fill', 'none').attr('stroke', p[3]).attr('stroke-width', 1.5);
+      svg.append('text').attr('x', (x(p[1]) + x(p[2])) / 2).attr('y', bandsY + 44).attr('text-anchor', 'middle').attr('class', 'lbl xs').text(p[0]);
+    });
+    svg.append('text').attr('x', labW - 8).attr('y', bandsY + 74).attr('text-anchor', 'end').attr('class', 'lbl s').text('Own transmitters (notched / gated)');
+    [[2200, 2290, 'S TT&C'], [8025, 8400, 'X downlink']].forEach(nt => {
+      svg.append('rect').attr('x', x(nt[0])).attr('y', bandsY + 60).attr('width', Math.max(4, x(nt[1]) - x(nt[0]))).attr('height', 20).attr('fill', 'var(--critical)').attr('opacity', .8);
+      svg.append('text').attr('x', x(nt[1]) + 5).attr('y', bandsY + 74).attr('class', 'lbl xs').text(nt[2] + ` ${nt[0]}–${nt[1]}`);
+    });
+  }
+  drawSpectrum(); document.addEventListener('themechange', drawSpectrum);
+
+  // ---- link budget calculator
+  const sel = document.getElementById('lb-em');
+  E.forEach(e => sel.append(U.el('option', { value: e.id }, `${e.name} — ${e.eirp} dBm, ${fmtB(e.bw)}, ${e.fTyp} MHz`)));
+  E.filter(e => e.eirpSl != null).forEach(e => sel.append(U.el('option', { value: e.id + '|sl' }, `${e.name.split(' (')[0]} — sidelobes (${e.eirpSl} dBm)`)));
+  const ids = ['lb-eirp', 'lb-bw', 'lb-f', 'lb-alt', 'lb-el', 'lb-g', 'lb-nf', 'lb-loss', 'lb-snr', 'lb-pg'];
+  const val = id => parseFloat(document.getElementById(id).value);
+  const setv = (id, v) => { const i = document.getElementById(id); i.value = v; i.dispatchEvent(new Event('input')); };
+  let current = E[0];
+  function loadEmitter() {
+    const [id, sl] = sel.value.split('|'); current = E.find(e => e.id === id);
+    setv('lb-eirp', sl ? current.eirpSl : current.eirp); setv('lb-bw', Math.log10(current.bw)); setv('lb-f', current.fTyp);
+    document.getElementById('o-note').textContent = `Loaded ${current.name}: ${current.bwNote}; EIRP range ${current.eirpRange[0]}–${current.eirpRange[1]} dBm (research 03 §1.1${sl ? ', sidelobe level ' + current.slDb + ' dB' : ''}). Research verdict: ${current.verdict}. ${current.note}`;
+  }
+  sel.addEventListener('change', loadEmitter);
+  let chartTimer = null;
+  function compute() {
+    const eirp = val('lb-eirp'), bw = Math.pow(10, val('lb-bw')), f = val('lb-f'), alt = val('lb-alt'), el = val('lb-el'), g = val('lb-g'), nf = val('lb-nf'), loss = val('lb-loss'), snrReq = val('lb-snr'), pg = val('lb-pg');
+    const d = ORB.slantRange(alt, el), fspl = RF.fspl(d, f), prx = RF.rxPower(eirp, d, f, g, loss), N = RF.kTB(bw) + nf, snr = prx - N, margin = snr + pg - snrReq;
+    const set = (id, t, cls) => { const o = document.getElementById(id); o.textContent = t; o.className = 'v' + (cls ? ' ' + cls : '') + (id === 'o-verdict' ? ' verdict' : ''); };
+    set('o-d', d.toFixed(0) + ' km'); set('o-fspl', fspl.toFixed(1) + ' dB'); set('o-prx', prx.toFixed(1) + ' dBm'); set('o-n', N.toFixed(1) + ' dBm');
+    set('o-snr', snr.toFixed(1) + ' dB', snr >= snrReq ? 'good' : snr + pg >= snrReq ? 'warn' : 'bad');
+    set('o-margin', (margin >= 0 ? '+' : '') + margin.toFixed(1) + ' dB', margin >= 3 ? 'good' : margin >= -3 ? 'warn' : 'bad');
+    const verdict = margin >= 3 ? 'Detectable' : margin >= -3 ? 'Marginal' : prx > -30 ? 'Saturation risk' : 'Not detectable';
+    set('o-verdict', verdict, margin >= 3 ? 'good' : margin >= -3 ? 'warn' : 'bad');
+    document.getElementById('o-snrreq2').textContent = snrReq;
+    const gneed = g + (snrReq - snr - pg);
+    document.getElementById('o-gneed').innerHTML = gneed <= g ? `${g} dBi suffices` : `${gneed.toFixed(1)} dBi <small>${gneed > 40 ? '(not feasible on a 150 kg bus)' : gneed > 25 ? '(reflector-class)' : ''}</small>`;
+    if (prx > -30) document.getElementById('o-prx').className = 'v bad';
+    clearTimeout(chartTimer); chartTimer = setTimeout(() => drawSnr(eirp, bw, f, alt, g, nf, loss, snrReq, pg), 60);
+  }
+  function drawSnr(eirp, bw, f, alt, g, nf, loss, snrReq, pg) {
+    const els = d3.range(5, 91, 1);
+    const ser = gain => els.map(e => [e, RF.rxPower(eirp, ORB.slantRange(alt, e), f, gain, loss) - (RF.kTB(bw) + nf) + pg]);
+    const gains = [[g, `${g} dBi`], [5, '5 dBi'], [22, '22 dBi']].filter((x, i, a) => a.findIndex(y => y[0] === x[0]) === i);
+    Charts.line(document.getElementById('snr-chart'), { title: `SNR vs elevation — ${current.name.split(' (')[0]} at ${fmtF(f)}, ${alt} km, B = ${fmtB(bw)}${pg ? ', +' + pg + ' dB processing' : ''}`, xLabel: 'elevation at emitter (°)', yLabel: 'SNR (dB)', series: gains.map(x => ({ name: x[1], points: ser(x[0]) })), hlines: [{ y: snrReq, label: `required ${snrReq} dB` }], height: 300, xFormat: v => v.toFixed(0) + '°' });
+  }
+  ids.forEach(id => bindRange(id, compute, id === 'lb-bw' ? v => fmtB(Math.pow(10, v)) : v => String(v)));
+  loadEmitter(); compute();
+
+  // ---- worked examples
+  const EX = [
+    { c: '(a) 5 W handheld UHF radio, ε = 15°', f: 300, d: 1450, eirp: 37, g: 5, bw: 25e3, nf: 2, note: 'SNR ≈ 25 dB; 15 dB with 10 dB body/polarisation loss. Detection and TDOA/FDOA feasible.' },
+    { c: '(b) Link-16, 200 W terminal, per pulse', f: 1100, d: 1500, eirp: 53, g: 5, bw: 3e6, nf: 2, note: '≈ 8 dB per pulse; 13 dB with 10 dBi; +12 dB from non-coherent integration over a 258-pulse slot. Needs 255 MHz IBW to follow all hops.' },
+    { c: '(c) Mode S transponder, 250 W', f: 1090, d: 1500, eirp: 54, g: 5, bw: 4e6, nf: 2, note: '≈ 8 dB; 13 dB with 10 dBi. Consistent with operational space-based ADS-B.' },
+    { c: '(d) GNSS jammer, 10 mW PPD', f: 1575, d: 1500, eirp: 10, g: 5, bw: 20e6, nf: 2, note: '−46 dB raw; de-chirp gain 10·log(20 MHz × 9 µs) ≈ 22.5 dB → −23 dB. Undetectable.', sub: true },
+    { c: '(d) GNSS jammer, 10 W unit', f: 1575, d: 1500, eirp: 43, g: 5, bw: 20e6, nf: 2, note: '−13 dB raw, +9 dB after de-chirp: marginal, needs 10 dBi and knowledge of the chirp class.', sub: true },
+    { c: '(d) GNSS jammer, military 100 W–1 kW + 10 dBi', f: 1575, d: 1500, eirp: 65, g: 5, bw: 20e6, nf: 2, note: '+4…+14 dB raw across 60–70 dBm EIRP; robust with 10 dBi.', sub: true },
+    { c: '(e) DJI-class UAS link, 10 MHz OFDM', f: 2440, d: 1000, eirp: 33, g: 10, bw: 10e6, nf: 2.5, note: '−15.5 dB at 1000 km, −9.5 dB at nadir; +10 dB would need ≈ 30 dBi (1.5 m dish). Not detectable.' },
+    { c: '(f) Military UAS GCS, 10 W, upper lobe', f: 915, d: 1500, eirp: 43, g: 5, bw: 500e3, nf: 2, note: '≈ 8 dB; 13 dB with 10 dBi. The 1 W airborne unit is 10 dB weaker and marginal.' },
+    { c: '(g) AN/SPY-1 mainlobe (6 MW, 42 dBi est.)', f: 3300, d: 2000, eirp: 140, g: 5, bw: 10e6, nf: 2, note: '−24 dBm at the receiver: saturates any chain set up for −120 dBm signals.', sub: true },
+    { c: '(g) AN/SPY-1 sidelobes (−35 dB)', f: 3300, d: 2000, eirp: 105, g: 5, bw: 10e6, nf: 2, note: '≈ 43 dB in 10 MHz; even −60 dB far sidelobes give 18 dB. Visible continuously from anywhere in the footprint.', sub: true },
+    { c: '(h) 25 kW marine X-band radar, mainlobe', f: 9400, d: 2000, eirp: 102, g: 10, bw: 20e6, nf: 3, note: '≈ 32 dB; satellite is in the mainlobe for ε ≲ 12° only.', sub: true },
+    { c: '(h) 25 kW marine X-band radar, sidelobes (−25 dB)', f: 9400, d: 2000, eirp: 77, g: 10, bw: 20e6, nf: 3, note: '≈ 7 dB. Pulse widths of 0.08–1 µs need ≥ 20–50 MHz IBW for TOA precision.', sub: true },
+    { c: '(i) X-band mil-SATCOM VSAT sidelobe', f: 8200, d: 1500, eirp: 55, g: 15, bw: 5e6, nf: 3, note: '≈ 0 dB: marginal; needs a steerable ≥ 25 dBi beam or cueing.' },
+  ];
+  const etb = document.querySelector('#examples tbody');
+  EX.forEach(x => {
+    const fspl = RF.fspl(x.d, x.f), prx = RF.rxPower(x.eirp, x.d, x.f, x.g), N = RF.kTB(x.bw) + x.nf, snr = prx - N;
+    const tr = U.el('tr', { class: x.sub ? 'sub' : '' });
+    const cls = snr >= 10 ? 'ok' : snr >= 0 ? 'warn' : 'critical';
+    tr.innerHTML = `<td>${x.c}</td><td class="num">${x.f}</td><td class="num">${x.d}</td><td class="num">${x.eirp}</td><td class="num">${x.g}</td><td class="num">${fmtB(x.bw)}</td><td class="num">${fspl.toFixed(1)}</td><td class="num">${prx.toFixed(1)}</td><td class="num">${N.toFixed(1)}</td><td class="num"><span class="tag ${prx > -30 ? 'critical' : cls}">${snr.toFixed(1)}</span></td><td style="font-size:.78rem">${x.note}</td>`;
+    etb.append(tr);
+  });
+  document.getElementById('spy-prx').textContent = RF.rxPower(140, 2000, 3300, 5).toFixed(1);
+
+  // ---- mainlobe / duty-cycle SVG
+  (function ml() {
+    const el = document.getElementById('ml-svg');
+    const svg = d3.select(el).append('svg').attr('viewBox', '0 0 960 330').attr('role', 'img');
+    const g = svg.append('g');
+    // left: geometry (not to scale)
+    g.append('text').attr('x', 16).attr('y', 20).attr('class', 'lbl s').text('Radar seen from orbit (vertical cut, not to scale)');
+    // sea
+    g.append('line').attr('x1', 20).attr('x2', 460).attr('y1', 290).attr('y2', 290).attr('class', 'axis-line');
+    g.append('text').attr('x', 440).attr('y', 306).attr('text-anchor', 'end').attr('class', 'lbl xs').text('sea surface');
+    // ship + antenna
+    g.append('path').attr('d', 'M60,290 l10,-14 h50 l10,14 z').attr('class', 'box');
+    g.append('rect').attr('x', 92).attr('y', 262).attr('width', 6).attr('height', 14).attr('fill', 'var(--ink-2)');
+    g.append('line').attr('x1', 84).attr('x2', 106).attr('y1', 262).attr('y2', 262).attr('stroke', 'var(--ink)').attr('stroke-width', 2);
+    // mainlobe fan: 22° half-power, pointing at horizon
+    const ox = 95, oy = 262;
+    const lobe = (a1, a2, r, cls, op) => { const p = d3.path(); p.moveTo(ox, oy); p.arc(ox, oy, r, -a1 * Math.PI / 180, -a2 * Math.PI / 180, true); p.closePath(); g.append('path').attr('d', p.toString()).attr('fill', cls).attr('opacity', op); };
+    lobe(-2, 24, 340, 'var(--band-x)', .35); // mainlobe
+    g.append('text').attr('x', 200).attr('y', 282).attr('class', 'lbl xs').text('mainlobe, 20–25° vertical fan beam (0 dB)');
+    lobe(24, 60, 120, 'var(--band-x)', .18); lobe(60, 90, 80, 'var(--band-x)', .1);
+    g.append('text').attr('x', 170).attr('y', 160).attr('class', 'lbl xs').text('vertical sidelobes −25…−30 dB');
+    g.append('text').attr('x', 110).attr('y', 196).attr('class', 'lbl xs').text('far sidelobes −40 dB');
+    // satellites at two elevations
+    const sat = (ang, r, label, lx, ly) => { const x = ox + r * Math.cos(ang * Math.PI / 180), y = oy - r * Math.sin(ang * Math.PI / 180); g.append('rect').attr('x', x - 7).attr('y', y - 5).attr('width', 14).attr('height', 10).attr('class', 'box hi'); g.append('line').attr('x1', x - 18).attr('x2', x + 18).attr('y1', y).attr('y2', y).attr('stroke', 'var(--accent)').attr('stroke-width', 2); g.append('line').attr('x1', ox).attr('x2', x).attr('y1', oy).attr('y2', y).attr('class', 'wire rf').attr('stroke-dasharray', '3 3'); g.append('text').attr('x', lx != null ? lx : x + 22).attr('y', ly != null ? ly : y + 4).attr('class', 'lbl xs').text(label); };
+    sat(10, 300, 'ε = 10°: inside mainlobe at each sweep (32 dB, case h)', 250, 192);
+    sat(45, 240, 'ε = 45°: vertical sidelobes only (≈ 7 dB)');
+    g.append('text').attr('x', 16).attr('y', 320).attr('class', 'lbl xs').text('Mainlobe sweeps past every 1.25–2.5 s (24–48 rpm); sidelobe reception is continuous.');
+    // right: duty cycle
+    const rx = 520; g.append('text').attr('x', rx).attr('y', 20).attr('class', 'lbl s').text('Pulse train: 1 µs pulses, 1 kHz PRF (0.1 % duty)');
+    g.append('line').attr('x1', rx).attr('x2', 940).attr('y1', 120).attr('y2', 120).attr('class', 'axis-line');
+    for (let k = 0; k < 8; k++) { const px = rx + 20 + k * 52; g.append('rect').attr('x', px).attr('y', 60).attr('width', 3).attr('height', 60).attr('fill', 'var(--accent-2)'); }
+    g.append('text').attr('x', rx + 20).attr('y', 52).attr('class', 'lbl xs').text('peak power (0 dB)');
+    g.append('path').attr('d', `M${rx + 20},136 V142 H${rx + 72} V136`).attr('fill', 'none').attr('class', 'wire'); g.append('text').attr('x', rx + 46).attr('y', 156).attr('text-anchor', 'middle').attr('class', 'lbl xs').text('PRI 1 ms');
+    g.append('text').attr('x', rx).attr('y', 196).attr('class', 'lbl s').text('What two detectors see');
+    g.append('rect').attr('x', rx).attr('y', 206).attr('width', 200).attr('height', 60).attr('class', 'box');
+    g.append('rect').attr('x', rx + 8).attr('y', 214).attr('width', 3).attr('height', 44).attr('fill', 'var(--accent-2)');
+    g.append('text').attr('x', rx + 18).attr('y', 228).attr('class', 'lbl xs').text('1 µs window (radar path)');
+    g.append('text').attr('x', rx + 18).attr('y', 244).attr('class', 'lbl xs').text('full peak, TOA to ~ns');
+    g.append('text').attr('x', rx + 18).attr('y', 258).attr('class', 'lbl xs').text('→ pulse descriptor word');
+    g.append('rect').attr('x', rx + 220).attr('y', 206).attr('width', 200).attr('height', 60).attr('class', 'box');
+    g.append('rect').attr('x', rx + 228).attr('y', 254).attr('width', 184).attr('height', 4).attr('fill', 'var(--accent)');
+    g.append('text').attr('x', rx + 238).attr('y', 228).attr('class', 'lbl xs').text('1 ms FFT bin (comms path)');
+    g.append('text').attr('x', rx + 238).attr('y', 244).attr('class', 'lbl xs').text('energy averaged: −30 dB');
+    g.append('text').attr('x', rx).attr('y', 296).attr('class', 'lbl xs').text('10·log(duty) = −30 dB: a long-integration comms detector misses the radar;');
+    g.append('text').attr('x', rx).attr('y', 312).attr('class', 'lbl xs').text('a µs detector on a 2 GHz channel sees it at full peak. Hence two paths.');
+  })();
+
+  function renderRefs(ids){ const ol=document.getElementById('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  renderRefs(['R3-2', 'R3-3', 'R3-6', 'R3-9', 'R3-15', 'R3-16', 'R3-17', 'R3-18', 'R3-30']);
+})();
+</script>
+</body>
+</html>

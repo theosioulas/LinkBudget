@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TALOS — SIGINT LEO constellation study</title>
+<link rel="stylesheet" href="assets/css/app.css">
+<style>
+  .hero { margin: 0 0 2rem; }
+  .hero h1 { font-size: 2.5rem; max-width: 20ch; }
+  .hero .lead { margin-top: 0.8rem; }
+  .ribbon-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 1rem 1.2rem 0.6rem; margin: 1.6rem 0 1rem; }
+  .ribbon-wrap .cap { font-family: var(--font-ui); font-size: 0.8rem; color: var(--ink-3); margin-top: 0.4rem; }
+  .ribbon svg text { font-family: var(--font-ui); }
+  .audience { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0.9rem; margin: 1rem 0 2rem; }
+  .audience .card h3 { font-size: 1rem; margin-bottom: 0.4rem; }
+  .audience ol { font-family: var(--font-ui); font-size: 0.84rem; padding-left: 1.2rem; margin: 0; }
+  .audience li { margin: 0.25rem 0; }
+  .numbers { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 0.8rem; margin: 1rem 0 2rem; }
+  @media (max-width: 1000px) { .audience, .numbers { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+  @media (max-width: 600px) { .audience, .numbers { grid-template-columns: 1fr; } .hero h1 { font-size: 1.9rem; } }
+</style>
+</head>
+<body>
+<div class="content wide">
+  <header class="hero">
+    <div class="page-head" style="margin-bottom:0">
+      <div class="kicker"><b>Feasibility & engineering study</b> · codename TALOS · issue 0.3, 21 October 2026</div>
+      <h1>A passive-RF constellation in low Earth orbit, built from Greece</h1>
+      <p class="lead">Everything needed to decide, design, sell and build a 100–150 kg SIGINT microsatellite that listens from UHF to X-band, geolocates emitters first alone and then as a TDOA/FDOA cluster, and turns what it hears into EW databases, signature catalogues and activity-pattern libraries. Three study areas, one component model, live simulators and a working mock of the end product.</p>
+    </div>
+    <div class="ribbon-wrap">
+      <div class="ribbon" id="ribbon"></div>
+      <div class="cap">The frequency landscape the mission lives in: receive bands of TALOS-1 (bars), the emitter classes it targets (ticks, positioned at their typical frequency; filled = detectable from 530 km with the baseline antennas, half = marginal, hollow = below the thermal floor), and the satellite's own transmitters that the receiver must survive. Click a tick for the emitter page.</div>
+    </div>
+  </header>
+
+  <div class="numbers" id="numbers"></div>
+
+  <h2 style="border:0;margin-top:0;padding-top:0">Start where your job starts</h2>
+  <div class="audience">
+    <div class="card"><h3>Payload engineers</h3><ol>
+      <li><a href="02_Technical_Understanding/index.html">System architecture &amp; design drivers</a></li>
+      <li><a href="02_Technical_Understanding/payload_explorer.html">Exploded view: every unit and link</a></li>
+      <li><a href="02_Technical_Understanding/emitters.html">Emitters &amp; link budgets</a></li>
+      <li><a href="02_Technical_Understanding/antennas.html">Antenna trade study</a></li>
+      <li><a href="02_Technical_Understanding/rf_chain.html">RF chain &amp; digitiser</a></li>
+      <li><a href="02_Technical_Understanding/geolocation.html">Geolocation theory</a> → <a href="03_Scenarios_Services/geolocation_sim.html">simulator</a></li>
+      <li><a href="02_Technical_Understanding/budgets.html">Mass, power, link, data budgets</a></li>
+    </ol></div>
+    <div class="card"><h3>Sales &amp; business development</h3><ol>
+      <li><a href="executive_summary.html">Executive summary</a></li>
+      <li><a href="03_Scenarios_Services/use_cases.html">Use cases &amp; regional scenarios</a></li>
+      <li><a href="03_Scenarios_Services/products_services.html">Products, pricing, KPIs</a></li>
+      <li><a href="01_Research_Landscape/market_regulatory.html">Customers &amp; regulation</a></li>
+      <li><a href="01_Research_Landscape/operators.html">Who else does this</a></li>
+      <li><a href="04_Service_Demo/index.html">Demo console to show customers</a></li>
+      <li><a href="02_Technical_Understanding/emitters.html#takeaways">What we can honestly claim to detect</a></li>
+    </ol></div>
+    <div class="card"><h3>Software developers</h3><ol>
+      <li><a href="04_Service_Demo/software_architecture.html">Software architecture &amp; APIs</a></li>
+      <li><a href="04_Service_Demo/index.html">Operations console (demo)</a></li>
+      <li><a href="03_Scenarios_Services/ew_database.html">EW database data model</a></li>
+      <li><a href="02_Technical_Understanding/processing_data.html">On-board processing &amp; data flow</a></li>
+      <li><a href="03_Scenarios_Services/collection_planning.html">Tasking &amp; pipeline</a></li>
+      <li><a href="how_to_use.html#engine">Reusing the orbit / geolocation engine</a></li>
+    </ol></div>
+    <div class="card"><h3>Management &amp; investors</h3><ol>
+      <li><a href="executive_summary.html">Executive summary &amp; recommendation</a></li>
+      <li><a href="02_Technical_Understanding/roadmap_cost.html">Roadmap, cost &amp; schedule</a></li>
+      <li><a href="02_Technical_Understanding/risks.html">Risk register</a></li>
+      <li><a href="01_Research_Landscape/lessons_learned.html">Lessons from Kleos, HawkEye, Unseenlabs</a></li>
+      <li><a href="03_Scenarios_Services/single_vs_constellation.html">One satellite vs a constellation</a></li>
+      <li><a href="01_Research_Landscape/index.html">State of the art</a></li>
+      <li><a href="05_Orbit_Study/index.html">How many satellites? (orbit study)</a></li>
+    </ol></div>
+  </div>
+
+  <h2>The study</h2>
+  <div class="hub-grid" id="hub"></div>
+
+  <h2>What this study concludes, in one paragraph</h2>
+  <p>A 100–150 kg satellite is a generous platform for this mission: the core TALOS-1 payload closes at about 24 kg and 124 W, leaving room for a deployable reflector, an inter-satellite link and propellant for formation flying and a five-year disposal. Detection is not the hard part — radars are visible through their sidelobes from anywhere in the footprint and tactical UHF/L-band comms sit 15–25 dB above the noise — the hard parts are dynamic range (a surveillance radar's mainlobe arrives at −24 dBm next to −120 dBm comms), self-interference on a small bus, nanosecond timing for TDOA, and the data reduction that turns gigabits per second of IQ into kilobytes of reports. A single satellite sells monitoring and coarse geolocation (5–20 km per pass, 1–5 km over many passes); the first three-satellite cluster is what unlocks instantaneous fixes at hundreds of metres to a few kilometres, and that cluster — not the tenth satellite — is the commercial and funding threshold the plan is built around (€18–35 M demonstrator, €40–65 M cluster, 2030/2032).</p>
+</div>
+
+<script src="assets/js/vendor/d3.v7.min.js"></script>
+<script src="assets/data/baseline.js"></script>
+<script src="assets/data/emitters.js"></script>
+<script src="assets/js/app.js" data-root="./"></script>
+<script>
+(function () {
+  // ---- numbers
+  const N = [
+    ['530 km · 53°', 'baseline orbit', 'SSO alternative'],
+    ['225 MHz – 12 GHz', 'receive coverage', 'UHF, L, S, C, X in two receiver paths'],
+    ['24 kg · 124 W', 'core payload', '31 kg / 144 W with reflector, ML, ISL'],
+    ['1 → 3 → 9 → 12+', 'constellation stages', '2030 · 2032 · 2034 · 2036'],
+  ];
+  document.getElementById('numbers').innerHTML = N.map(([v, l, d]) => `<div class="kpi"><div class="v" style="font-size:1.35rem">${v}</div><div class="l">${l}</div><div class="d">${d}</div></div>`).join('');
+  // ---- hub cards
+  const hub = document.getElementById('hub');
+  SITEMAP.filter(s => s.dir).forEach(sec => {
+    const desc = { '01': 'Who has done this, how they did it, what it cost them, who buys it and under which laws. Operators, programmes, a 200-row supplier catalogue, market and regulatory map, and the lessons of the companies that failed.', '02': 'Capabilities and limits of the system and of every subsystem: emitters and link budgets, antennas, RF chain and digitiser, on-board processing, geolocation theory, bus, budgets, environment, risk register, cost and schedule — with calculators.', '03': 'What the system does for a customer as one satellite and as a constellation: concept of operations, use cases and regional scenarios, interactive orbit/coverage and TDOA/FDOA simulators, tasking, products and pricing, the EW database model.', '04': 'A working mock of the end product — the operations console an analyst would use — plus the ground-segment assumptions behind it and the software architecture to build it.', '05': 'Simple answers with minimal input: how many satellites for a given revisit over a given region, twelve constellation templates with benefits, drawbacks, capabilities and measured revisit, and how to choose inclination, altitude, planes and node type.' }[sec.idx];
+    const a = document.createElement('a'); a.className = 'hub-card'; a.href = sec.dir + 'index.html';
+    a.innerHTML = `<div class="n">${sec.idx}</div><h3>${sec.title}</h3><p>${desc}</p><ul>${sec.pages.map(p => `<li>${p.title}</li>`).join('')}</ul>`;
+    hub.append(a);
+  });
+  // ---- ribbon
+  const el = document.getElementById('ribbon'); const W = Math.max(600, el.clientWidth), H = 215;
+  const svg = d3.select(el).append('svg').attr('viewBox', `0 0 ${W} ${H}`).attr('width', '100%');
+  const x = d3.scaleLog().domain([30, 18000]).range([40, W - 30]);
+  const bands = [['uhf', 225, 512, 'UHF'], ['l', 960, 1700, 'L'], ['s', 2000, 4000, 'S'], ['c', 4000, 8000, 'C'], ['x', 8000, 12000, 'X']];
+  const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  svg.append('line').attr('x1', x(30)).attr('x2', x(18000)).attr('y1', 164).attr('y2', 164).attr('stroke', css('--axis'));
+  [30, 100, 300, 1000, 3000, 10000].forEach(f => { svg.append('line').attr('x1', x(f)).attr('x2', x(f)).attr('y1', 164).attr('y2', 169).attr('stroke', css('--axis')); svg.append('text').attr('x', x(f)).attr('y', 182).attr('text-anchor', 'middle').attr('fill', css('--ink-3')).style('font-size', '10px').text(f >= 1000 ? (f / 1000) + ' GHz' : f + ' MHz'); });
+  bands.forEach(([id, lo, hi, name]) => { svg.append('rect').attr('x', x(lo)).attr('y', 146).attr('width', x(hi) - x(lo)).attr('height', 16).attr('rx', 3).attr('fill', css('--band-' + id)); svg.append('text').attr('x', (x(lo) + x(hi)) / 2).attr('y', 158).attr('text-anchor', 'middle').attr('fill', '#fff').style('font-size', '10px').style('font-weight', 700).text(name); });
+  // own transmitters
+  [[2200, 2290, 'TT&C'], [8025, 8400, 'X-band downlink']].forEach(([lo, hi, n]) => { svg.append('rect').attr('x', x(lo)).attr('y', 192).attr('width', Math.max(3, x(hi) - x(lo))).attr('height', 6).attr('fill', css('--critical')); svg.append('text').attr('x', x(lo)).attr('y', 210).attr('fill', css('--ink-3')).style('font-size', '9.5px').text('own TX: ' + n); });
+  svg.append('text').attr('x', 40).attr('y', 142).attr('fill', css('--ink-3')).style('font-size', '9.5px').text('TALOS-1 receive bands');
+  // emitter ticks with simple collision avoidance in rows
+  const rows = [], placed = [];
+  EMITTERS.slice().sort((a, b) => a.fTyp - b.fTyp).forEach(e => {
+    const px = x(e.fTyp); const label = e.name.split(/[\(,]/)[0].trim().slice(0, 24); const lw = 10 + label.length * 5.6;
+    let r = 0; while (placed.some(p => p.r === r && px > p.x - 8 && px < p.x + p.w + 8)) r++; placed.push({ x: px, r, w: lw });
+    const y = 128 - r * 14; const col = css('--band-' + (e.bands[0]));
+    const g = svg.append('a').attr('href', '02_Technical_Understanding/emitters.html#' + e.id).attr('aria-label', e.name);
+    g.append('line').attr('x1', px).attr('x2', px).attr('y1', y + 4).attr('y2', 146).attr('stroke', col).attr('stroke-width', 1).attr('stroke-dasharray', '2 2');
+    const c = g.append('circle').attr('cx', px).attr('cy', y).attr('r', 4).attr('stroke', col).attr('stroke-width', 1.5).attr('fill', e.verdict === 'yes' ? col : css('--surface'));
+    if (e.verdict === 'marginal') g.append('path').attr('d', `M${px},${y - 4} A4,4 0 0 1 ${px},${y + 4} Z`).attr('fill', col);
+    g.append('text').attr('x', px + 6).attr('y', y + 3.5).attr('fill', css('--ink-2')).style('font-size', '9.5px').text(label);
+    g.append('title').text(e.name + ' — ' + e.verdict);
+  });
+  svg.attr('viewBox', `0 0 ${W} ${H}`);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Risk register — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<style>
+  .mini { font-family: var(--font-ui); font-size: .8rem; color: var(--ink-2); }
+  .heat-wrap { overflow-x: auto; }
+  .heat { min-width: 560px; }
+  .heat .rid.t { border-left: 3px solid var(--accent); }
+  .heat .rid.p { border-left: 3px solid var(--accent-2); }
+  .heat .rid:hover, .heat .rid:focus { background: var(--accent-soft); outline: none; }
+  .heat .corner { }
+  .heat-legend { display:flex; flex-wrap:wrap; gap:.6rem 1.2rem; font-family: var(--font-ui); font-size:.78rem; color: var(--ink-2); margin:.6rem 0 0; }
+  .heat-legend i { display:inline-block; width:14px; height:14px; border-radius:3px; vertical-align:-2px; margin-right:.35rem; }
+  .filters { display:flex; flex-wrap:wrap; gap:.6rem 1rem; align-items:center; font-family: var(--font-ui); font-size:.85rem; margin: .8rem 0; }
+  .filters select, .filters input[type=search] { font: inherit; padding: .3rem .5rem; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--ink); }
+  .filters button { font: inherit; font-weight: 600; padding: .35rem .8rem; border: 1px solid var(--line-strong); border-radius: var(--radius); background: var(--surface); color: var(--ink); cursor: pointer; }
+  .filters button:hover { background: var(--accent-soft); }
+  .score { display:inline-block; min-width: 2.2em; text-align:center; font-family: var(--font-ui); font-weight: 700; font-size: .8rem; padding: .05em .45em; border-radius: 4px; color: var(--ink); }
+  .score.red { background: color-mix(in srgb, var(--critical) 35%, var(--surface)); }
+  .score.amber { background: color-mix(in srgb, var(--warn) 45%, var(--surface)); }
+  .score.green { background: color-mix(in srgb, var(--ok) 25%, var(--surface)); }
+  #risk-table { min-width: 1250px; }
+  #risk-table td { vertical-align: top; }
+  #risk-table td:first-child { white-space: nowrap; }
+  #risk-table td.wrap { max-width: 26ch; white-space: normal; font-size: .82rem; }
+  #risk-table td.mit { max-width: 34ch; white-space: normal; font-size: .82rem; }
+  #risk-table tr.hl td { background: var(--accent-soft); }
+  #risk-table tr:target td { background: var(--accent-soft); }
+  .top-list { list-style: none; padding: 0; max-width: none; }
+  .top-list li { display: grid; grid-template-columns: 3.2rem 1fr; gap: .6rem; padding: .55rem 0; border-bottom: 1px solid var(--line); }
+  .top-list li .n { font-family: var(--font-ui); font-weight: 700; font-size: 1.1rem; color: var(--ink-3); }
+  .top-list li b { font-family: var(--font-ui); }
+  .top-list li p { margin: .2rem 0 0; font-size: .92rem; max-width: 72ch; }
+  .retire .card ul { padding-left: 1.1rem; font-size: .92rem; }
+  .retire .card h3 { font-size: 1rem; }
+  .ownerchip { font-family: var(--font-ui); font-size: .78rem; color: var(--ink-2); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>02 Technical understanding</b> · Risks</div>
+    <h1>Risk register</h1>
+    <p class="lead">Thirty risks, scored likelihood × impact on 1–5 scales, from the programme's own analysis of what has killed or crippled comparable ventures. The register is dominated by five things: self-interference on a small bus, the launch manifest, a cyber-attack on a SIGINT ground segment, the funding cliff between demonstrator and cluster that ended Kleos, and dependence on a single government customer. Most of the technical risks can be retired before the 150 kg flight model is committed — which is the argument for the 16U pathfinder.</p>
+    <div class="meta"><span id="meta-baseline">Baseline</span><span>Source: research note 05 §4, §5.7; risks.js</span><span>Scoring: L × I, ≥ 12 red, 8–11 amber</span></div>
+  </header>
+
+  <div class="grid c4" id="kpis"></div>
+
+  <h2>Heat map</h2>
+  <p>Likelihood runs left to right, impact bottom to top; each chip is a risk id (blue edge technical, orange edge programmatic). Click a chip to jump to its row in the register.</p>
+  <div class="heat-wrap"><div class="heat" id="heat"></div></div>
+  <div class="heat-legend"><span><i style="background:color-mix(in srgb, var(--critical) 45%, var(--surface))"></i>≥ 16 critical</span><span><i style="background:color-mix(in srgb, var(--serious) 35%, var(--surface))"></i>12–15 red</span><span><i style="background:color-mix(in srgb, var(--warn) 25%, var(--surface))"></i>8–11 amber</span><span><i style="background:color-mix(in srgb, var(--ok) 15%, var(--surface))"></i>&lt; 8 green</span></div>
+  <div class="grid c2" style="margin-top:1rem"><div id="cat-chart"></div><div id="owner-chart"></div></div>
+
+  <h2>Register</h2>
+  <div class="filters">
+    <label>Category <select id="f-cat"><option value="">all</option><option value="technical">technical</option><option value="programmatic">programmatic</option></select></label>
+    <label>Owner <select id="f-owner"><option value="">all</option></select></label>
+    <label>Band <select id="f-band"><option value="">all</option><option value="red">red (≥ 12)</option><option value="amber">amber (8–11)</option><option value="green">green (&lt; 8)</option></select></label>
+    <label>Search <input type="search" id="f-q" placeholder="title, cause, mitigation…"></label>
+    <span id="f-count" class="mini"></span>
+    <button id="csv-btn" type="button">Download CSV</button>
+  </div>
+  <div class="table-wrap"><table class="compact" id="risk-table"><thead><tr><th data-sort="str">ID</th><th data-sort="str">Title</th><th>Cause</th><th>Consequence</th><th class="num" data-sort="num">L</th><th class="num" data-sort="num">I</th><th class="num" data-sort="num">Score</th><th>Mitigation</th><th data-sort="str">Owner</th><th>Linked components</th></tr></thead><tbody></tbody></table></div>
+  <p class="mini">Click column headers to sort. Linked components open the <a href="payload_explorer.html">payload explorer</a> at that item. Scores are the research-note values; "L" is likelihood over the programme life, "I" the impact on mission or business if it occurs.</p>
+
+  <h2>The ten that dominate</h2>
+  <p>Ranked by score; where scores tie, the risk with the weaker mitigation ranks higher. The narrative says why each sits where it does and what would move it.</p>
+  <ol class="top-list" id="top10"></ol>
+
+  <h2>Why these dominate</h2>
+  <p><b>Self-interference (T-02)</b> is the only 16-point technical risk because it is near-certain to appear and expensive to fix late: every small-satellite RF payload has found its own bus in the data, and the UHF band — where the DC/DC converter harmonics live — is where TALOS looks for tactical radios 100 dB below the bus noise. It is mitigated by design (filtered payload PCDU, opposite-face placement, blanking) but only <em>retired</em> by a test: the EM-level bus-plus-payload RF compatibility test in Phase C and the on-orbit interference fingerprint.</p>
+  <p><b>Launch (T-12)</b> scores 16 because rideshare manifests slip routinely and a slip of six months on a 42-month programme consumes the schedule float and part of the funding runway — Kleos' months-long launch delay is what first made its liquidity "tenuous"<sup class="ref"><a href="#ref-R5-5">[R5-5]</a></sup>. Two booked options and an orbit-agnostic design (53° or SSO) are the mitigations; launch insurance covers the loss case.</p>
+  <p><b>Cyber (T-17)</b> is a 15 on impact alone: a SIGINT constellation operated from Greece is a target of nation-state interest from the first day it has customers, and a successful intrusion is simultaneously loss of control, loss of the data product and a licence breach under NIS2 and the EU Space Act<sup class="ref"><a href="#ref-R5-12">[R5-12]</a></sup>. Zero-trust ground architecture, AES-256 authenticated telecommand with HSM key management and a separately accredited classified enclave are not optional extras.</p>
+  <p><b>The funding gap (P-01)</b> is the single highest score in the register, 20, because it is exactly how Kleos died: four clusters in orbit, €272 k of revenue, a lender that pulled the plug in July 2023<sup class="ref"><a href="#ref-R5-2">[R5-2]</a></sup><sup class="ref"><a href="#ref-R5-3">[R5-3]</a></sup>. The mitigation is a programme rule, not a technology: do not launch the demonstrator until the cluster is funded, and anchor it on a government contract that pays on milestones. <b>Customer concentration (P-02)</b> and <b>competition at scale (P-03)</b> are the other side of the same coin: HawkEye 360 has 40+ satellites, a $285 M backlog and a public listing<sup class="ref"><a href="#ref-R4-2">[R4-2]</a></sup>; a European entrant survives on sovereign positioning, regional persistence and a customer base wider than one ministry.</p>
+  <p><b>Timing (T-03), radiation (T-04, T-18), downlink (T-05), geolocation accuracy (T-07), supplier exit (T-13) and export control (T-14)</b> all score 12. They share a property: each is testable or decidable early. Timing and radiation are what a pathfinder flight measures; downlink is arithmetic the <a href="budgets.html#data">data budget</a> already closes; export classification is a Phase A legal task; supplier fragility is a procurement clause (SFL, builder of HawkEye's first clusters, stopped manufacturing<sup class="ref"><a href="#ref-R5-27">[R5-27]</a></sup>).</p>
+
+  <h2>Risk retirement plan</h2>
+  <p>A risk is "retired" when evidence — a test, a flight, a signed document — moves its likelihood to 1 or its impact below mission-affecting. The plan below maps each technical risk to the earliest event that retires it, which is the schedule logic behind running the 16U pathfinder in parallel with Phase B rather than after it.</p>
+  <div class="grid c3 retire" id="retire"></div>
+  <div class="callout decision"><div class="t">What the pathfinder buys</div><p>Flying one UHF/L/S chain with the RFSoC, the timing unit and the firmware on a 16U bus in 2029 retires or reduces <span id="pf-list"></span> before the flight-model CDR — the risks whose mitigations are all "characterise in orbit". At €5–9 M (est.) that is 20–25 % of the demonstrator cost spent to de-risk the other 75 %. The hosted-payload alternative retires the radiation and firmware items but not the antenna, EMC-on-our-own-bus or licensing-precedent items. See <a href="roadmap_cost.html#pathfinder">pathfinder options</a>.</p></div>
+
+  <h2>How the register is run</h2>
+  <ul>
+    <li><b>Ownership.</b> Every risk has one named owner (a role in the programme); owners re-score at each review (SRR, PDR, CDR, QR) and the register is a standing agenda item of the monthly programme review.</li>
+    <li><b>Scoring.</b> Likelihood 1 (rare) to 5 (almost certain) over the programme life; impact 1 (negligible) to 5 (mission or company loss). Score = L × I; ≥ 12 red requires an active mitigation with a date and budget line, 8–11 amber requires a monitoring trigger, &lt; 8 green is accepted.</li>
+    <li><b>Contingency link.</b> The 20–30 % Phase A contingency in the <a href="roadmap_cost.html">cost model</a> is allocated against red risks first; a risk that is retired releases its share.</li>
+    <li><b>Kill criteria.</b> Four conditions stop the programme regardless of score: no lawful basis for the collection model, a licence refusal or ITAR classification that closes EU-controlled sales, a pathfinder RFSoC lifetime under 18 months without a credible fix, and failure to secure cluster funding before the demonstrator launch.</li>
+  </ul>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/components.js"></script>
+<script src="../assets/data/risks.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  function renderRefs(ids){ const ol=$('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  $('meta-baseline').textContent = 'Baseline: ' + BASELINE.version;
+  const R = RISKS.map(r => ({ ...r, score: r.L * r.I }));
+  const band = s => s >= 12 ? 'red' : s >= 8 ? 'amber' : 'green';
+  const cellClass = s => s >= 16 ? 'l4' : s >= 12 ? 'l3' : s >= 8 ? 'l2' : 'l1';
+  const compName = id => { const c = COMPONENTS.find(x => x.id === id); return c ? c.name.split(' (')[0] : id; };
+
+  // KPIs
+  const red = R.filter(r => band(r.score) === 'red'), amber = R.filter(r => band(r.score) === 'amber');
+  const top = [...R].sort((a, b) => b.score - a.score)[0];
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="v">${R.length}</div><div class="l">Risks in register</div><div class="d">${R.filter(r=>r.cat==='technical').length} technical · ${R.filter(r=>r.cat==='programmatic').length} programmatic</div></div>
+    <div class="kpi"><div class="v">${red.length}<small>red</small></div><div class="l">Score ≥ 12 (active mitigation required)</div><div class="d">${red.filter(r=>r.score>=16).length} at 16 or above</div></div>
+    <div class="kpi"><div class="v">${amber.length}<small>amber</small></div><div class="l">Score 8–11 (monitor)</div><div class="d">${R.length - red.length - amber.length} green, accepted</div></div>
+    <div class="kpi"><div class="v">${top.id}<small>${top.score}</small></div><div class="l">Highest score</div><div class="d">${esc(top.title)}</div></div>`;
+
+  // Heat map
+  const heat = $('heat');
+  for (let I = 5; I >= 1; I--) {
+    const ax = document.createElement('div'); ax.className = 'ax'; ax.textContent = I === 5 ? 'I 5' : I === 1 ? 'I 1' : String(I); heat.append(ax);
+    for (let L = 1; L <= 5; L++) {
+      const cell = document.createElement('div'); cell.className = 'cell ' + cellClass(L*I); cell.title = `L ${L} × I ${I} = ${L*I}`;
+      R.filter(r => r.L === L && r.I === I).forEach(r => { const chip = document.createElement('button'); chip.className = 'rid ' + (r.cat === 'technical' ? 't' : 'p'); chip.type = 'button'; chip.textContent = r.id; chip.dataset.tip = `${r.title} — score ${r.score}`; chip.addEventListener('click', () => jump(r.id)); cell.append(chip); });
+      heat.append(cell);
+    }
+  }
+  const corner = document.createElement('div'); corner.className = 'ax'; corner.textContent = 'I ↑ / L →'; heat.append(corner);
+  for (let L = 1; L <= 5; L++) { const ax = document.createElement('div'); ax.className = 'ax'; ax.textContent = ['1 rare', '2', '3', '4', '5 almost certain'][L-1]; heat.append(ax); }
+  function jump(id) { const tr = document.getElementById(id); if (!tr) return; document.querySelectorAll('#risk-table tr.hl').forEach(x => x.classList.remove('hl')); tr.classList.add('hl'); tr.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+
+  // charts
+  const byOwner = d3.rollups(R, v => d3.sum(v, r => r.score), r => r.owner).sort((a, b) => b[1] - a[1]);
+  Charts.bar($('cat-chart'), { title: 'Risks by score band and category', unit: 'risks', horizontal: true, height: 200, format: v => v.toFixed(0), data: ['red','amber','green'].flatMap(b => [ { label: `${b} · technical`, value: R.filter(r => band(r.score)===b && r.cat==='technical').length, color: b==='red'?U.css('--critical'):b==='amber'?U.css('--warn'):U.css('--ok') }, { label: `${b} · programmatic`, value: R.filter(r => band(r.score)===b && r.cat==='programmatic').length, color: b==='red'?U.css('--critical'):b==='amber'?U.css('--warn'):U.css('--ok') } ]) });
+  Charts.bar($('owner-chart'), { title: 'Risk exposure by owner (sum of scores)', unit: 'points', horizontal: true, height: 200, format: v => v.toFixed(0), data: byOwner.slice(0, 8).map(([o, s]) => ({ label: o, value: s, note: R.filter(r => r.owner === o).map(r => r.id).join(', ') })) });
+
+  // table + filters
+  const owners = [...new Set(R.map(r => r.owner))].sort(); owners.forEach(o => { const op = document.createElement('option'); op.value = o; op.textContent = o; $('f-owner').append(op); });
+  const tb = $('risk-table').tBodies[0];
+  function render() {
+    const cat = $('f-cat').value, own = $('f-owner').value, bd = $('f-band').value, q = $('f-q').value.trim().toLowerCase();
+    const rows = R.filter(r => (!cat || r.cat === cat) && (!own || r.owner === own) && (!bd || band(r.score) === bd) && (!q || [r.id, r.title, r.cause, r.effect, r.mit, r.owner].join(' ').toLowerCase().includes(q)));
+    tb.innerHTML = rows.map(r => `<tr id="${r.id}"><td><b>${r.id}</b></td><td class="wrap"><b>${esc(r.title)}</b></td><td class="wrap">${esc(r.cause)}</td><td class="wrap">${esc(r.effect)}</td><td class="num">${r.L}</td><td class="num">${r.I}</td><td class="num" data-v="${r.score}"><span class="score ${band(r.score)}">${r.score}</span></td><td class="mit">${esc(r.mit)}</td><td><span class="ownerchip">${esc(r.owner)}</span></td><td class="wrap">${r.comps.length ? r.comps.map(c => `<a href="payload_explorer.html#${c}">${esc(compName(c))}</a>`).join(', ') : '<span class="tag">programme-level</span>'}</td></tr>`).join('');
+    $('f-count').textContent = `${rows.length} of ${R.length} shown`;
+  }
+  ['f-cat','f-owner','f-band'].forEach(id => $(id).addEventListener('change', render)); $('f-q').addEventListener('input', render); render();
+  if (location.hash) setTimeout(() => jump(location.hash.slice(1)), 300);
+
+  // CSV
+  $('csv-btn').addEventListener('click', () => {
+    const cols = ['id','cat','title','cause','effect','L','I','score','mit','owner','comps'];
+    const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+    const csv = [cols.join(',')].concat(R.map(r => cols.map(c => q(c === 'comps' ? r.comps.join('; ') : r[c])).join(','))).join('\r\n');
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'TALOS_risk_register.csv'; document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  });
+
+  // Top 10
+  const WHY = {
+    'P-01': 'The Kleos failure mode. Four clusters in orbit and €272 k of revenue when the lender withdrew. Moves down only when the cluster is funded before the demonstrator launches (gate G2 funding criterion).',
+    'T-02': 'Near-certain to appear in the first data; expensive to fix after integration. Retired by the EM-level RF compatibility test, reduced by design (filtered payload PCDU, opposite faces, blanking).',
+    'T-12': 'Manifest slips are the norm; each month of slip burns runway. Two booked options, orbit-agnostic design, launch insurance for the FM.',
+    'P-02': 'A single ministry is a single budget cycle. Broadening to EU agencies (EUSPA, Frontex, EMSA, SatCen), allied MoDs and commercial maritime channels is a sales objective with a gate (G4: ≥ 2 paying customers).',
+    'T-17': 'Impact 5 on its own: loss of control, data exfiltration and a licence breach at once. Zero-trust, HSM-managed keys, NIS2 compliance and red-teaming from Phase B.',
+    'T-03': 'TDOA needs 20 ns between satellites; the chain has six contributors. Pathfinder telemetry and the calibration campaign against known emitters move L from 3 to 1.',
+    'T-04': 'Commercial 16 nm silicon in LEO: resets will happen. Mitigated by latch-up trips, scrubbing, TMR and a rad-tolerant supervisor; retired by pathfinder flight data.',
+    'T-05': 'Arithmetic rather than physics: the data budget shows 170+ GB/day capacity from Nemea alone against 30 GB/day. Remains red until a second X-band site is contracted.',
+    'T-07': 'A product risk: customers compare against HawkEye marketing. Managed by publishing predicted CEP per task and by honest stage KPIs (5–20 km single-sat; 0.3–3 km cluster).',
+    'T-13': 'SFL, builder of HawkEye\'s first clusters, stopped manufacturing. Escrow of design data, dual sourcing and EU suppliers.',
+    'T-14': 'The RFSoC and rad-tolerant FPGA are US EAR items; a refusal is a redesign. ITAR-free baseline, classification at SRR, licence applications at PDR, NanoXplore / Teledyne e2v alternatives.',
+    'T-18': 'Kleos warned its 5-year satellites would live 18 months. Lot testing, shielding and derating; a 3-year warranted life with a replenishment reserve in the financial plan.',
+    'P-03': 'HawkEye 360: 40+ satellites, $285 M backlog, public company. Not a risk to be mitigated away — it is the competitive position: sovereign EU, regional persistence, X-band, fusion with national assets.',
+    'P-04': 'A small team with two or three irreplaceable RF/DSP engineers. Documentation, pairing, retention equity and university partnerships.',
+    'P-05': 'No Greek precedent for a SIGINT-class licence; the implementing decision of Law 4508/2017 is not adopted. Engage HSC, the Ministry and EETT in Phase A; frame as EESS / RF-environment monitoring.',
+    'P-09': 'First-of-kind payload NRE overruns are the norm. 25–30 % contingency, pathfinder de-risking, fixed-price bus.',
+  };
+  const mitStrength = r => (r.mit.match(/;/g) || []).length;
+  const top10 = [...R].sort((a, b) => b.score - a.score || mitStrength(a) - mitStrength(b)).slice(0, 10);
+  $('top10').innerHTML = top10.map((r, i) => `<li><div class="n">${i+1}</div><div><b>${r.id} · ${esc(r.title)}</b> <span class="score ${band(r.score)}">${r.score}</span> <span class="ownerchip">${esc(r.owner)}</span><p>${WHY[r.id] || esc(r.mit)}</p></div></li>`).join('');
+
+  // Retirement plan
+  const PLAN = [
+    { title: 'Retired or reduced by the 16U pathfinder (2029)', ids: ['T-02','T-03','T-04','T-05','T-18','T-10','T-20','P-05'], note: 'Flight data on EMC, timestamp jitter, SEU rate and TID behaviour, downlink volume from a real pass schedule, GNSS robustness, calibration drift; and the first Greek licence precedent.' },
+    { title: 'Retired by the EM RF-compatibility test and ground qualification (Phase C/D)', ids: ['T-02','T-08','T-09','T-20','T-14','T-15','T-13'], note: 'Bus EM + payload EM in an anechoic chamber with all transmitters and converters live; TVAC thermal model correlation; ADCS performance on the hardware-in-the-loop bench; export licences and ITU filings granted; second sources contracted.' },
+    { title: 'Retired only by the TALOS-1 flight and the cluster', ids: ['T-01','T-07','T-11','T-12','T-16','T-17','T-19','T-06','P-01','P-02','P-03','P-09'], note: 'Deployment of the real helices and boom, geolocation CEP against calibration emitters, formation keeping with the real propulsion, ground-station contention, cyber posture under real attack, and the commercial facts: funding, customers, competition.' },
+  ];
+  $('retire').innerHTML = PLAN.map(p => `<div class="card"><h3>${p.title}</h3><ul>${p.ids.map(id => { const r = R.find(x => x.id === id); return `<li><a href="#${id}"><b>${id}</b></a> ${esc(r.title)} <span class="score ${band(r.score)}">${r.score}</span></li>`; }).join('')}</ul><p class="mini">${p.note}</p></div>`).join('');
+  document.querySelectorAll('#retire a').forEach(a => a.addEventListener('click', e => { e.preventDefault(); jump(a.getAttribute('href').slice(1)); }));
+  $('pf-list').textContent = PLAN[0].ids.slice(0, 5).join(', ');
+
+  renderRefs(['R5-2','R5-3','R5-5','R5-12','R5-13','R5-22','R5-27','R4-2','R3-20']);
+})();
+</script>
+</body>
+</html>

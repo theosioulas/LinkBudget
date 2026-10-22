@@ -1,0 +1,259 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 850" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="cdhBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#05101a"/>
+      <stop offset="50%" stop-color="#091b2c"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+
+    <!-- Card Backgrounds -->
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="spwGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#06b6d4"/>
+      <stop offset="50%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
+    </linearGradient>
+    <linearGradient id="canGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="50%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#10b981"/>
+    </linearGradient>
+
+    <!-- Filters -->
+    <filter id="cdhGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+    <filter id="cdhShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+
+    <!-- Markers -->
+    <marker id="mSpw" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#38bdf8"/>
+    </marker>
+    <marker id="mCan" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#34d399"/>
+    </marker>
+    <marker id="mPcie" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#c084fc"/>
+    </marker>
+  </defs>
+
+  <style>
+    .title { font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-weight: 700; fill: #f8fafc; font-size: 20px; letter-spacing: 0.5px; }
+    .subtitle { font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 11px; fill: #94a3b8; }
+    .box-title { font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-weight: 600; font-size: 13px; fill: #f1f5f9; }
+    .box-sub { font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 10px; fill: #94a3b8; }
+    .box-value { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; font-weight: 600; fill: #fbbf24; }
+    .box-metric { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 10px; fill: #38bdf8; }
+    .tag { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 600; text-anchor: middle; }
+    .bus-label { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 11px; fill: #000; text-anchor: middle; }
+  </style>
+
+  <!-- Background -->
+  <rect width="1200" height="850" fill="url(#cdhBgGrad)"/>
+
+  <!-- Subtle Grid -->
+  <g opacity="0.05" stroke="#94a3b8" stroke-width="0.5">
+    <path d="M 0,100 L 1200,100 M 0,200 L 1200,200 M 0,300 L 1200,300 M 0,400 L 1200,400 M 0,500 L 1200,500 M 0,600 L 1200,600 M 0,700 L 1200,700 M 0,800 L 1200,800"/>
+    <path d="M 100,0 L 100,850 M 200,0 L 200,850 M 300,0 L 300,850 M 400,0 L 400,850 M 500,0 L 500,850 M 600,0 L 600,850 M 700,0 L 700,850 M 800,0 L 800,850 M 900,0 L 900,850 M 1000,0 L 1000,850 M 1100,0 L 1100,850"/>
+  </g>
+
+  <!-- Header -->
+  <g transform="translate(40, 40)">
+    <rect x="-10" y="-15" width="1140" height="65" rx="8" fill="#1e293b" fill-opacity="0.6" stroke="#334155" stroke-width="1"/>
+    <text x="15" y="18" class="title">LEO SIGINT SATELLITE: DATA ARCHITECTURE &amp; C&amp;DH NETWORK</text>
+    <text x="15" y="38" class="subtitle">Fault-Tolerant Avionics | Dual SpaceWire Network (200 Mbps) | Dual CAN 2.0B Bus | High-Speed PCIe Gen3 &amp; JESD204C Pipeline</text>
+    <rect x="940" y="-3" width="170" height="40" rx="6" fill="#0f172a" stroke="#10b981" stroke-width="1"/>
+    <text x="1025" y="14" class="tag" fill="#34d399">TID: &gt; 30 krad(Si)</text>
+    <text x="1025" y="28" class="tag" fill="#38bdf8">NVMe SSR: 1.0 TB FLASH</text>
+  </g>
+
+  <!-- LEFT: C&DH CORE & MASS STORAGE -->
+  <g transform="translate(40, 130)">
+    <rect x="0" y="0" width="320" height="660" rx="10" fill="url(#cardGrad)" stroke="#10b981" stroke-width="1.5" filter="url(#cdhShadow)"/>
+    <rect x="15" y="15" width="290" height="30" rx="5" fill="#065f46" fill-opacity="0.3"/>
+    <text x="160" y="34" class="box-title" text-anchor="middle" fill="#34d399">CENTRAL C&amp;DH AVIONICS CORE</text>
+
+    <!-- OBC Module Primary -->
+    <rect x="15" y="60" width="290" height="135" rx="6" fill="#0f172a" stroke="#059669" stroke-width="1"/>
+    <text x="25" y="82" class="box-title" fill="#6ee7b7">Primary Flight Computer (OBC-A)</text>
+    <text x="25" y="100" class="box-sub">• Dual ARM Cortex-R5 (Real-Time RTEMS)</text>
+    <text x="25" y="116" class="box-sub">• Dual ARM Cortex-A53 (Linux Mission FSW)</text>
+    <text x="25" y="132" class="box-sub">• 2 GB Rad-Hard ECC DDR4 Memory</text>
+    <text x="25" y="152" class="box-value">Lockstep FDIR &amp; Autonomous Telemetry</text>
+    <text x="25" y="172" class="box-metric">Power: 5.0 W | SEL Immune &gt; 75 MeV</text>
+
+    <!-- OBC Module Redundant -->
+    <rect x="15" y="205" width="290" height="135" rx="6" fill="#0f172a" stroke="#047857" stroke-width="1"/>
+    <text x="25" y="227" class="box-title" fill="#a7f3d0">Cold-Redundant Flight Computer (OBC-B)</text>
+    <text x="25" y="245" class="box-sub">• Identical Dual Cortex-R5/A53 Architecture</text>
+    <text x="25" y="261" class="box-sub">• Cross-Strapped Heartbeat &amp; Watchdog</text>
+    <text x="25" y="277" class="box-sub">• Independent Power Feed from PDCU</text>
+    <text x="25" y="297" class="box-value">Automatic Hardware Failover (&lt; 250 ms)</text>
+    <text x="25" y="317" class="box-metric">Power: 0.1 W (Cold Standby)</text>
+
+    <!-- 1 TB Solid-State Recorder -->
+    <rect x="15" y="350" width="290" height="130" rx="6" fill="#0f172a" stroke="#38bdf8" stroke-width="1"/>
+    <text x="25" y="372" class="box-title" fill="#38bdf8">1 TB Rad-Hard NVMe Flash SSR</text>
+    <text x="25" y="390" class="box-sub">• 3D TLC NAND Flash Array with ECC</text>
+    <text x="25" y="406" class="box-sub">• Sustained Write Speed: 4.0 Gbps (PCIe Gen3 x4)</text>
+    <text x="25" y="422" class="box-sub">• Reed-Solomon RS(255,223) Error Correction</text>
+    <text x="25" y="445" class="box-value">Stores: &gt; 15,000,000,000 Raw PDWs</text>
+    <text x="25" y="465" class="box-metric">Retention: &gt; 10 Years in LEO Environment</text>
+
+    <!-- SpaceWire Crossbar Router -->
+    <rect x="15" y="490" width="290" height="150" rx="6" fill="#0f172a" stroke="#0284c7" stroke-width="1.5"/>
+    <text x="25" y="512" class="box-title" fill="#38bdf8">Dual SpaceWire Crossbar Router</text>
+    <text x="25" y="530" class="box-sub">• ECSS-E-ST-50-12C Standard Compliant</text>
+    <text x="25" y="546" class="box-sub">• 8-Port Matrix Router (200 Mbps / Port)</text>
+    <text x="25" y="562" class="box-sub">• Non-Blocking Packet Switching Fabric</text>
+    <text x="25" y="585" class="box-value">Routes: OBC &lt;-&gt; SSR &lt;-&gt; RF Payload</text>
+    <text x="25" y="605" class="box-value">Latency: &lt; 2.5 µs per Packet Hop</text>
+    <text x="25" y="625" class="box-metric">RMAP (Remote Memory Access Protocol)</text>
+  </g>
+
+  <!-- CENTER: DATA BUS CHANNELS (Dual SpaceWire & Dual CAN) -->
+  <g transform="translate(390, 130)">
+    <!-- SpaceWire Bus Spine (Cyan) -->
+    <rect x="0" y="50" width="24" height="560" rx="6" fill="url(#spwGrad)" stroke="#0284c7" stroke-width="1" filter="url(#cdhGlow)"/>
+    <text x="12" y="330" class="bus-label" transform="rotate(-90 12 330)">DUAL SPACEWIRE NETWORK (200 Mbps)</text>
+
+    <!-- CAN Bus Spine (Green) -->
+    <rect x="35" y="50" width="24" height="560" rx="6" fill="url(#canGrad)" stroke="#047857" stroke-width="1" filter="url(#cdhGlow)"/>
+    <text x="47" y="330" class="bus-label" transform="rotate(-90 47 330)">DUAL CAN 2.0B AVIONICS BUS (1 Mbps)</text>
+  </g>
+
+  <!-- Connections from C&DH to Buses -->
+  <path d="M 360,565 L 390,565" fill="none" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#mSpw)"/>
+  <path d="M 360,195 L 425,195" fill="none" stroke="#34d399" stroke-width="2.5" marker-end="url(#mCan)"/>
+  <path d="M 360,415 L 390,415" fill="none" stroke="#c084fc" stroke-width="2.5" stroke-dasharray="4,2"/>
+  <text x="375" y="405" class="tag" fill="#c084fc">PCIe x4</text>
+
+  <!-- TOP-RIGHT: RF PAYLOAD DIGITAL SIGNAL PROCESSING (SDR / PFB / AI) -->
+  <g transform="translate(480, 130)">
+    <rect x="0" y="0" width="680" height="340" rx="10" fill="url(#cardGrad)" stroke="#a855f7" stroke-width="1.5" filter="url(#cdhShadow)"/>
+    <rect x="20" y="15" width="640" height="30" rx="5" fill="#581c87" fill-opacity="0.3"/>
+    <text x="340" y="34" class="box-title" text-anchor="middle" fill="#c084fc">HIGH-SPEED RF PAYLOAD DIGITAL PROCESSING PIPELINE</text>
+
+    <!-- ADCs Box -->
+    <rect x="20" y="60" width="180" height="120" rx="6" fill="#0f172a" stroke="#7e22ce" stroke-width="1"/>
+    <text x="30" y="82" class="box-title" fill="#d8b4fe">Direct RF ADCs</text>
+    <text x="30" y="100" class="box-sub">Dual TI ADC12DJ5200RF</text>
+    <text x="30" y="116" class="box-sub">Sample Rate: 5.2 GSPS</text>
+    <text x="30" y="132" class="box-sub">12-bit / ENOB: 9.2 bits</text>
+    <text x="30" y="152" class="box-value">Raw I/Q: 83.2 Gbps</text>
+    <text x="30" y="170" class="box-metric">Input BW: 8.0 GHz</text>
+
+    <!-- JESD204C Bus -->
+    <path d="M 200,120 L 240,120" fill="none" stroke="#e879f9" stroke-width="3" marker-end="url(#mPcie)"/>
+    <text x="220" y="112" class="tag" fill="#e879f9">16x JESD204C (24.75G)</text>
+
+    <!-- RFSoC FPGA Box -->
+    <rect x="240" y="60" width="220" height="160" rx="6" fill="#0f172a" stroke="#9333ea" stroke-width="1.5"/>
+    <text x="250" y="82" class="box-title" fill="#e9d5ff">AMD/Xilinx RFSoC FPGA</text>
+    <text x="250" y="100" class="box-sub">Model: XCZU29DR / XQRKU060</text>
+    <text x="250" y="116" class="box-sub">• 128-Channel PFB Channelizer</text>
+    <text x="250" y="132" class="box-sub">• CA-CFAR / OS-CFAR Detection</text>
+    <text x="250" y="148" class="box-sub">• Real-Time 64-byte PDW Extractor</text>
+    <text x="250" y="170" class="box-value">TOA Jitter: &lt; 1.25 ns</text>
+    <text x="250" y="188" class="box-value">Freq Precision: &lt; 25 kHz</text>
+    <text x="250" y="208" class="box-metric">DSP Slices: 384 | Power: 95W</text>
+
+    <!-- PCIe Link -->
+    <path d="M 460,140 L 490,140" fill="none" stroke="#c084fc" stroke-width="3" marker-end="url(#mPcie)"/>
+    <text x="475" y="132" class="tag" fill="#c084fc">PCIe Gen3</text>
+
+    <!-- Space Jetson Orin NX Box -->
+    <rect x="490" y="60" width="170" height="160" rx="6" fill="#0f172a" stroke="#a855f7" stroke-width="1.5"/>
+    <text x="500" y="82" class="box-title" fill="#f3e8ff">Space Jetson Orin NX</text>
+    <text x="500" y="100" class="box-sub">100 TOPS AI Compute</text>
+    <text x="500" y="116" class="box-sub">• Pulse De-interleaving</text>
+    <text x="500" y="132" class="box-sub">• PRI &amp; Agile Hop Tracking</text>
+    <text x="500" y="148" class="box-sub">• TensorRT Radar DNN</text>
+    <text x="500" y="170" class="box-value">Compression: &gt; 1600:1</text>
+    <text x="500" y="188" class="box-value">PDW Out: 51.2 Mbps</text>
+    <text x="500" y="208" class="box-metric">Power: 65W | 16GB LPDDR5</text>
+
+    <!-- Lower Summary Banner in Payload Box -->
+    <rect x="20" y="235" width="640" height="90" rx="6" fill="#140f26" stroke="#6b21a8" stroke-width="1"/>
+    <text x="35" y="258" class="box-title" fill="#e9d5ff">DATA REDUCTION &amp; QUEUEING SUMMARY</text>
+    <text x="35" y="278" class="box-sub">Raw ADC Ingestion: 83.2 Gbps (Continuous I/Q stream impossible to downlink directly)</text>
+    <text x="35" y="296" class="box-value" fill="#fbbf24">Real-Time PDW Extraction: 51.2 Mbps stream (100,000 pulses/sec @ 64 bytes/pulse) -&gt; 1,625 : 1 Compression Ratio</text>
+    <text x="35" y="314" class="box-metric">Stream directly routable to 300 Mbps X-band downlink or 1 Gbps Optical Crosslink in Real-Time</text>
+  </g>
+
+  <!-- Connect Payload to Buses -->
+  <path d="M 414,280 L 480,280" fill="none" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#mSpw)"/>
+  <path d="M 449,300 L 480,300" fill="none" stroke="#34d399" stroke-width="2.5" marker-end="url(#mCan)"/>
+
+  <!-- BOTTOM-RIGHT: SPACECRAFT BUS PERIPHERALS & COMMS (ADCS, EPS, PROP, TT&C, DOWNLINK) -->
+  <g transform="translate(480, 490)">
+    <rect x="0" y="0" width="680" height="300" rx="10" fill="url(#cardGrad)" stroke="#334155" stroke-width="1.5" filter="url(#cdhShadow)"/>
+    <rect x="20" y="15" width="640" height="30" rx="5" fill="#1e293b" fill-opacity="0.5"/>
+    <text x="340" y="34" class="box-title" text-anchor="middle" fill="#f8fafc">SPACECRAFT BUS SUBSYSTEM INTERFACES &amp; COMMUNICATIONS GATEWAYS</text>
+
+    <!-- Block 1: ADCS & Propulsion (CAN Bus) -->
+    <g transform="translate(20, 60)">
+      <rect x="0" y="0" width="200" height="110" rx="6" fill="#0f172a" stroke="#ea580c" stroke-width="1"/>
+      <text x="12" y="22" class="box-title" fill="#fdba74">ADCS &amp; Propulsion Node</text>
+      <text x="12" y="40" class="box-sub">• Dual Star Trackers (UART/CAN)</text>
+      <text x="12" y="56" class="box-sub">• 4x Reaction Wheels (CAN 2.0B)</text>
+      <text x="12" y="72" class="box-sub">• STIM377H IMU (RS-422/CAN)</text>
+      <text x="12" y="94" class="box-value">4x Thruster Latch Valves</text>
+    </g>
+
+    <!-- Block 2: EPS PDCU Node (CAN Bus) -->
+    <g transform="translate(240, 60)">
+      <rect x="0" y="0" width="200" height="110" rx="6" fill="#0f172a" stroke="#f59e0b" stroke-width="1"/>
+      <text x="12" y="22" class="box-title" fill="#fcd34d">EPS PDCU &amp; Thermal Node</text>
+      <text x="12" y="40" class="box-sub">• MPPT Regulators (CAN)</text>
+      <text x="12" y="56" class="box-sub">• Battery Cell Monitor (CAN)</text>
+      <text x="12" y="72" class="box-sub">• 32x e-Fuse Telemetry (CAN)</text>
+      <text x="12" y="94" class="box-value">Active Heaters Control</text>
+    </g>
+
+    <!-- Block 3: TT&C S-Band Transponder -->
+    <g transform="translate(460, 60)">
+      <rect x="0" y="0" width="200" height="110" rx="6" fill="#0f172a" stroke="#64748b" stroke-width="1"/>
+      <text x="12" y="22" class="box-title" fill="#cbd5e1">TT&amp;C Transponder Node</text>
+      <text x="12" y="40" class="box-sub">• S-Band Coherent Transponder</text>
+      <text x="12" y="56" class="box-sub">• Uplink Command: 100 kbps</text>
+      <text x="12" y="72" class="box-sub">• Telemetry Downlink: 2 Mbps</text>
+      <text x="12" y="94" class="box-value">CCSDS Packet Telemetry</text>
+    </g>
+
+    <!-- Block 4: High-Rate Downlink Gateway (300 Mbps) -->
+    <g transform="translate(20, 185)">
+      <rect x="0" y="0" width="310" height="95" rx="6" fill="#0f172a" stroke="#3b82f6" stroke-width="1.5"/>
+      <text x="15" y="22" class="box-title" fill="#93c5fd">High-Rate X-Band Downlink Gateway</text>
+      <text x="15" y="40" class="box-sub">• Direct High-Speed Serial Interface from SSR &amp; RFSoC</text>
+      <text x="15" y="56" class="box-sub">• DVB-S2X QPSK Rate 3/4 Modulator | 10W GaN SSPA</text>
+      <text x="15" y="80" class="box-value">Throughput: 300 Mbps | Margin: +14.45 dB</text>
+    </g>
+
+    <!-- Block 5: Optical ISL Terminal Gateway (10 Gbps) -->
+    <g transform="translate(350, 185)">
+      <rect x="0" y="0" width="310" height="95" rx="6" fill="#0f172a" stroke="#06b6d4" stroke-width="1.5"/>
+      <text x="15" y="22" class="box-title" fill="#67e8f9">Optical Laser Crosslink (O-ISL) Gateway</text>
+      <text x="15" y="40" class="box-sub">• 1550 nm High-Speed Transceiver (1.0 to 10.0 Gbps)</text>
+      <text x="15" y="56" class="box-sub">• Dual-One-Way Time Transfer (DOWTT) for Clock Sync</text>
+      <text x="15" y="80" class="box-value">Clock Sync Jitter: &lt; 85 ps (Sub-Nanosecond)</text>
+    </g>
+  </g>
+
+  <!-- Connect Bus Peripherals to Buses -->
+  <path d="M 449,580 L 480,580" fill="none" stroke="#34d399" stroke-width="2.5" marker-end="url(#mCan)"/>
+  <path d="M 414,700 L 480,700" fill="none" stroke="#38bdf8" stroke-width="2.5" marker-end="url(#mSpw)"/>
+
+  <!-- Footer Info -->
+  <g transform="translate(40, 810)">
+    <text x="0" y="15" class="subtitle" fill="#64748b">LEO SIGINT System Engineering Baseline | Milestone 2 Deliverable: FEAT-02-03 | File: data_and_cdh_architecture.svg</text>
+    <text x="1120" y="15" class="subtitle" fill="#64748b" text-anchor="end">REV 1.0 (VERIFIED)</text>
+  </g>
+</svg>

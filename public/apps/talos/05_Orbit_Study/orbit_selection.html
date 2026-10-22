@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Choosing the orbit — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<style>
+  .decision { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 1rem; }
+  .decision .card h3 { font-size: 1rem; }
+  .decision table { font-size: 0.82rem; }
+  .pick { font-family: var(--font-ui); font-size: 0.85rem; background: var(--accent-soft); border-radius: var(--radius); padding: 0.5rem 0.7rem; margin-top: 0.6rem; }
+  @media (max-width: 800px) { .decision { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>05 Orbit study</b> · Orbit selection</div>
+    <h1>Choosing the orbit</h1>
+    <p class="lead">Four decisions define a constellation — inclination, altitude, number of planes, and whether nodes are singles or clusters — and each has a short answer for this mission. This page gives the answers first, then the evidence computed with the study's orbit engine.</p>
+    <div class="meta"><span>Baseline: 530 km / 53°</span><span>Sun-synchronous alternative: 530 km / <span id="sso"></span></span></div>
+  </header>
+
+  <h2>The four decisions in one table</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Decision</th><th>Options</th><th>What it changes</th><th>TALOS answer</th></tr></thead>
+    <tbody>
+      <tr><td><b>Inclination</b></td><td>Sun-synchronous (~97.5°) · mid-inclination 45–55° · low 30° · mixed</td><td>Which latitudes get passes and how many; local time of passes; polar ground-station access; power/thermal design</td><td><b>53°</b> for a Greece/E. Med/Black Sea/Middle East mission (≈ 7 passes/day at 38°N vs ≈ 4 for SSO); SSO only if the first launch must be a Transporter or the product is global</td></tr>
+      <tr><td><b>Altitude</b></td><td>400–700 km</td><td>Footprint and pass duration (↑ with altitude), path loss (+1.6 dB from 450 to 600 km), drag and disposal ΔV (↓ with altitude), radiation (↑), TDOA geometric dilution (↑ with range)</td><td><b>500–550 km</b>: footprint 2,000 km at 5°, natural decay < 25 yr but controlled lowering still required, within Transporter/Bandwagon standard insertions</td></tr>
+      <tr><td><b>Planes</b></td><td>1 · 2 · 3–4 · 6</td><td>Fills the day: nodes in different planes cross a region at different local times; same-plane nodes repeat the same times</td><td><b>1 plane</b> for Stage 1–2, <b>3 planes</b> at Stage 3, <b>4 planes</b> at Stage 4; each new plane is a new launch or a months-long RAAN drift</td></tr>
+      <tr><td><b>Node type</b></td><td>Single satellites · 3-sat clusters · 4-sat diamonds</td><td>Instantaneous geolocation (clusters) vs three times the revisit per euro (singles)</td><td><b>Clusters</b> because geolocation with ellipses is the product; singles added later only for detection-revisit products</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>Inclination: where the passes are</h2>
+  <p>A satellite spends most of its time near the latitude equal to its inclination, where the ground track turns around. The chart counts passes per day at a 5° mask for a single satellite at 530 km as a function of latitude, for six inclinations. Read your region's latitude and pick the inclination whose curve peaks there — but not so high that the plane's nodes spend their time elsewhere.</p>
+  <div id="c-inc"></div>
+  <div class="decision">
+    <div class="card"><h3>Mid-inclination (45–55°)</h3><table class="compact"><tbody><tr><td>Passes at 38°N</td><td class="num" id="p53"></td></tr><tr><td>Coverage</td><td>±(inc + ~18°) latitude at 5° mask; nothing above ~70°N</td></tr><tr><td>Local time</td><td>Drifts through the day (unpredictable to the observed)</td></tr><tr><td>Downlink</td><td>Polar stations useless; needs Mediterranean + Gulf + Atlantic stations</td></tr><tr><td>Launch</td><td>SpaceX Bandwagon (~45°, 2–3/yr), dedicated Electron, future European launchers</td></tr><tr><td>Power/thermal</td><td>Beta angle cycles ±(inc+23°): full-sun seasons and 36-min eclipses; design for both</td></tr></tbody></table><div class="pick">Pick when the market is regional (Greece, NATO south-east flank, Middle East) and the anchor customer wants persistence over a band of latitudes.</div></div>
+    <div class="card"><h3>Sun-synchronous (~97.5°)</h3><table class="compact"><tbody><tr><td>Passes at 38°N</td><td class="num" id="psso"></td></tr><tr><td>Coverage</td><td>Global including poles; most passes at high latitude</td></tr><tr><td>Local time</td><td>Fixed (e.g., 10:30 / 22:30): predictable; constant lighting</td></tr><tr><td>Downlink</td><td>Svalbard/Troll see every orbit → one-orbit latency</td></tr><tr><td>Launch</td><td>Every Transporter (3–4/yr), Vega-C SSMS, most rideshares</td></tr><tr><td>Power/thermal</td><td>Near-constant beta; dawn-dusk variant has no eclipses</td></tr></tbody></table><div class="pick">Pick for a global catalogue product, for the quickest launch, or as the SSO half of a mixed constellation (T11).</div></div>
+  </div>
+
+  <h2>Altitude: footprint against loss, drag and dilution</h2>
+  <p>Higher is wider and slower, lower is closer and cleaner. The table is computed for a single satellite at 53° over Athens; path loss is relative to 530 km at the same elevation. Below 450 km drag make-up dominates the propellant budget; above 600 km the 5-year disposal rule forces a long controlled descent and the radiation dose climbs.</p>
+  <div class="table-wrap"><table id="alt"><thead><tr><th class="num">Altitude km</th><th class="num">Period min</th><th class="num">Footprint radius 5° km</th><th class="num">Footprint 15° km</th><th class="num">Slant range at 5° km</th><th class="num">Δ path loss dB</th><th class="num">Passes/day</th><th class="num">Access min/day</th><th class="num">Mean gap</th><th>Comment</th></tr></thead><tbody></tbody></table></div>
+  <div class="callout decision"><div class="t">Why 530 km</div><p>At 530 km the 5° footprint already reaches 2,000 km, every extra 100 km buys only ~10% more access minutes but costs 0.8 dB of signal, a higher dose and tens of m/s of extra disposal ΔV. 500–550 km is also the shell where Transporter and Bandwagon insert, which keeps launch options open. For a cluster, lower altitude also tightens the TDOA error ellipse (dilution scales with range over baseline).</p></div>
+
+  <h2>Planes: filling the day</h2>
+  <p>Two satellites 180° apart in the same plane (template T3) double the looks but leave the daily hole untouched: both cross Greece during the same hours. Two single clusters in planes 90° apart (T6) give fewer looks but cut the worst gap from 13.7 h to 8 h; three planes (T7) bring it to ~7 h and the typical gap to 46 min. The table compares same-plane and multi-plane arrangements at 38°N.</p>
+  <div class="table-wrap"><table id="planes"><thead><tr><th>Arrangement</th><th class="num">Sats</th><th class="num">Nodes</th><th class="num">Planes</th><th class="num">Looks/day</th><th class="num">Typical gap</th><th class="num">Worst gap</th></tr></thead><tbody></tbody></table></div>
+  <p>Getting into several planes costs either one launch per plane or time: at 530 km the J2 nodal drift differs by about 0.6° per day per 10 km of altitude difference, so a satellite parked 20 km higher for 75 days drifts ~90° in RAAN relative to its siblings — a free but slow way to build planes from one rideshare, used by Planet, Spire and HawkEye.</p>
+
+  <h2>Cluster geometry (when the node is three satellites)</h2>
+  <div class="grid c2">
+    <div class="card"><h3>Along-track spacing L</h3><p>150 km in the baseline (HawkEye 125–250 km). Longer baselines shrink the error ellipse along the baseline (dilution ≈ range/L) but shrink the common footprint and break co-visibility at low elevation; 50–250 km is the practical window at 500 km.</p></div>
+    <div class="card"><h3>Cross-track offset W</h3><p>±20 km in the baseline (HawkEye 20 km peak-to-peak oscillation). Without it a collinear formation is degenerate for emitters under its track — the ellipse along the weak axis grows with range/W. The TDOA/FDOA simulator shows this directly.</p></div>
+    <div class="card"><h3>Control</h3><p>±5 km (1σ) formation control with FEEP; ~60 m/s over three years. J2-invariant relative orbits keep the formation from drifting apart; differential drag is the backup.</p></div>
+    <div class="card"><h3>Four-satellite diamond</h3><p>Two planes ~1° apart (Kleos). Ambiguity-free fixes without FDOA and one spare, at the cost of cross-track control and a fourth spacecraft per node.</p></div>
+  </div>
+
+  <h2>Ground stations are part of the orbit choice</h2>
+  <p>Mid-inclination orbits lose the polar-station advantage: KSAT Nemea alone sees the 53° orbit ≈ 7–8 times a day in two groups and nothing for 13–14 hours. The <a href="../04_Service_Demo/ground_segment.html">ground segment page</a> computes contacts for every baseline station; the short version is that a regional constellation needs Mediterranean (Nemea, Puertollano), Gulf (Dubai) and ideally an Atlantic or Asian station to keep data latency under 90 minutes, or an inter-satellite link.</p>
+
+  <h2>Decision checklist for Phase A</h2>
+  <ol>
+    <li>Confirm the anchor customer's area of interest; if it is within 30–55° latitude, baseline 53° (or 45° if Bandwagon's insertion is to be used without a plane change).</li>
+    <li>Book two launch options: one Bandwagon (mid-inclination) and one Transporter (SSO) — the spacecraft must be designed for both beta-angle regimes.</li>
+    <li>Fix 500–550 km; verify disposal ΔV against the thruster's total impulse (≈ 100 m/s low-thrust lowering to 350 km).</li>
+    <li>Decide node type with the business plan: clusters if geolocation products are the revenue, singles if monitoring subscriptions are.</li>
+    <li>Plan the ground network for the chosen inclination before the constellation grows past one node.</li>
+  </ol>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/orbit_study.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function () {
+  const S = ORBIT_STUDY, T = id => S.templates.find(t => t.id === id);
+  document.getElementById('sso').textContent = S.sso + '°';
+  const a38 = id => T(id).perf['Athens 38°N'].el5;
+  document.getElementById('p53').textContent = a38('T2').passesPerDay + ' / day';
+  document.getElementById('psso').textContent = a38('T1').passesPerDay + ' / day';
+  Charts.line(document.getElementById('c-inc'), { title: 'Passes per day vs latitude — single satellite, 530 km, 5° mask', xLabel: 'latitude °N', yLabel: 'passes / day', markers: true, labels: false, xDomain: [0, 80],
+    series: S.incCurve.map(r => ({ name: (r.inc > 90 ? 'SSO ' : '') + r.inc.toFixed(0) + '°', points: r.byLat.map(b => [b.lat, b.passesPerDay]) })) });
+  const fmtGap = m => m == null ? '—' : m >= 120 ? (m / 60).toFixed(1) + ' h' : m + ' min';
+  const comments = { 400: 'Drag make-up 20+ m/s per year; shortest life without propulsion', 450: 'HawkEye Pathfinder class; still drag-sensitive', 500: 'Transporter standard insertion', 530: 'TALOS baseline', 550: 'Common Transporter/Bandwagon shell', 600: 'Upper end before disposal ΔV and dose dominate', 650: 'Needs ~150 m/s to lower to 350 km (low-thrust)', 700: 'EMISAT/CERES-class altitudes; 25-year natural decay not met' };
+  document.querySelector('#alt tbody').innerHTML = S.altTrade.map(r => `<tr${r.alt === 530 ? ' style="font-weight:600"' : ''}><td class="num">${r.alt}</td><td class="num">${r.periodMin}</td><td class="num">${r.footprintKm5}</td><td class="num">${r.footprintKm15}</td><td class="num">${r.slant5}</td><td class="num">${r.fsplDeltaDb > 0 ? '+' : ''}${r.fsplDeltaDb}</td><td class="num">${r.passesPerDay}</td><td class="num">${r.accessMinPerDay}</td><td class="num">${fmtGap(r.meanGapMin)}</td><td>${comments[r.alt] || ''}</td></tr>`).join('');
+  const rows = [['T2', 'One satellite, one plane'], ['T3', 'Two satellites, same plane (180° apart)'], ['T4', 'One 3-sat cluster (one node)'], ['T6', 'Two clusters, two planes'], ['T7', 'Three clusters, three planes'], ['T8', 'Twelve singles, four planes'], ['T9', 'Four clusters, four planes'], ['T10', 'Eight clusters, four planes']];
+  document.querySelector('#planes tbody').innerHTML = rows.map(([id, n]) => { const t = T(id), p = t.perf['Athens 38°N'].el5; return `<tr><td><a href="templates.html#${id}">${id}</a> ${n}</td><td class="num">${t.sats}</td><td class="num">${t.nodes}</td><td class="num">${t.planes}</td><td class="num">${p.windowsPerDay}</td><td class="num">${fmtGap(p.medianGapMin)}</td><td class="num">${fmtGap(p.maxGapMin)}</td></tr>`; }).join('');
+})();
+</script>
+</body>
+</html>

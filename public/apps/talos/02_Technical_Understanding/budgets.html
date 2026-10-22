@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mass, power, link & data budgets — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  .mini { font-family: var(--font-ui); font-size: .8rem; color: var(--ink-2); }
+  .katex-display { overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+  .opts { display:flex; flex-wrap:wrap; gap:.4rem 1.2rem; font-family: var(--font-ui); font-size:.85rem; margin:.4rem 0 .8rem; }
+  .opts label { display:flex; align-items:center; gap:.4rem; cursor:pointer; }
+  td.spec { max-width: 40ch; white-space: normal; font-size: .82rem; }
+  .margin-note { border-left: 3px solid var(--ok); padding: .5rem .9rem; margin: 1rem 0 0; font-family: var(--font-ui); font-size: .88rem; background: var(--surface); border-radius: 0 var(--radius) var(--radius) 0; }
+  .margin-note.warn { border-left-color: var(--warn); }
+  .margin-note b { color: var(--ink); }
+  .modcod-ok { color: var(--ok); font-weight: 600; } .modcod-no { color: var(--ink-faint); }
+  tr.sub td { background: var(--surface-2); font-family: var(--font-ui); font-weight: 600; }
+  .tiny { font-size: .75rem; color: var(--ink-3); }
+  #modcod-table td, #x-table td { white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>02 Technical understanding</b> · Budgets</div>
+    <h1>Mass, power, link &amp; data budgets</h1>
+    <p class="lead">Every number on this page is computed at load time from the component model and the mission baseline, so a change in <code>components.js</code> or <code>baseline.js</code> flows through here. The verdict: TALOS-1 closes with room to spare — ≈ 87 kg dry core (104 kg with 20 % system margin) inside a 150 kg allocation, a 620 W array against a ≈ 195 W orbit-average demand, an X-band link that supports the full 1 Gbit/s at mid elevations into a 3.7 m dish, and 200+ GB/day of downlink capacity against ≈ 30 GB/day of product. The tight budgets are not mass and power: they are the 20 ns timing allocation and the margins that depend on where the ground stations are.</p>
+    <div class="meta"><span id="meta-baseline">Baseline</span><span>Sources: research notes 02 (F, H, K), 03 §4.4, §5, §6, §7, 05 §3.4</span><span>Data: components.js, baseline.js, orbit.js</span></div>
+  </header>
+
+  <div class="grid c4" id="kpis"></div>
+
+  <h2 id="mass">Mass budget</h2>
+  <p>The component model carries <span id="n-comp"></span> items in ten subsystems; three are growth options (deployable reflector, ML co-processor, inter-satellite link) that are not in the TALOS-1 core. Toggle them and the system margin to see what the launch mass becomes. The 20 % margin is the ECSS-style allowance for a Phase A estimate of a first-of-kind payload on a catalogue bus; at CDR it would drop to 10–15 %.</p>
+  <div class="panel">
+    <h3>Mass roll-up</h3>
+    <div class="opts" id="mass-opts"></div>
+    <div class="controls"><div class="ctl"><label>System margin <output for="m-marg">20</output> %</label><input type="range" id="m-marg" min="0" max="35" step="1" value="20"></div></div>
+    <div class="readout">
+      <div><div class="k">Core dry mass</div><div class="v" id="m-core">—</div></div>
+      <div><div class="k">Dry mass with selected options</div><div class="v" id="m-opt">—</div></div>
+      <div><div class="k">With system margin</div><div class="v" id="m-m">—</div></div>
+      <div><div class="k">Remaining to 150 kg allocation</div><div class="v" id="m-rem">—</div></div>
+      <div><div class="k">Payload fraction (dry, no margin)</div><div class="v" id="m-pf">—</div></div>
+    </div>
+    <div id="m-chart-wrap"><div id="m-chart"></div></div>
+  </div>
+  <div class="table-wrap"><table class="compact" id="mass-table"><thead><tr><th>Subsystem</th><th>Group</th><th class="num">Items</th><th class="num">Core (kg)</th><th class="num">Options (kg)</th><th class="num">Share of dry core</th><th class="num">Min TRL</th></tr></thead><tbody></tbody></table></div>
+  <details><summary>Component-level mass list (from components.js)</summary><div class="table-wrap"><table class="compact" id="mass-items"><thead><tr><th data-sort="str">Component</th><th>Subsystem</th><th class="num" data-sort="num">kg</th><th class="num" data-sort="num">W</th><th class="num" data-sort="num">TRL</th><th>Status</th></tr></thead><tbody></tbody></table></div></details>
+  <div class="margin-note" id="mass-margin"></div>
+
+  <h2 id="power">Power budget</h2>
+  <p>Power is budgeted by operating mode. The payload figure is the sum of component powers in collection mode; the bus housekeeping figure in the baseline (<span id="p-busbase"></span> W) is higher than the sum of bus components (<span id="p-buscomp"></span> W) because it reserves 10–20 W for heaters in eclipse and converter losses. Downlink (X-band transmitter, <span id="p-xtx"></span> W) and thrusting (FEEP PPU, <span id="p-prop"></span> W) are added when those loads are on.</p>
+  <div class="table-wrap"><table class="compact" id="power-modes"><thead><tr><th>Mode</th><th class="num">Payload (W)</th><th class="num">Bus (W)</th><th class="num">Downlink (W)</th><th class="num">Propulsion (W)</th><th class="num">Total (W)</th><th>Typical duty</th></tr></thead><tbody></tbody></table></div>
+  <div class="table-wrap"><table class="compact" id="power-comp"><thead><tr><th>Subsystem</th><th class="num">Collection-mode power (W)</th><th>Largest consumer</th></tr></thead><tbody></tbody></table></div>
+
+  <div class="panel">
+    <h3>Orbit-average power calculator</h3>
+    <div class="controls">
+      <div class="ctl"><label>Altitude <output for="p-alt">530</output> km</label><input type="range" id="p-alt" min="400" max="700" step="10" value="530"></div>
+      <div class="ctl"><label>Inclination <output for="p-inc">53</output>°</label><input type="range" id="p-inc" min="30" max="98" step="0.5" value="53"></div>
+      <div class="ctl"><label>Date (day of year) <output for="p-doy">172</output></label><input type="range" id="p-doy" min="1" max="365" step="1" value="172"></div>
+      <div class="ctl"><label>Array power <output for="p-arr">540</output> W</label><input type="range" id="p-arr" min="300" max="800" step="10" value="540"></div>
+      <div class="ctl"><label>Pointing + thermal + MPPT efficiency <output for="p-eff">85</output> %</label><input type="range" id="p-eff" min="50" max="100" step="1" value="85"></div>
+      <div class="ctl"><label>Downlink duty <output for="p-dl">35</output> min/day</label><input type="range" id="p-dl" min="0" max="120" step="5" value="35"></div>
+      <div class="ctl"><label>Thruster duty <output for="p-th">10</output> % of orbit (sunlit)</label><input type="range" id="p-th" min="0" max="50" step="1" value="10"></div>
+      <div class="ctl"><label>Collection duty <output for="p-cd">100</output> % of orbit</label><input type="range" id="p-cd" min="20" max="100" step="5" value="100"></div>
+      <div class="ctl"><label>Eclipse heater load <output for="p-ht">15</output> W</label><input type="range" id="p-ht" min="0" max="40" step="1" value="15"></div>
+    </div>
+    <div class="readout">
+      <div><div class="k">Eclipse fraction (this date)</div><div class="v" id="p-ecl">—</div></div>
+      <div><div class="k">Orbit-average generation</div><div class="v" id="p-gen">—</div></div>
+      <div><div class="k">Orbit-average demand</div><div class="v" id="p-dem">—</div></div>
+      <div><div class="k">Energy margin</div><div class="v" id="p-marg">—</div></div>
+      <div><div class="k">Battery DoD per eclipse</div><div class="v" id="p-dod">—</div></div>
+      <div><div class="k">Worst-case eclipse this year</div><div class="v" id="p-worst">—</div></div>
+    </div>
+    <div id="p-chart-wrap"><div id="p-chart"></div></div>
+    <p class="mini">Generation = array power × (1 − eclipse fraction) × efficiency, with array power from <code>BASELINE.power</code> (BOL <span id="p-bol"></span> W, EOL <span id="p-eol"></span> W; the slider default is EOL). Demand = payload collection power × duty + bus + downlink and thruster loads × their duty + heaters × eclipse fraction. Eclipse fraction from <code>ORB.eclipseFraction</code> on the propagated orbit (RAAN 0° at 1 Jan 2030, J2 precession included, so the beta-angle seasons of the 53° orbit appear; the brief eclipse-free windows occur when the beta angle exceeds 67° near the solstices). The SSO line is the noon/midnight case; a 10:30 LTAN sits at ~35 % and a dawn-dusk orbit is nearly eclipse-free. Battery DoD = eclipse duration × eclipse load / <span id="p-batt"></span> Wh.</p>
+  </div>
+  <div class="margin-note" id="power-margin"></div>
+
+  <h2 id="link">Link budgets</h2>
+  <h3>X-band downlink</h3>
+  <p>The data exit is a <span id="l-xrate"></span> Gbit/s DVB-S2 / CCSDS 131.2 X-band link in the 8025–8400 MHz EESS allocation into KSAT-class 3.7 m or 7.3 m dishes<sup class="ref"><a href="#ref-R3-27">[R3-27]</a></sup><sup class="ref"><a href="#ref-R4-33">[R4-33]</a></sup>. Because free-space loss changes by 12 dB between 5° and 90° elevation, DVB-S2 adaptive coding and modulation is what makes the link efficient: a low-order modcod at the horizon, a high-order one near zenith. The table picks, for each elevation, the highest modcod whose required Es/N0 is met with the chosen margin and reports the resulting information rate.</p>
+  <div class="panel">
+    <h3>X-band link calculator</h3>
+    <div class="controls">
+      <div class="ctl"><label>RF power <output for="x-p">33</output> dBm</label><input type="range" id="x-p" min="27" max="43" step="1" value="33"></div>
+      <div class="ctl"><label>Spacecraft antenna gain <output for="x-g">15</output> dBi</label><input type="range" id="x-g" min="3" max="25" step="1" value="15"></div>
+      <div class="ctl"><label>Ground dish <output for="x-d">3.7</output> m</label><input type="range" id="x-d" min="2.4" max="13" step="0.1" value="3.7"></div>
+      <div class="ctl"><label>Ground system noise temperature <output for="x-t">150</output> K</label><input type="range" id="x-t" min="80" max="400" step="10" value="150"></div>
+      <div class="ctl"><label>Symbol rate <output for="x-rs">250</output> Msym/s</label><input type="range" id="x-rs" min="50" max="300" step="10" value="250"></div>
+      <div class="ctl"><label>Required margin <output for="x-m">3</output> dB</label><input type="range" id="x-m" min="0" max="6" step="0.5" value="3"></div>
+      <div class="ctl"><label>Pointing + polarisation + implementation loss <output for="x-l">3</output> dB</label><input type="range" id="x-l" min="0" max="8" step="0.5" value="3"></div>
+    </div>
+    <div class="readout">
+      <div><div class="k">EIRP</div><div class="v" id="x-eirp">—</div></div>
+      <div><div class="k">Ground G/T</div><div class="v" id="x-gt">—</div></div>
+      <div><div class="k">Rate at 20° elevation</div><div class="v" id="x-r20">—</div></div>
+      <div><div class="k">Average rate over a pass (est.)</div><div class="v" id="x-ravg">—</div></div>
+    </div>
+    <div class="table-wrap"><table class="compact" id="x-table"><thead><tr><th>Elevation</th><th class="num">Slant range (km)</th><th class="num">FSPL (dB)</th><th class="num">Atmosphere (dB)</th><th class="num">C/N₀ (dB-Hz)</th><th class="num">Es/N₀ (dB)</th><th>Best modcod (margin)</th><th class="num">Eb/N₀ (dB)</th><th class="num">Information rate (Mbit/s)</th></tr></thead><tbody></tbody></table></div>
+    <div class="table-wrap"><table class="compact" id="modcod-table"><thead><tr><th>DVB-S2 modcod</th><th class="num">Spectral efficiency (bit/sym)</th><th class="num">Required Es/N₀ (dB)</th><th class="num">Required Eb/N₀ (dB)</th><th>Usable at 5°</th><th>20°</th><th>45°</th><th>90°</th></tr></thead><tbody></tbody></table></div>
+    <p class="mini">FSPL from <code>ORB.RF.fspl</code> at 8.2 GHz with slant range from <code>ORB.slantRange</code>; atmospheric and rain allowance 1.5 dB at 5°, 0.6 dB at 20°, 0.4 dB at 45°, 0.3 dB at 90° (clear-sky X-band, est.); dish gain from <code>ORB.RF.apertureGain</code> with 60 % efficiency; Boltzmann −198.6 dBm/Hz·K. DVB-S2 required Es/N₀ values are the standard's ideal QEF figures plus 1 dB implementation; Eb/N₀ = Es/N₀ − 10 log(efficiency). Transmitter defaults from the component model (Syrlinks N-XONOS class, <span id="x-spec"></span>).</p>
+  </div>
+
+  <h3>S-band TT&amp;C and inter-satellite link</h3>
+  <div class="table-wrap"><table class="compact" id="s-table"><thead><tr><th>Link</th><th>Parameter</th><th class="num">Value</th><th>Note</th></tr></thead><tbody></tbody></table></div>
+  <div class="margin-note" id="link-margin"></div>
+
+  <h2 id="data">Data budget</h2>
+  <p>The payload produces reports and prioritised IQ snapshots, not raw IQ: four coherent channels at 100 MHz would be 9.6 Gbit/s, a hundred times the downlink. What leaves the satellite is sized from the snapshot plan in the processing chapter (<a href="processing_data.html">on-board processing &amp; data</a>): per orbit, up to <span id="d-snapc"></span> comms snapshots of 20 kB and <span id="d-snapr"></span> radar snapshots of 1 MB plus emitter and signal reports, which the baseline rounds to <span id="d-perday"></span> GB/day. What can be taken away depends on where the ground stations are and on the orbit; the table computes a day of passes for each station with <code>ORB.siteStats</code> for the TALOS 53° orbit and the SSO alternative, at the DVB-S2 rates from the link budget above.</p>
+  <div class="table-wrap"><table class="compact" id="d-table"><thead><tr><th>Station</th><th>Role</th><th class="num">Passes/day (53°)</th><th class="num">Contact min/day (53°)</th><th class="num">Downlinkable GB/day (53°)</th><th class="num">Passes/day (SSO)</th><th class="num">Contact min/day (SSO)</th><th class="num">Downlinkable GB/day (SSO)</th></tr></thead><tbody></tbody></table></div>
+  <div id="d-chart-wrap"><div id="d-chart"></div></div>
+  <p class="mini">One simulated day from 21 June 2030, minimum elevation <span id="d-minel"></span>°, 20 s step; the first day's pass count varies by ±1 with the orbit phase. Downlinkable volume = contact minutes × average pass rate from the link calculator (elevation-weighted, with 30 s of acquisition per pass removed). Storage of <span id="d-stor"></span> TB buffers ≈ <span id="d-buf"></span> days of product at the baseline rate.</p>
+  <div class="margin-note" id="data-margin"></div>
+
+  <h2 id="dv">ΔV budget</h2>
+  <p>Summarised here for completeness; the sizing calculator and the propulsion trade are on the <a href="bus.html#bus-prop">bus page</a>.</p>
+  <div class="table-wrap"><table class="compact" id="dv-table"><thead><tr><th>Allocation</th><th class="num">ΔV (m/s)</th><th class="num">Share</th></tr></thead><tbody></tbody></table></div>
+  <div class="margin-note" id="dv-margin"></div>
+
+  <h2 id="timing">Timing budget</h2>
+  <p>The constellation geolocation product needs the time stamps of two satellites to agree to <span id="t-sync"></span> ns (1σ) — the figure HawkEye assumed in its cluster design<sup class="ref"><a href="#ref-R3-2">[R3-2]</a></sup> and the one the thermal-noise terms of the <a href="geolocation.html">geolocation chapter</a> are compared against. The allocation below splits it between the contributors in the timing chain; terms add in root-sum-square because they are independent. Values are design allocations (est.) to be verified in the pathfinder and in commissioning against known emitters (risk <a href="risks.html#T-03">T-03</a>).</p>
+  <div class="table-wrap"><table class="compact" id="t-table"><thead><tr><th>Contributor</th><th class="num">Allocation (ns, 1σ)</th><th>Basis</th><th>How it is verified</th></tr></thead><tbody></tbody></table></div>
+  <div class="grid c3" id="t-kpis"></div>
+  <div class="margin-note" id="t-margin"></div>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/components.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/orbit.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  const B = BASELINE, $ = id => document.getElementById(id);
+  function renderRefs(ids){ const ol=$('refs'); ids.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); if(!r) return; const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${r.title} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); }); }
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const subOf = c => SUBSYSTEMS.find(s => s.id === c.sub), grpOf = c => subOf(c).group;
+  const sum = (arr, k) => arr.reduce((a, c) => a + (c[k] || 0), 0);
+  const core = COMPONENTS.filter(c => !c.optional), opts = COMPONENTS.filter(c => c.optional);
+  const pl = core.filter(c => grpOf(c)==='payload'), bus = core.filter(c => grpOf(c)==='bus');
+  const chart = (wrapId, innerId, fn) => { const w = $(wrapId); w.innerHTML = `<div id="${innerId}"></div>`; fn($(innerId)); };
+  $('meta-baseline').textContent = 'Baseline: ' + B.version;
+  $('n-comp').textContent = COMPONENTS.length;
+
+  // ================= MASS =================
+  const optBox = $('mass-opts');
+  opts.forEach(c => { const l = document.createElement('label'); l.innerHTML = `<input type="checkbox" data-id="${c.id}"> ${esc(c.name.split(' (')[0])} <span class="tag">+${c.kg} kg, +${c.w} W</span>`; optBox.append(l); });
+  function massCalc() {
+    const sel = [...optBox.querySelectorAll('input:checked')].map(i => COMPONENTS.find(c => c.id === i.dataset.id));
+    const marg = +$('m-marg').value/100;
+    const coreKg = sum(core,'kg'), optKg = sum(sel,'kg'), dry = coreKg + optKg, withM = dry*(1+marg), rem = B.mass.launchMax - withM;
+    $('m-core').textContent = coreKg.toFixed(1) + ' kg'; $('m-opt').textContent = dry.toFixed(1) + ' kg';
+    $('m-m').textContent = withM.toFixed(1) + ' kg'; const re = $('m-rem'); re.textContent = rem.toFixed(1) + ' kg'; re.className = 'v ' + (rem > 20 ? 'good' : rem > 0 ? 'warn' : 'bad');
+    $('m-pf').textContent = ((sum(pl,'kg') + sum(sel.filter(c=>grpOf(c)==='payload'),'kg'))/dry*100).toFixed(0) + ' %';
+    const all = core.concat(sel);
+    chart('m-chart-wrap', 'm-chart', el => Charts.stack(el, { title: 'Dry mass by subsystem (kg) — payload vs bus', unit: 'kg', horizontal: true, height: 150, categories: ['Payload', 'Bus'], format: v => v.toFixed(1),
+      series: SUBSYSTEMS.map((s, i) => ({ name: s.name.replace(/^(Payload|Bus) — /, ''), color: s.group === 'payload' ? [U.css('--band-l'), U.css('--accent-2'), U.css('--accent')][i % 3] : [U.css('--ink-3'), U.css('--band-c'), U.css('--ink-faint'), U.css('--band-s'), U.css('--band-uhf'), U.css('--band-x'), U.css('--band-ku')][i % 7], values: [ s.group==='payload' ? sum(all.filter(c=>c.sub===s.id),'kg') : 0, s.group==='bus' ? sum(all.filter(c=>c.sub===s.id),'kg') : 0 ] })) }));
+    $('mass-margin').innerHTML = `<b>Margin statement.</b> Dry mass ${dry.toFixed(1)} kg + ${(marg*100).toFixed(0)} % system margin = <b>${withM.toFixed(1)} kg</b> against the ${B.mass.launchMax} kg allocation: <b>${rem.toFixed(0)} kg (${(rem/B.mass.launchMax*100).toFixed(0)} %) unallocated</b>. What drives it: the structure (${COMPONENTS.find(c=>c.id==='str').kg} kg, ${(COMPONENTS.find(c=>c.id==='str').kg/coreKg*100).toFixed(0)} % of core) and the solar wings are the two largest items; the payload itself is only ${(sum(pl,'kg')/coreKg*100).toFixed(0)} % of core. The unallocated mass is what pays for a larger reflector, a second RFSoC or more propellant in Stage 2 — or for a cheaper, heavier bus if the shortlist narrows. The ESPA 15-inch port limit of ~180 kg is not the constraint; the rideshare price per kilogram is.`;
+  }
+  optBox.addEventListener('change', massCalc); bindRange('m-marg', massCalc, v => v);
+  // tables
+  $('mass-table').tBodies[0].innerHTML = SUBSYSTEMS.map(s => { const cs = COMPONENTS.filter(c=>c.sub===s.id), cc = cs.filter(c=>!c.optional), co = cs.filter(c=>c.optional); return `<tr><td>${s.name}</td><td>${s.group}</td><td class="num">${cs.length}</td><td class="num">${sum(cc,'kg').toFixed(1)}</td><td class="num">${co.length? sum(co,'kg').toFixed(1) : '—'}</td><td class="num">${(sum(cc,'kg')/sum(core,'kg')*100).toFixed(0)} %</td><td class="num">${Math.min(...cs.map(c=>c.trl))}</td></tr>`; }).join('') + `<tr class="sub"><td>Total</td><td></td><td class="num">${COMPONENTS.length}</td><td class="num">${sum(core,'kg').toFixed(1)}</td><td class="num">${sum(opts,'kg').toFixed(1)}</td><td class="num">100 %</td><td class="num">${Math.min(...COMPONENTS.map(c=>c.trl))}</td></tr>`;
+  $('mass-items').tBodies[0].innerHTML = COMPONENTS.map(c => `<tr><td><a href="payload_explorer.html#${c.id}">${esc(c.name)}</a></td><td>${subOf(c).name}</td><td class="num">${c.kg}</td><td class="num">${c.w}</td><td class="num">${c.trl}</td><td>${c.optional?'<span class="tag">option</span>':'<span class="tag ok">core</span>'}</td></tr>`).join('');
+
+  // ================= POWER =================
+  const busHK = sum(bus.filter(c=>!['xtx','prop'].includes(c.id)),'w');
+  $('p-busbase').textContent = B.power.modes.collect.bus; $('p-buscomp').textContent = busHK; $('p-xtx').textContent = B.comms.xband.txW; $('p-prop').textContent = B.prop.powerW;
+  const duty = { collect: '≈ 60–100 % of orbit (collection windows)', collectDownlink: '5–8 min per pass, 4–7 passes/day', standby: 'Safe mode, SAA transits, commissioning', thrust: 'Sunlit-side arcs, ≤ 10–20 % of orbit when active' };
+  $('power-modes').tBodies[0].innerHTML = Object.entries(B.power.modes).map(([k, m]) => { const tot = m.payload + m.bus + (m.downlink||0) + (m.prop||0); return `<tr><td>${m.name}</td><td class="num">${m.payload}</td><td class="num">${m.bus}</td><td class="num">${m.downlink||0}</td><td class="num">${m.prop||0}</td><td class="num"><b>${tot}</b></td><td class="spec">${duty[k]||''}</td></tr>`; }).join('');
+  $('power-comp').tBodies[0].innerHTML = SUBSYSTEMS.map(s => { const cs = core.filter(c=>c.sub===s.id && c.w>0); if (!cs.length) return ''; const big = cs.reduce((a,c)=>c.w>a.w?c:a); return `<tr><td>${s.name}</td><td class="num">${sum(cs,'w')}</td><td class="spec">${esc(big.name)} (${big.w} W)</td></tr>`; }).join('') + `<tr class="sub"><td>Payload total (collect)</td><td class="num">${sum(pl,'w')}</td><td></td></tr><tr class="sub"><td>Bus housekeeping (excl. X-band TX, thruster)</td><td class="num">${busHK}</td><td></td></tr>`;
+  $('p-bol').textContent = B.power.arrayBolW; $('p-eol').textContent = B.power.arrayEolW; $('p-batt').textContent = B.power.batteryWh;
+  const epochP = new Date('2030-01-01T00:00:00Z');
+  function powerCalc() {
+    const alt = +$('p-alt').value, inc = +$('p-inc').value, doy = +$('p-doy').value, arr = +$('p-arr').value, eff = +$('p-eff').value/100, dlMin = +$('p-dl').value, thD = +$('p-th').value/100, cd = +$('p-cd').value/100, ht = +$('p-ht').value;
+    const orb = ORB.makeOrbit({ alt, inc, raan: 0, ta: 0, epoch: epochP });
+    const date = new Date(epochP.getTime() + (doy-1)*86400e3);
+    const ecl = ORB.eclipseFraction(orb, date), P = ORB.period(orb.a);
+    const gen = arr*(1-ecl)*eff;
+    const m = B.power.modes.collect;
+    const dlFrac = dlMin/1440;
+    const dem = m.payload*cd + B.power.modes.standby.payload*(1-cd) + m.bus + B.comms.xband.txW*dlFrac + B.prop.powerW*thD + ht*ecl;
+    const marg = gen/dem - 1;
+    const eclLoad = m.payload*cd + B.power.modes.standby.payload*(1-cd) + m.bus + ht + B.comms.xband.txW*0.3; // allow a downlink pass in eclipse
+    const dod = ecl*P/3600*eclLoad/B.power.batteryWh;
+    $('p-ecl').innerHTML = `${(ecl*100).toFixed(1)} % <small>(${(ecl*P/60).toFixed(0)} min of ${(P/60).toFixed(0)})</small>`;
+    $('p-gen').textContent = gen.toFixed(0) + ' W'; $('p-dem').textContent = dem.toFixed(0) + ' W';
+    const me = $('p-marg'); me.textContent = (marg*100).toFixed(0) + ' %'; me.className = 'v ' + (marg >= 0.3 ? 'good' : marg >= 0.1 ? 'warn' : 'bad');
+    const de = $('p-dod'); de.innerHTML = `${(dod*100).toFixed(0)} % <small>(limit ${B.power.dodMax*100} %)</small>`; de.className = 'v ' + (dod <= B.power.dodMax ? 'good' : dod <= 0.4 ? 'warn' : 'bad');
+    // year curve
+    const pts = [], ptsS = []; const sso = ORB.makeOrbit({ alt, inc: ORB.ssoInclination(alt), raan: 281, ta: 0, epoch: epochP }); // RAAN ≈ sun RA on 1 Jan → noon/midnight LTAN, the worst-case SSO for eclipse
+    let worst = 0;
+    for (let d = 1; d <= 365; d += 3) { const dt = new Date(epochP.getTime() + (d-1)*86400e3); const e = ORB.eclipseFraction(orb, dt); worst = Math.max(worst, e); pts.push([d, e*100]); ptsS.push([d, ORB.eclipseFraction(sso, dt)*100]); }
+    $('p-worst').innerHTML = `${(worst*100).toFixed(1)} % <small>→ ${(arr*(1-worst)*eff).toFixed(0)} W generated</small>`;
+    chart('p-chart-wrap', 'p-chart', el => Charts.line(el, { title: `Eclipse fraction over the year — ${alt} km, ${inc}° (RAAN 0° on 1 Jan) vs SSO noon/midnight LTAN (worst case)`, xLabel: 'day of year', yLabel: 'eclipse fraction (%)', height: 240, yDomain: [0, 45], series: [ { name: `${inc}° orbit`, points: pts }, { name: 'SSO, noon LTAN', points: ptsS, dash: '5 4' } ], hlines: [{ y: ecl*100, label: 'selected date' }], format: v => v.toFixed(1), xFormat: v => 'day ' + v.toFixed(0) }));
+    $('power-margin').innerHTML = `<b>Margin statement.</b> At the selected date the array generates <b>${gen.toFixed(0)} W</b> orbit-average against a demand of <b>${dem.toFixed(0)} W</b> (${(marg*100).toFixed(0)} % margin); at the worst eclipse of the year (${(worst*100).toFixed(0)} %) generation falls to ${(arr*(1-worst)*eff).toFixed(0)} W. What drives it: the eclipse fraction of a 53° orbit swings between ~0 % and ~37 % with the beta angle, so the array is sized for the worst season, not the average; the thruster (${B.prop.powerW} W) is the single largest load and is why thrusting is restricted to sunlit arcs; and the battery DoD limit of ${B.power.dodMax*100} % — not the array — is what caps how much collection plus downlink can be scheduled through an eclipse. A full-sun season is the time to schedule plane-phasing burns.`;
+    $('power-margin').className = 'margin-note' + (marg >= 0.1 ? '' : ' warn');
+  }
+  ['p-alt','p-inc','p-doy','p-arr','p-eff','p-dl','p-th','p-cd','p-ht'].forEach(id => bindRange(id, powerCalc, v => id==='p-inc' ? v.toFixed(1).replace('.0','') : v));
+
+  // ================= LINK =================
+  $('l-xrate').textContent = B.comms.xband.rateMbps/1000;
+  $('x-spec').textContent = COMPONENTS.find(c=>c.id==='xtx').spec.split(';').slice(0,3).join(';');
+  const MODCODS = [ ['QPSK 1/2', 0.99, 1.0], ['QPSK 3/4', 1.49, 4.0], ['QPSK 9/10', 1.79, 6.4], ['8PSK 2/3', 1.98, 6.6], ['8PSK 3/4', 2.23, 7.9], ['8PSK 9/10', 2.68, 11.0], ['16APSK 3/4', 2.97, 10.2], ['16APSK 5/6', 3.30, 11.6], ['16APSK 9/10', 3.57, 13.1], ['32APSK 4/5', 3.95, 13.6], ['32APSK 9/10', 4.45, 16.1] ].map(([n,e,es]) => ({ n, e, es: es + 1.0 }));
+  const ELS = [ [5, 1.5], [10, 1.0], [20, 0.6], [30, 0.5], [45, 0.4], [60, 0.35], [90, 0.3] ];
+  const fX = 8200, kB = -198.6; // dBm/Hz/K
+  let passRateMbps = 0;
+  function best(esn0, margin) { let b = null; MODCODS.forEach(m => { if (esn0 - m.es >= margin) b = m; }); return b; }
+  function linkCalc() {
+    const p = +$('x-p').value, g = +$('x-g').value, D = +$('x-d').value, T = +$('x-t').value, Rs = +$('x-rs').value*1e6, mg = +$('x-m').value, L = +$('x-l').value;
+    const eirp = p + g, gd = ORB.RF.apertureGain(D, fX, 0.6), gt = gd - 10*Math.log10(T);
+    $('x-eirp').innerHTML = `${eirp.toFixed(0)} dBm <small>(${(eirp-30).toFixed(0)} dBW)</small>`; $('x-gt').innerHTML = `${gt.toFixed(1)} dB/K <small>(${gd.toFixed(1)} dBi)</small>`;
+    const rows = ELS.map(([el, atm]) => { const d = ORB.slantRange(B.orbit.altKm, el), fs = ORB.RF.fspl(d, fX), cn0 = eirp - fs - atm - L + gt - kB, esn0 = cn0 - 10*Math.log10(Rs), b = best(esn0, mg), rate = b ? Rs*b.e/1e6 : 0, ebn0 = b ? esn0 - 10*Math.log10(b.e) : NaN; return { el, atm, d, fs, cn0, esn0, b, rate, ebn0 }; });
+    $('x-table').tBodies[0].innerHTML = rows.map(r => `<tr><td>${r.el}°</td><td class="num">${r.d.toFixed(0)}</td><td class="num">${r.fs.toFixed(1)}</td><td class="num">${r.atm.toFixed(1)}</td><td class="num">${r.cn0.toFixed(1)}</td><td class="num">${r.esn0.toFixed(1)}</td><td>${r.b ? `<span class="modcod-ok">${r.b.n}</span> (+${(r.esn0 - r.b.es).toFixed(1)} dB)` : '<span class="tag critical">no modcod closes</span>'}</td><td class="num">${isFinite(r.ebn0)?r.ebn0.toFixed(1):'—'}</td><td class="num"><b>${r.rate.toFixed(0)}</b></td></tr>`).join('');
+    const r20 = rows.find(r => r.el === 20); $('x-r20').textContent = r20.rate.toFixed(0) + ' Mbit/s';
+    // elevation-weighted pass average: typical pass spends ~45% of time <10°, 30% 10–20°, 15% 20–45°, 10% >45° (est.)
+    const w = { 5: .45, 10: .15, 20: .15, 30: .1, 45: .08, 60: .04, 90: .03 };
+    passRateMbps = rows.reduce((a, r) => a + r.rate*w[r.el], 0);
+    $('x-ravg').innerHTML = `${passRateMbps.toFixed(0)} Mbit/s <small>(${(passRateMbps/8*60/1000).toFixed(1)} GB/min)</small>`;
+    const cols = [5, 20, 45, 90].map(e => rows.find(r => r.el === e));
+    $('modcod-table').tBodies[0].innerHTML = MODCODS.map(m => `<tr><td>${m.n}</td><td class="num">${m.e.toFixed(2)}</td><td class="num">${m.es.toFixed(1)}</td><td class="num">${(m.es - 10*Math.log10(m.e)).toFixed(1)}</td>${cols.map(c => `<td>${c.esn0 - m.es >= mg ? `<span class="modcod-ok">yes</span> <span class="tiny">+${(c.esn0-m.es).toFixed(1)} dB</span>` : `<span class="modcod-no">no</span> <span class="tiny">${(c.esn0-m.es).toFixed(1)} dB</span>`}</td>`).join('')}</tr>`).join('');
+    const r5 = rows[0], r90 = rows[rows.length-1];
+    $('link-margin').innerHTML = `<b>Margin statement (X-band).</b> With ${eirp.toFixed(0)} dBm EIRP into a ${D} m dish the link supports <b>${r5.rate.toFixed(0)} Mbit/s at 5° and ${r90.rate.toFixed(0)} Mbit/s at zenith</b> at ${mg} dB margin; the pass-average is ≈ ${passRateMbps.toFixed(0)} Mbit/s, ${passRateMbps >= B.comms.xband.rateMbps ? 'meeting' : 'below'} the ${B.comms.xband.rateMbps} Mbit/s headline rate, which is reached only at elevations of ${(rows.find(r => r.rate >= B.comms.xband.rateMbps)||{el:'—'}).el}° and above. What drives it: the 12 dB of path-loss swing across a pass (adaptive modcod recovers most of it), the ${D} m aperture (a 7.3 m dish adds ${(ORB.RF.apertureGain(7.3,fX,.6)-ORB.RF.apertureGain(3.7,fX,.6)).toFixed(1)} dB), and the X-band transmitter's 33 dBm — moving to the 40 dBm XONOS class adds 7 dB but 2.4 kg and more DC power. TT&C and ISL close with large margins at their low rates; the TT&C uplink margin is set by the ground EIRP, not the spacecraft.`;
+    dataCalc();
+  }
+  // S-band TT&C and ISL (static)
+  (function(){
+    const fS = 2250, d5 = ORB.slantRange(B.orbit.altKm, 5), fs = ORB.RF.fspl(d5, fS);
+    const gD = ORB.RF.apertureGain(3.7, fS, 0.6), gtD = gD - 10*Math.log10(200);
+    const cn0dn = 33 + 0 - fs - 2 + gtD - kB, rateDn = B.comms.ttc.rateKbps*1e3, ebDn = cn0dn - 10*Math.log10(rateDn), reqDn = 4.5 + 1.5; // QPSK r1/2 LDPC + impl
+    const ebDnLow = cn0dn - 10*Math.log10(64e3);
+    const cn0up = 60 + 30 - ORB.RF.fspl(d5, 2070) - 2 + (0 - 10*Math.log10(600)) - kB, rateUp = 64e3, ebUp = cn0up - 10*Math.log10(rateUp);
+    const dI = B.constellation.cluster.alongTrackKm, fsI = ORB.RF.fspl(dI, fS), cn0I = 30 + 8 + 8 - fsI - 2 - 10*Math.log10(500) - kB + 0, rateI = B.comms.isl.rateKbps*1e3, ebI = cn0I - 10*Math.log10(rateI);
+    const rows = [
+      ['TT&C downlink', 'Transmitter / antenna', '33 dBm / 0 dBi patch', 'Syrlinks EWC31-NG class, hemispherical patches zenith + nadir'],
+      ['', 'Slant range, FSPL at 5°', `${d5.toFixed(0)} km, ${fs.toFixed(1)} dB`, `${fS} MHz`],
+      ['', 'Ground G/T (3.7 m, 200 K)', `${gtD.toFixed(1)} dB/K`, 'Owned Greek station or KSAT S-band'],
+      ['', 'C/N₀', `${cn0dn.toFixed(1)} dB-Hz`, '2 dB losses'],
+      ['', `Eb/N₀ at ${B.comms.ttc.rateKbps/1000} Mbit/s (required ${reqDn} dB)`, `${ebDn.toFixed(1)} dB → margin ${(ebDn-reqDn).toFixed(1)} dB`, `at 64 kbit/s housekeeping: ${(ebDnLow-reqDn).toFixed(1)} dB margin`],
+      ['TT&C uplink', 'Ground EIRP / spacecraft G/T', '60 dBW / −27.8 dB/K', '0 dBi patch, 600 K spacecraft noise temperature (est.)'],
+      ['', 'Eb/N₀ at 64 kbit/s (required 6 dB)', `${ebUp.toFixed(1)} dB → margin ${(ebUp-6).toFixed(1)} dB`, 'AES-256 authenticated telecommand; margin allows a 5 m class owned antenna'],
+      ['S-band ISL (cluster)', 'Range / FSPL', `${dI} km / ${fsI.toFixed(1)} dB`, 'Along-track spacing of the 3-satellite cluster'],
+      ['', 'TX 30 dBm, 8 dBi fore/aft patch arrays both ends, 500 K', `C/N₀ ${cn0I.toFixed(1)} dB-Hz`, 'GomSpace / Alén SDR class with ISL waveform; 2×2 patch arrays rather than single patches'],
+      ['', `Eb/N₀ at ${B.comms.isl.rateKbps/1000} Mbit/s (required 6 dB)`, `${ebI.toFixed(1)} dB → margin ${(ebI-6).toFixed(1)} dB`, `Closes to ≈ ${(dI*Math.pow(10,(ebI-6)/20)).toFixed(0)} km at zero margin; 100 kbit/s adds 10 dB; two-way time transfer to ~5 ns`],
+    ];
+    $('s-table').tBodies[0].innerHTML = rows.map(r => `<tr><td>${r[0]?'<b>'+r[0]+'</b>':''}</td><td>${r[1]}</td><td class="num">${r[2]}</td><td class="spec">${r[3]}</td></tr>`).join('');
+  })();
+
+  // ================= DATA =================
+  const snaps = B.payload.snapshotsPerOrbit; $('d-snapc').textContent = snaps.comms.toLocaleString('en'); $('d-snapr').textContent = snaps.radar; $('d-perday').textContent = B.payload.dataPerDayGB; $('d-minel').textContent = B.ground.minElDeg; $('d-stor').textContent = B.payload.storageTB;
+  $('d-buf').textContent = (B.payload.storageTB*1000/B.payload.dataPerDayGB).toFixed(0);
+  const t0 = new Date('2030-06-21T00:00:00Z');
+  const orbT = ORB.makeOrbit({ alt: B.orbit.altKm, inc: B.orbit.incDeg, raan: 0, ta: 0, epoch: t0 }), orbS = ORB.makeOrbit({ alt: B.orbit.ssoAlt, inc: ORB.ssoInclination(B.orbit.ssoAlt), raan: 0, ta: 0, epoch: t0 });
+  const siteIds = ['nemea', 'svalbard', 'dubai', 'puertollano', 'athens'];
+  const stats = {}; siteIds.forEach(id => { const s = B.ground.stations.find(x => x.id === id); stats[id] = { s, t: ORB.siteStats([orbT], s.lat, s.lon, { t0, durationS: 86400, minEl: B.ground.minElDeg }), sso: ORB.siteStats([orbS], s.lat, s.lon, { t0, durationS: 86400, minEl: B.ground.minElDeg }) }; });
+  function gbPerDay(st) { return Math.max(0, st.totalMin - st.count*0.5) * 60 * passRateMbps / 8 / 1000; }
+  function dataCalc() {
+    const xOnly = id => stats[id].s.bands.includes('X');
+    $('d-table').tBodies[0].innerHTML = siteIds.map(id => { const r = stats[id]; const x = xOnly(id); return `<tr><td><b>${r.s.name}</b>${x?'':' <span class="tag">S-band only</span>'}</td><td class="spec">${r.s.role}</td><td class="num">${r.t.count}</td><td class="num">${r.t.totalMin.toFixed(0)}</td><td class="num">${x ? gbPerDay(r.t).toFixed(0) : '—'}</td><td class="num">${r.sso.count}</td><td class="num">${r.sso.totalMin.toFixed(0)}</td><td class="num">${x ? gbPerDay(r.sso).toFixed(0) : '—'}</td></tr>`; }).join('');
+    const nem = gbPerDay(stats.nemea.t), nemS = gbPerDay(stats.nemea.sso), sval = gbPerDay(stats.svalbard.sso), dub = gbPerDay(stats.dubai.t);
+    chart('d-chart-wrap', 'd-chart', el => Charts.bar(el, { title: 'Downlinkable volume per day vs product volume (GB/day)', unit: 'GB/day', horizontal: true, height: 230, format: v => v.toFixed(0), data: [
+      { label: 'Product volume (baseline)', value: B.payload.dataPerDayGB, color: U.css('--accent-2') },
+      { label: 'Nemea only, 53° orbit', value: nem, color: U.css('--band-l') },
+      { label: 'Nemea + Dubai, 53°', value: nem + dub, color: U.css('--band-l') },
+      { label: 'Nemea only, SSO', value: nemS, color: U.css('--band-s') },
+      { label: 'Nemea + Svalbard, SSO', value: nemS + sval, color: U.css('--band-s') } ] }));
+    $('data-margin').innerHTML = `<b>Margin statement.</b> From Nemea alone the 53° orbit downlinks ≈ <b>${nem.toFixed(0)} GB/day</b> (${stats.nemea.t.count} passes, ${stats.nemea.t.totalMin.toFixed(0)} min) against ${B.payload.dataPerDayGB} GB/day of product — a factor ${(nem/B.payload.dataPerDayGB).toFixed(1)}. The SSO alternative with Svalbard reaches ≈ ${(nemS+sval).toFixed(0)} GB/day but loses ~40 % of mid-latitude revisit. What drives it: the pass-average rate (${passRateMbps.toFixed(0)} Mbit/s, elevation-weighted), the number of X-band sites, and the 30 s acquisition overhead per pass. The surplus is deliberately large so that raw-IQ tasking products (1–5 MB radar snapshots, long comms captures) can be sold without touching the baseline — and so that a single ground-station outage (T-16) costs latency, not data. Latency, not volume, is the binding constraint at mid-latitude: with Nemea alone the worst-case data age is ~${(stats.nemea.t.maxGapMin/60).toFixed(0)} h; adding Dubai cuts the longest gap to ~${(Math.min(stats.nemea.t.maxGapMin, 1440/(stats.nemea.t.count+stats.dubai.t.count))/60).toFixed(0)} h (est.).`;
+  }
+
+  // ================= ΔV =================
+  const dvRows = [ ['Formation keeping (3 yr)', B.prop.dvFormationMs], ['Drag make-up', B.prop.dvDragMs], ['Disposal (lower to ≤ 350 km)', B.prop.dvDisposalMs], ['Margin / collision avoidance / phasing', B.prop.dvTotalMs - B.prop.dvFormationMs - B.prop.dvDragMs - B.prop.dvDisposalMs] ];
+  $('dv-table').tBodies[0].innerHTML = dvRows.map(r => `<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="num">${(r[1]/B.prop.dvTotalMs*100).toFixed(0)} %</td></tr>`).join('') + `<tr class="sub"><td>Total available (${B.prop.type})</td><td class="num">${B.prop.dvTotalMs}</td><td class="num">100 %</td></tr>`;
+  $('dv-margin').innerHTML = `<b>Margin statement.</b> ${dvRows[3][1]} m/s (${(dvRows[3][1]/B.prop.dvTotalMs*100).toFixed(0)} %) is unallocated after formation, drag and disposal. What drives it: drag make-up scales with solar activity (a solar maximum at 530 km can double the ${B.prop.dvDragMs} m/s line), and the formation-keeping line assumes HawkEye-class control (5 km 1σ) — tighter control costs ΔV quadratically. The disposal line is protected: the mission rule is that ${B.prop.dvDisposalMs} m/s is never spent on anything else.`;
+
+  // ================= TIMING =================
+  $('t-sync').textContent = B.payload.timing.syncNs;
+  const T = [
+    ['GNSS PPS absolute accuracy (per satellite)', 5, 'Septentrio mosaic-T class: 5 ns 1σ PPS with raw observables; dual-constellation', 'Lab against a UTC(k) reference; in orbit against common-view with the ground station'],
+    ['OCXO disciplining residual (loop jitter, Allan deviation over the snapshot)', 6, '10⁻¹¹ short-term stability over a ≤ 1 s snapshot = 10 ps; loop residual dominated by PPS filtering', 'Pathfinder telemetry: PPS-vs-OCXO phase residuals'],
+    ['Timestamp latch latency and FPGA pipeline (calibrated)', 4, 'Hardware counter latched at the ADC sample clock (5 GSPS → 0.2 ns resolution); residual after calibration', 'Injected calibration tone with known delay; TDOA against a known reference emitter'],
+    ['Cable, filter and front-end group delay (calibrated, thermal residual)', 5, 'Group delay varies ~0.1 ns/°C through SAW/cavity filters (est.); ±2 °C plate', 'Calibration tone sequences per channel; thermal-vacuum characterisation'],
+    ['Inter-satellite clock tie (common-view GNSS / two-way ISL)', 10, 'Common-view GNSS between two satellites with raw observables: 5–10 ns; two-way ISL time transfer ~5 ns', 'Cluster commissioning: cross-correlation of a known beacon seen by both'],
+    ['Satellite position error expressed as time (1–3 m real-time, 0.3 m post-processed)', 5, '1 m = 3.3 ns; post-processed orbits reduce this to < 1 ns', 'POD from raw observables'],
+  ];
+  const rss = Math.sqrt(T.reduce((a, r) => a + r[1]*r[1], 0));
+  $('t-table').tBodies[0].innerHTML = T.map(r => `<tr><td>${r[0]}</td><td class="num">${r[1]}</td><td class="spec">${r[2]}</td><td class="spec">${r[3]}</td></tr>`).join('') + `<tr class="sub"><td>Root-sum-square</td><td class="num">${rss.toFixed(1)}</td><td class="spec">Allocation ${B.payload.timing.syncNs} ns → ${(B.payload.timing.syncNs - rss).toFixed(1)} ns reserve</td><td></td></tr>`;
+  const hold = B.payload.timing.holdoverAdev1s;
+  $('t-kpis').innerHTML = `
+    <div class="kpi"><div class="v">${rss.toFixed(1)}<small>ns RSS</small></div><div class="l">Allocated of ${B.payload.timing.syncNs} ns</div><div class="d">≈ ${(rss*0.3).toFixed(1)} m of range difference before GDOP</div></div>
+    <div class="kpi"><div class="v">${(hold*600*1e9).toFixed(0)}<small>ns</small></div><div class="l">Holdover drift after 10 min without GNSS (CSAC, ADEV ${hold} at 1 s, est.)</div><div class="d">GNSS loss (T-10) degrades TDOA within minutes — snapshots are flagged by clock state</div></div>
+    <div class="kpi"><div class="v">${(B.payload.timing.freqStability*1e9).toFixed(2)}<small>Hz at 1 GHz</small></div><div class="l">LO frequency agreement (${B.payload.timing.freqStability})</div><div class="d">≪ 0.1 Hz needed for FDOA (400 m/Hz) — met with 10× margin</div></div>`;
+  $('t-margin').innerHTML = `<b>Margin statement.</b> The chain sums to <b>${rss.toFixed(1)} ns RSS against ${B.payload.timing.syncNs} ns</b>, a ${((1-rss/B.payload.timing.syncNs)*100).toFixed(0)} % reserve. What drives it: the inter-satellite clock tie is the single largest term, which is why the cluster phase adds the ISL two-way time transfer and why every snapshot carries raw GNSS observables; the calibrated terms (latch, group delay) are only as good as the calibration campaign. The budget is adequate for narrowband comms, where thermal noise (≈ 100 ns at 25 kHz / 100 ms / 10 dB) dominates anyway, and is the limiting term for wideband radars, where thermal noise after pulse integration falls to a few nanoseconds. The 20 ns allocation is therefore the right number for Stage 2 and a 5–10 ns goal is the Stage 3 improvement path.`;
+
+  // ================= KPIs =================
+  ['x-p','x-g','x-t','x-rs'].forEach(id => bindRange(id, linkCalc, v => v)); bindRange('x-d', linkCalc, v => v.toFixed(1)); bindRange('x-m', linkCalc, v => v.toFixed(1)); bindRange('x-l', linkCalc, v => v.toFixed(1));
+  massCalc(); powerCalc(); linkCalc();
+  const coreKg = sum(core,'kg');
+  $('kpis').innerHTML = `
+    <div class="kpi"><div class="v">${coreKg.toFixed(1)}<small>kg</small></div><div class="l">Dry core · ${(coreKg*(1+B.mass.marginPct/100)).toFixed(0)} kg with ${B.mass.marginPct} % margin</div><div class="d">${(B.mass.launchMax - coreKg*(1+B.mass.marginPct/100)).toFixed(0)} kg unallocated of ${B.mass.launchMax} kg</div></div>
+    <div class="kpi"><div class="v">${sum(pl,'w')}<small>W</small></div><div class="l">Payload collecting · ${B.power.modes.collectDownlink.payload + B.power.modes.collectDownlink.bus + B.power.modes.collectDownlink.downlink} W with downlink</div><div class="d">Array ${B.power.arrayBolW} W BOL / ${B.power.arrayEolW} W EOL</div></div>
+    <div class="kpi"><div class="v">${$('x-ravg').textContent.split(' ')[0]}<small>Mbit/s pass-avg</small></div><div class="l">X-band into 3.7 m dish</div><div class="d">${B.comms.xband.rateMbps} Mbit/s headline at high elevation</div></div>
+    <div class="kpi"><div class="v">${rss.toFixed(0)}<small>of ${B.payload.timing.syncNs} ns</small></div><div class="l">Timing chain RSS</div><div class="d">${B.prop.dvTotalMs} m/s ΔV · ${B.payload.storageTB} TB storage</div></div>`;
+
+  renderRefs(['R3-2','R3-26','R3-27','R3-21','R3-22','R4-32','R4-33']);
+})();
+</script>
+</body>
+</html>

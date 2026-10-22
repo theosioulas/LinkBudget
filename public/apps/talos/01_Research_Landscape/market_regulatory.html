@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Market &amp; regulation — TALOS study</title>
+<link rel="stylesheet" href="../assets/css/app.css">
+<link rel="stylesheet" href="../assets/js/vendor/katex/katex.min.css">
+<style>
+  svg .bar-prog { fill: var(--accent-soft); stroke: var(--accent); }
+  svg .bar-reg { fill: color-mix(in srgb, var(--band-c) 35%, var(--surface)); stroke: var(--band-c); }
+  svg .bar-legal { fill: color-mix(in srgb, var(--band-uhf) 30%, var(--surface)); stroke: var(--band-uhf); }
+  svg .bar-eu { fill: color-mix(in srgb, var(--band-s) 30%, var(--surface)); stroke: var(--band-s); }
+  svg .ms { fill: var(--accent-2); }
+  svg .ms-line { stroke: var(--accent-2); stroke-width: 1; stroke-dasharray: 3 3; }
+  svg .today { stroke: var(--critical); stroke-width: 1.2; stroke-dasharray: 2 2; }
+  .reg-legend span { font-family: var(--font-ui); font-size: 0.78rem; }
+  #gantt, #anchorChart { overflow-x: auto; }
+  #gantt svg { min-width: 760px; } #anchorChart svg { min-width: 640px; }
+  .law { font-family: var(--font-ui); font-size: 0.84rem; }
+  .law td:first-child { white-space: nowrap; font-weight: 600; }
+  svg .dot-anchor { fill: var(--accent); }
+  svg .dot-anchor.sov { fill: var(--band-x); }
+  svg .dot-anchor.eu { fill: var(--band-s); }
+</style>
+</head>
+<body>
+<div class="content">
+  <header class="page-head">
+    <div class="kicker"><b>01 Research &amp; landscape</b> · Market, customers &amp; regulation</div>
+    <h1>Market, customers and regulation</h1>
+    <p class="lead">The bottom line: the revealed market for commercial space RF is about $150–250 M a year and is bought almost entirely by governments through study-then-operational contracts, with the EU's EUSPA GNSS-interference RFI and NATO's APSS the two European entry points; a Greek operator needs no new law to collect externals from orbit, but it needs a national licence under Law 4508/2017 with no precedent, an ITU filing through EETT thirty months before launch, an export classification that keeps the satellite ITAR-free and out of ML11, and a written legal opinion that the externals-only model stays outside the interception regime. All four must start in Phase A.</p>
+    <div class="meta"><span>Data: CUSTOMERS, PRODUCTS, KPIS (programmatics.js)</span><span>Sources: research notes 01 §6, 04 §2–3, 05 §3</span><span>Status 21 Oct 2026</span></div>
+  </header>
+
+  <h2>Market sizing and revealed demand</h2>
+  <div class="grid c3">
+    <div class="kpi"><div class="v">$3.8 → 9.3 B</div><div class="l">Space-based RF-mapping market 2025 → 2034 <span class="tag warn">analyst est.</span></div><div class="d">Dataintelo, 10.5 % CAGR; D&amp;I ≈47 % of demand, LEO ≈68 %, formation clusters ≈50 % of architectures; methodology not published<sup class="ref" data-r="R1-62"></sup></div></div>
+    <div class="kpi"><div class="v">$28.6 → 46.9 B</div><div class="l">Passive RF / SIGINT, all platforms, 2026 → 2032 <span class="tag warn">analyst est.</span></div><div class="d">MarketsandMarkets, 8.6 % CAGR, ground-based dominant; a ceiling, not a space-segment figure<sup class="ref" data-r="R1-63"></sup></div></div>
+    <div class="kpi"><div class="v">$118 → 218 M</div><div class="l">HawkEye 360 revenue 2025 → 2026 guidance</div><div class="d">Backlog $292 M; the best proxy for today's commercial space-SIGINT market; own TAM flagged in the prospectus as possibly optimistic<sup class="ref" data-r="R1-20"></sup><sup class="ref" data-r="R1-2"></sup></div></div>
+  </div>
+  <p>The analyst estimates are kept on the page because customers and investors will quote them, but they are flagged: methodologies are opaque, definitions elastic, and the two reports disagree by an order of magnitude on what counts. The number to plan against is the revealed one. HawkEye 360's $117.7 M (2025) and $215–220 M guidance (2026), Spire's $75–85 M across all lines, Unseenlabs' undisclosed revenue against a €100 M target for 2029, and Kleos's €272 K in its last full year put the space-segment commercial market at roughly $150–250 M in 2026, growing at 50–90 % a year at the leader<sup class="ref" data-r="R1-2"></sup><sup class="ref" data-r="R1-34"></sup><sup class="ref" data-r="R1-25"></sup><sup class="ref" data-r="R1-32"></sup>. Capital markets are more generous than revenue: the HawkEye IPO priced at ~$2.4 B, about 20× 2025 revenue, Unseenlabs raised €85 M in 2024 and Spire $70 M in 2026, and European defence/dual-use start-ups raised a record $8.7 B in 2025 — appetite is strong but concentrated in the leader<sup class="ref" data-r="R1-1"></sup><sup class="ref" data-r="R1-26"></sup><sup class="ref" data-r="R5-23"></sup>.</p>
+  <p>Demand is visible in the use cases that have been paid for (research note 04 §1): GNSS interference mapping (the Ukraine–Belarus jamming indicator published March 2022; the July 2025 GNSS-I suite; Windward's ~47,000 jammed vessels since Feb 2026; EASA's FIR rankings), dark-vessel detection (Galápagos 2020 with Airbus SAR), air-defence radar monitoring (the $75 M European MoD subscription), force-posture indicators (Galwan 2020), and interference hunting for a satellite operator (the NOAA GOES case, July 2026)<sup class="ref" data-r="R4-6"></sup><sup class="ref" data-r="R4-5"></sup><sup class="ref" data-r="R4-19"></sup><sup class="ref" data-r="R4-7"></sup><sup class="ref" data-r="R4-22"></sup><sup class="ref" data-r="R4-31"></sup>. GNSS interference is the product with the widest customer base and the simplest signal; it is the natural TALOS first product.</p>
+
+  <h2>Customer landscape</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Segment</th><th>Who buys, and what they have bought</th><th>Procurement entry point</th></tr></thead>
+    <tbody id="custTable"></tbody></table></div>
+  <p>Four features of this landscape shape the TALOS plan. First, the US route is long and well-defined — NRO ran RF studies from Sept 2022 to an uncapped operational contract in Aug 2026, about four years, and the next round is a Commercial Solutions Opening with a rolling five-year window; a non-US entrant can join it (Spire and Umbra are in it), but it requires US-releasable data and a US presence<sup class="ref" data-r="R4-3"></sup><sup class="ref" data-r="R4-4"></sup>. Second, the NGA buys analytics rather than collections (Luno A/B, $490 M combined ceiling, delivery orders $3.5–24.4 M), which is where an RF-derived "activity change" product would be sold<sup class="ref" data-r="R4-15"></sup>. Third, NATO has moved from owning assets to contracting services: the Alliance Persistent Surveillance from Space programme and its Aquila virtual constellation pool national and commercial assets through NCIA, which has issued a market opportunity for commercial ISR data from space; Greece can contribute a national asset<sup class="ref" data-r="R4-26"></sup><sup class="ref" data-r="R4-37"></sup><sup class="ref" data-r="R4-36"></sup>. Fourth, the EU signal is specific: EUSPA's RFI on space-based GNSS RFI monitoring (deadline 27 Feb 2025) asked for a full service (Part A) or hosted payloads (Part B) on Galileo E1/E5a/E5b/E6 and GPS L1/L2/L5, with questions on update rate, time-to-localise-and-notify, single- versus multi-satellite geolocation, jamming/spoofing discrimination and National Security Authority clearances<sup class="ref" data-r="R4-16"></sup>; EDF SPACE-ISR calls fund smallsat ISR constellations from CONOPS to prototype with SIGINT among eligible sectors<sup class="ref" data-r="R4-27"></sup>; Frontex (EUROSUR) and EMSA already buy satellite maritime layers and Frontex has bought RF from HawkEye<sup class="ref" data-r="R4-38"></sup><sup class="ref" data-r="R4-30"></sup>.</p>
+  <p>For Greece, Hellas Space 2.0 (€350 M, Aug 2026) covers VHR optical, thermal, data integration and workforce but does not name RF; the national posture pairs Open Cosmos optical microsats, ICEYE Hellas SAR assembly, a Planetek Hellas geospatial hub and HAI facility upgrades, and the ELIAMEP analysis recommends a joint tasking board including defence<sup class="ref" data-r="R4-24"></sup><sup class="ref" data-r="R4-25"></sup>. The Hellenic MoD / HNDGS is the plausible anchor for the Aegean, Eastern Mediterranean and Black Sea approaches; the Hellenic Coast Guard, EETT (spectrum enforcement) and the satellite-operator interference-hunting niche widen the base. Japan (16 % of HawkEye revenue), the Gulf and India show that allied non-US governments pay for RF data when the delivery is sovereign-friendly<sup class="ref" data-r="R4-1"></sup><sup class="ref" data-r="R4-21"></sup>.</p>
+
+  <h3>Contract-value anchors</h3>
+  <figure class="diagram"><div id="anchorChart"></div>
+    <figcaption><b>Published contract and programme values, logarithmic scale.</b> Blue = commercial data/service contracts; green = EU/ESA grants and SME projects; orange = sovereign programmes and planning figures. Values in the currency reported; approximate conversions in the table. Hover for the source.</figcaption></figure>
+  <div class="table-wrap"><table class="compact">
+    <thead><tr><th>Anchor</th><th class="num">Value</th><th>Year</th><th>Type</th><th>What it says for TALOS pricing</th></tr></thead>
+    <tbody id="anchorTable"></tbody></table></div>
+  <p>Read together, the anchors give a planning scale: a study or pilot is €0.3–1.5 M; a national data subscription with a few layers is low-to-mid tens of millions over a multi-year term (HawkEye's $75 M European MoD ceiling, the >$100 M five-year dedicated-capacity partner); a dedicated sovereign cluster sells for €100 M+; and sovereign-owned systems cost €150–200 M per satellite. TALOS's product tiers and indicative prices (L1 detections from ~€50 k/yr per AOI; L2 geolocations €0.2–2 M/yr; sovereign dedicated capacity in the tens of M€) sit inside that scale — see <code>PRODUCTS</code> in the <a href="../03_Scenarios_Services/products_services.html">products page</a>.</p>
+
+  <h2>Greek and EU regulatory path</h2>
+  <h3>National authorisation: Law 4508/2017 as amended by 4712/2020</h3>
+  <p>Greece's national space law is Law 4508/2017 ("Licensing of space activities – Registration in the National Register of Space Objects"), amended by Law 4712/2020. Authorisation is granted by decision of the Minister of Digital Governance; conditions include adequate provision for debris mitigation and non-contamination, environmental-impact reports before launch, after launch and at end of life, and insurance at the Minister's discretion. The implementing Joint Ministerial Decision on report content and technical standards had not been adopted as of February 2025, so international and ESA standards apply in the interim<sup class="ref" data-r="R5-13"></sup>. The Hellenic Space Center (HSC/ΕΛΚΕΔ, created 2019 under the Ministry) is the national agency and technical adviser and will assess the application and keep the National Register entry (UN Registration Convention)<sup class="ref" data-r="R5-14"></sup>. There is no Greek precedent for a passive-RF intelligence payload; allow 12–18 months from first contact to licence and engage HSC and the Ministry informally in Phase A. The licence fee is undefined; legal and compliance cost over Phases A–D is €0.2–0.5 M (est.).</p>
+
+  <h3>Spectrum: EETT, ITU Coordination Request and Decision 482</h3>
+  <div class="table-wrap"><table class="law">
+    <tbody>
+      <tr><td>Bands</td><td>S-band TT&amp;C 2025–2110 MHz up / 2200–2290 MHz down (Space Operations / EESS / Space Research); X-band 8025–8400 MHz EESS downlink. A passive RF-sensing mission is defensible as EESS; confirm the service classification with EETT early. The receive-only sensing bands need no ITU filing but get no protection.</td></tr>
+      <tr><td>Procedure</td><td>Greece notifies ITU through <b>EETT</b> (Hellenic Telecommunications &amp; Post Commission) with the Ministry; national frequency assignment for TT&amp;C and downlink runs in parallel. For non-GSO networks subject to coordination (Art. 9.11A bands) the API step was abolished: file a <b>Coordination Request (CR/C)</b> → coordinate with affected administrations → <b>Notification (N)</b> and bring into use within the <b>7-year</b> regulatory period; for non-coordinated bands, API only.</td></tr>
+      <tr><td>Timeline</td><td>Publication 4–6 months; coordination 12–36 months; <b>file at PDR, 30 months before launch</b> (2027-Q4 for a 2030-Q2 launch).</td></tr>
+      <tr><td>Cost</td><td>ITU cost recovery under <b>Council Decision 482</b> (as modified 2024): flat fee per filing plus per-unit charges, typically CHF 10–60 k for a non-GSO filing (est.); the administration may add its own fee (Ofcom's cost-recovery regime is the public example)<sup class="ref" data-r="R5-21"></sup><sup class="ref" data-r="R5-31"></sup>.</td></tr>
+      <tr><td>Risk</td><td>Mid-inclination orbits and 8 GHz X-band are congested with EO constellations; coordination delays and EPFD-type constraints are a schedule risk (T-15). Mitigation: standard EESS/SO bands, agile TT&amp;C, EETT engagement in Phase A.</td></tr>
+    </tbody></table></div>
+
+  <h3>EU Space Act (proposal COM(2025) 335)</h3>
+  <p>The Commission proposal of 25 June 2025 introduces EU-wide authorisation, cybersecurity/resilience and environmental-footprint obligations for operators. As of March 2026 the Council presidency had a compromise text (5 Dec 2025) and Parliament had proposed revisions (3 Mar 2026) with no agreement; application was proposed for 1 Jan 2030 (Commission) or 36 months after entry into force (Council, Parliament); authorisation would be handled by the Member State of main establishment with a 12-month (Council) or 6-month (Parliament, deemed approval) window; cybersecurity would be either a bespoke resilience chapter or full NIS2 applicability; fines up to 2 % of worldwide turnover; assets launched before application are grandfathered<sup class="ref" data-r="R5-12"></sup>. <b>Implication:</b> TALOS-1 (2030) is likely grandfathered, the cluster (2032) is not. The ground segment is designed to NIS2 from day one and a debris/footprint file is kept from Phase B.</p>
+
+  <h3>Debris and disposal</h3>
+  <p>IADC guidelines and ISO 24113 set 25-year post-mission disposal; the <b>FCC 5-year rule</b> (adopted Sept 2022) binds US-licensed and US-market-access satellites launched after Sept 2024; <b>ESA's Zero Debris approach</b> requires ≤5 years disposal with ≥90 % success probability for ESA missions from 2030 and the Zero Debris Charter (2023) is widely signed; the draft EU Space Act codifies disposal and collision-avoidance duties; insurers reward Charter compliance with lower deductibles<sup class="ref" data-r="R5-30"></sup><sup class="ref" data-r="R5-19"></sup>. At 500–550 km a 150 kg satellite with ~1 m² drag area decays in roughly 5–15 years uncontrolled (est.) — borderline. The baseline therefore reserves <span id="dvDisp">—</span> m/s of the <span id="dvTot">—</span> m/s FEEP budget for disposal, passivates at end of life and subscribes to a conjunction-assessment service (EU SST or commercial).</p>
+
+  <h3 id="export">Export control</h3>
+  <div class="table-wrap"><table class="law">
+    <thead><tr><th>Regime</th><th>Relevance to TALOS</th></tr></thead>
+    <tbody>
+      <tr><td>US ITAR (22 CFR 121)</td><td>USML <b>Category XI(a)</b> covers electronic systems specially designed for SIGINT/ELINT/electronic support; <b>Category XV(a)</b> captures spacecraft that perform SIGINT/ELINT, plus XV(e) components (certain rad-hard ICs, star trackers, cryptography). A satellite designed for SIGINT that contains any ITAR item becomes an ITAR end-item for its US-origin content: NATO ally Greece is licensable, onward sale to non-NATO customers is constrained, and DDTC agreements (TAA/MLA) add 4–9 months. Verify the exact paragraphs with counsel.</td></tr>
+      <tr><td>US EAR (15 CFR 774)</td><td><b>9A515</b> commercial spacecraft and components (Oct 2024 interim final rule removed licence requirements for many 9A515 items to 40+ allies)<sup class="ref" data-r="R5-22"></sup>; <b>3A001.a.5</b> high-speed ADCs/DACs — RFSoC ADCs at multi-GSPS need a US licence or licence exception even for Greece; <b>5A002</b> encryption. EAR items embedded in a European satellite trigger US re-export jurisdiction above de minimis thresholds, with no de minimis for 9x515 .a–.x items to certain destinations.</td></tr>
+      <tr><td>EU Regulation 2021/821 (dual-use)</td><td>Annex I: <b>3A001</b> ADCs and rad-hard ICs, <b>3A002.g</b> atomic clocks, <b>5A001</b> telecom including interception-related and DF/wideband receivers (5A001.f mobile interception), Cat 5 Part 2 crypto, <b>7A005</b> space GNSS, <b>9A004</b> spacecraft, Cat 7 inertial. Intra-EU transfers are free except Annex IV items; exports outside the EU need Greek authorisation (Ministry of Development; MFA for military list).</td></tr>
+      <tr><td>EU Common Military List (2008/944/CFSP)</td><td><b>ML11</b> (electronic equipment incl. ELINT/SIGINT) can capture a purpose-built SIGINT satellite as a military item requiring arms-export licensing under Greek Law 2168/1993. Classification at SRR is a gating activity (P-05, T-14).</td></tr>
+      <tr><td>Wassenaar</td><td>Source of the lists above; the GNSS/timing and ADC entries are the ones most likely to bite a wideband receiver.</td></tr>
+    </tbody></table></div>
+  <div class="callout decision"><div class="t">Decision: EAR-only US content, no ITAR, EU dual-use framing</div><p>European bus, star trackers, wheels, propulsion, LNAs, filters and antennas; the hard spots are RFSoC/high-speed ADCs (AMD, ADI — EAR, licensable to Greece with re-export conditions) and rad-tolerant FPGAs (Microchip is US; NanoXplore is the French alternative). With no ITAR content the satellite remains an EU dual-use item and sales to EU-approved non-US-aligned customers (Gulf, Indo-Pacific partners) need EU rather than US consent. Commercial documentation describes "spectrum monitoring / RF situational awareness"; the defence dimension runs through the national channel. HawkEye 360's >200 export licences show the administrative load an ITAR-laden operator carries<sup class="ref" data-r="R4-2"></sup>.</p></div>
+
+  <h3 id="legal">Legal basis of externals-only collection</h3>
+  <p>The system measures <b>externals</b> — frequency, bandwidth, modulation class, timing, power, direction, activity patterns — not the content of communications. This is the backbone of how HawkEye 360, Unseenlabs and Kleos operated commercially. The legal reasoning, which must be confirmed by a written opinion in Phase A (gate G0), is layered:</p>
+  <ul>
+    <li><b>Greece.</b> Article 19 of the Constitution protects the secrecy of correspondence and communications; lifting of secrecy is governed by Law 2225/1994 and Law 5002/2022 (the post-2022 reform with ADAE oversight), which address interception by state authorities, and by criminal-code provisions on unlawful interception. A commercial operator that does not demodulate or store content and treats emitters (radars, data links, jammers, AIS/VHF beacons) as physical phenomena operates outside the interception regime. Collection of content-bearing signals (satphone, HF/VHF voice, cellular) for anything other than technical characterisation would require either a state mandate under Law 3649/2008 (EYP) / 5002/2022 or a strict technical policy of immediate discard.</li>
+    <li><b>EU.</b> ePrivacy Directive 2002/58/EC Art. 5 (confidentiality of communications over public networks) and the GDPR apply when data are personal; emitter metadata becomes personal data when it can identify a natural person (a small vessel's MMSI linked to an owner, a satphone terminal). Data-protection-by-design: pseudonymise identifiers, define retention, run a DPIA for any product touching civil communications.</li>
+    <li><b>ECtHR.</b> <i>Big Brother Watch v UK</i> and <i>Centrum för rättvisa v Sweden</i> (Grand Chamber, 25 May 2021) accept bulk interception for national security with end-to-end safeguards; relevant if a Greek state customer tasks the system, and an argument for a clear tasking and oversight protocol in the government service agreement.</li>
+    <li><b>International law.</b> Passive sensing from orbit is lawful under the Outer Space Treaty (freedom of use; Remote Sensing Principles 1986 by analogy); no state consent is needed to observe emissions that reach orbit.</li>
+  </ul>
+  <div class="callout warn"><div class="t">Spire's voice product is not a TALOS product</div><p>Spire's 2025 RF service transcribes and translates unencrypted VHF/UHF/L-band voice<sup class="ref" data-r="R4-9"></sup>. Under the Greek framework that is content collection and would need a state mandate; TALOS sells activity maps of push-to-talk and tactical links, never content (risk P-08, with technical enforcement and audit).</p></div>
+
+  <h3>Classified handling and customers</h3>
+  <p>Products for the Hellenic MoD and NATO attract classification (NATO RESTRICTED–SECRET; EU RESTRICTED–SECRET under Council Decision 2013/488/EU). The company needs a Facility Security Clearance from the Greek National Security Authority, cleared personnel, a segregated classified enclave (air-gapped processing; a SECRET-accredited ground link if tasking is sensitive) and an unclassified commercial product line in parallel; EUSPA's RFI explicitly asks about NSA clearances and classified handling, and HawkEye describes its platform as vetted for classified enclaves with nearly half its staff cleared<sup class="ref" data-r="R4-16"></sup><sup class="ref" data-r="R4-2"></sup>. Sales to non-NATO customers need an EU dual-use or military export licence, end-user certificates and, if any US content, US re-export consent; product tiers are designed so that the most sensitive capabilities (specific radar fingerprints) are government-only. European MoDs favour processing, integration and security controls inside European borders — the reason HawkEye created a Luxembourg entity for localised data management<sup class="ref" data-r="R4-23"></sup>; an EU sovereign cloud or accredited on-premises enclave is a selling point for TALOS, not a cost.</p>
+
+  <h2>Regulatory timeline against the programme timeline</h2>
+  <p>The chart places every filing, licence and legal milestone against the TALOS phases and reviews so that the start dates are explicit. Three items start before PDR and one before SRR; none of them can be deferred to Phase C without putting the 2030-Q2 launch at risk.</p>
+  <figure class="diagram"><div id="gantt"></div>
+    <div class="legend reg-legend"><span style="--c:var(--accent-soft);border:1px solid var(--accent)">Programme phase</span><span style="--c:color-mix(in srgb,var(--band-c) 35%,var(--surface))">Licensing / spectrum</span><span style="--c:color-mix(in srgb,var(--band-uhf) 30%,var(--surface))">Legal / export / security</span><span style="--c:color-mix(in srgb,var(--band-s) 30%,var(--surface))">EU obligations</span><span style="--c:var(--accent-2)">Review / milestone</span></div>
+    <figcaption><b>When each regulatory thread must start relative to SRR, PDR, CDR and launch.</b> Programme phases and review dates are from <code>BASELINE.schedule</code> and <code>PHASES</code>; regulatory durations are from research note 05 §2–3 (ITU 4–6 months publication + 12–36 months coordination; Greek licence 12–18 months; US EAR licences 2–6 months; launch paperwork 15–18 months). Bars show the planned windows; hover a bar for its content.</figcaption></figure>
+
+  <h2>Decisions</h2>
+  <div class="grid c2">
+    <div class="callout decision"><div class="t">D-1 · Start the four regulatory threads in Phase A (2027-Q1)</div><p>Legal opinion on externals-only collection; HSC/Ministry informal engagement for the Law 4508/2017 licence; EETT pre-coordination and ITU filing strategy; export classification (ITAR-free, EU DU vs ML11). All four are G0 go-criteria.</p></div>
+    <div class="callout decision"><div class="t">D-2 · File the ITU Coordination Request at PDR (2027-Q4)</div><p>X-band 8025–8400 MHz EESS and S-band SO/EESS TT&amp;C through EETT, 30 months before launch; budget CHF 10–60 k ITU cost recovery plus national fees; keep TT&amp;C agile for coordination outcomes.</p></div>
+    <div class="callout decision"><div class="t">D-3 · Frame TALOS as EESS / RF-environment monitoring in commercial documents</div><p>Externals-only, no content, with technical enforcement and audit; defence products through the national channel with a Facility Security Clearance; unclassified and classified lines in parallel.</p></div>
+    <div class="callout decision"><div class="t">D-4 · Design the ground segment to NIS2 and the EU Space Act from Phase B</div><p>TALOS-1 is likely grandfathered, the 2032 cluster is not; a debris/footprint file, ≥90 % disposal probability and propulsion reserved for disposal are built into the baseline now rather than retrofitted.</p></div>
+    <div class="callout decision"><div class="t">D-5 · Sell GNSS interference first, to EU and national buyers</div><p>EUSPA's RFI is the most concrete European demand signal and the simplest signal; EDF SPACE-ISR consortia and NATO APSS national contribution are the institutional routes; the Hellenic MoD anchor contract pays on milestones (P-01).</p></div>
+    <div class="callout warn"><div class="t">Verify before publication</div><p>Statutory texts (Laws 4508/2017, 4712/2020, 2225/1994, 5002/2022, 2168/1993; ITU RR Arts. 9/11; USML XI/XV; ECCNs 3A001/5A002/9A515) were not fetched in the research session and must be cited from primary texts; the Greek licence fee and implementing JMD status should be re-checked with the Ministry; EU Space Act status is as of March 2026.</p></div>
+  </div>
+
+  <h2>Sources</h2>
+  <div class="refs"><ol id="refs"></ol></div>
+</div>
+
+<script src="../assets/js/vendor/d3.v7.min.js"></script>
+<script src="../assets/js/vendor/katex/katex.min.js"></script>
+<script src="../assets/js/vendor/katex/auto-render.min.js"></script>
+<script src="../assets/data/baseline.js"></script>
+<script src="../assets/data/programmatics.js"></script>
+<script src="../assets/data/references.js"></script>
+<script src="../assets/js/charts.js"></script>
+<script src="../assets/js/app.js" data-root="../"></script>
+<script>
+(function(){
+  function cleanTitle(t){ return t.replace(/\s*[:—-]?\s*https?:\/\/.*$/,'').replace(/[:;\s]+$/,''); }
+  function wireRefs(){
+    const seen=[]; document.querySelectorAll('sup.ref[data-r]').forEach(s=>{ const id=s.dataset.r; const ok=REFERENCES.some(r=>r.id===id); if(!ok) console.warn('missing reference id', id); s.innerHTML=`<a href="#ref-${id}">[${id}]</a>`; if(ok&&!seen.includes(id)) seen.push(id); });
+    const ol=document.getElementById('refs'); seen.forEach(id=>{ const r=REFERENCES.find(x=>x.id===id); const li=document.createElement('li'); li.id='ref-'+id; li.innerHTML=`<b>[${id}]</b> ${cleanTitle(r.title)} — ${r.urls.map(u=>`<a href="${u}" target="_blank" rel="noopener">${u.replace(/^https?:\/\//,'').slice(0,70)}</a>`).join(' · ')}`; ol.append(li); });
+  }
+  document.getElementById('dvDisp').textContent=BASELINE.prop.dvDisposalMs; document.getElementById('dvTot').textContent=BASELINE.prop.dvTotalMs;
+  document.getElementById('custTable').innerHTML=CUSTOMERS.map(c=>`<tr><td><b>${c.seg}</b></td><td>${c.who}</td><td>${c.entry}</td></tr>`).join('');
+
+  // ---- contract anchors (M€ approx; 1 $ = 0.89 €, 1 £ = 1.17 €)
+  const A=[
+    {n:'NRO SCE RF study (base)',v:0.3*0.89,y:2022,t:'com',raw:'$0.3 M',ref:'R1-13',note:'Six awardees; the entry ticket, not revenue'},
+    {n:'UKSA grant, Horizon Amber-2',v:1.2*1.17,y:2024,t:'eu',raw:'£1.2 M',ref:'R1-38',note:'Agency IOD grant scale'},
+    {n:'Frontex maritime awareness pilot',v:1.5,y:2019,t:'com',raw:'€1.5 M',ref:'R4-30',note:'EU agency pilot'},
+    {n:'EDF SIGMA (GNSS jamming from space)',v:5.8,y:2024,t:'eu',raw:'€5.8 M',ref:'R1-46',note:'EU SME project; consortium of four'},
+    {n:'NIWC Pacific RF monitoring task',v:5.8*0.89,y:2023,t:'com',raw:'$5.8 M',ref:'R4-30',note:'US Navy task order'},
+    {n:'NGA RF Emitter Data (ceiling)',v:10*0.89,y:2021,t:'com',raw:'up to $10 M',ref:'R1-15',note:'Data for cueing imaging satellites'},
+    {n:'AFRL cluster contract (Spire)',v:14*0.89,y:2024,t:'com',raw:'$14 M',ref:'R1-33',note:'Moving-object detection pair/cluster'},
+    {n:'ESA Scout mission cap',v:35,y:2023,t:'eu',raw:'€35 M',ref:'R5-26',note:'One small mission incl. launch in 3 years'},
+    {n:'HawkEye Q3-2026 awards, >10 nations',v:36*0.89,y:2026,t:'com',raw:'$36 M',ref:'R1-19',note:'Many small national subscriptions'},
+    {n:'European MoD EW subscription (ceiling)',v:75*0.89,y:2026,t:'com',raw:'up to $75 M',ref:'R1-18',note:'Air-defence + GNSS-I monitoring, multi-year'},
+    {n:'5-year international partner, dedicated clusters',v:100*0.89,y:2025,t:'com',raw:'>$100 M',ref:'R1-16',note:'Dedicated-capacity sovereign model'},
+    {n:'India FMS (RF data + SeaVision)',v:131*0.89,y:2025,t:'com',raw:'$131 M',ref:'R1-2',note:'Data service bought through defence-sales channel'},
+    {n:'IISS planning figure per European SIGINT sat',v:200*0.89,y:2026,t:'sov',raw:'~$200 M / sat',ref:'R1-55',note:'Sovereign-grade satellite cost'},
+    {n:'CERES programme (3 sats)',v:450,y:2021,t:'sov',raw:'€450 M',ref:'R1-53',note:'Sovereign system, 10-year life'},
+    {n:'NGA Luno A/B combined ceiling',v:490*0.89,y:2025,t:'com',raw:'$490 M ceiling',ref:'R4-15',note:'Analytics IDIQ; task orders are the real unit'},
+  ];
+  function drawAnchors(){
+    const el=document.getElementById('anchorChart'); el.innerHTML='';
+    const w=Math.max(640,el.clientWidth), rowH=20, m={t:8,r:110,b:28,l:Math.min(300,Math.round(w*0.38))}, h=m.t+m.b+A.length*rowH;
+    const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${w} ${h}`);
+    const x=d3.scaleLog().domain([0.2,600]).range([m.l,w-m.r]); const y=i=>m.t+i*rowH+rowH/2;
+    svg.append('g').attr('transform',`translate(0,${h-m.b})`).call(d3.axisBottom(x).tickValues([0.3,1,3,10,30,100,300]).tickFormat(d=>d+' M€').tickSize(-(h-m.t-m.b))).call(g=>{g.select('.domain').remove();g.selectAll('line').attr('class','grid-line');g.selectAll('text').attr('class','lbl xs');});
+    const sorted=A.slice().sort((a,b)=>a.v-b.v);
+    const g=svg.selectAll('g.r').data(sorted).join('g');
+    g.append('line').attr('x1',m.l).attr('x2',d=>x(d.v)).attr('y1',(d,i)=>y(i)).attr('y2',(d,i)=>y(i)).attr('class','grid-line');
+    g.append('circle').attr('cx',d=>x(d.v)).attr('cy',(d,i)=>y(i)).attr('r',5).attr('class',d=>'dot-anchor '+d.t)
+      .on('mousemove',(e,d)=>showTip(`${d.n}: ${d.raw} (${d.y}) — ${d.note} [${d.ref}]`,e.clientX,e.clientY)).on('mouseleave',hideTip);
+    g.append('text').attr('x',m.l-6).attr('y',(d,i)=>y(i)).attr('dy','0.35em').attr('text-anchor','end').attr('class','lbl s').text(d=>d.n.length>44&&w<800?d.n.slice(0,42)+'…':d.n);
+    g.append('text').attr('x',d=>x(d.v)+8).attr('y',(d,i)=>y(i)).attr('dy','0.35em').attr('class','lbl xs').text(d=>d.raw);
+  }
+  drawAnchors();
+  document.getElementById('anchorTable').innerHTML=A.slice().sort((a,b)=>a.v-b.v).map(d=>`<tr><td>${d.n}</td><td class="num">${d.raw}</td><td>${d.y}</td><td>${d.t==='com'?'Commercial contract':d.t==='eu'?'EU/ESA grant or cap':'Sovereign programme'}</td><td>${d.note} <sup class="ref" data-r="${d.ref}"></sup></td></tr>`).join('');
+
+  // ---- regulatory vs programme Gantt. Quarters as decimal years (Q1=.0 … Q4=.75)
+  const q=(s)=>{const m=s.match(/(\d{4})-Q(\d)/); return +m[1]+(+m[2]-1)/4;};
+  const S=BASELINE.schedule; const T0=q('2026-Q4'), T1=2031.0;
+  const ROWS=[
+    {g:'Programme',n:'Phase 0/A — feasibility, CONOPS, funding',a:T0,b:q('2027-Q3'),c:'prog',tip:'Needs, architecture trades, cost, regulatory path, funding plan → SRR'},
+    {g:'Programme',n:'Phase B — preliminary definition',a:q('2027-Q4'),b:q(S.pdr)+0.25,c:'prog',tip:'Bus contract, payload breadboards, antenna prototypes → PDR'},
+    {g:'Programme',n:'Phase C — detailed definition',a:q(S.pdr)+0.25,b:q(S.cdr)+0.25,c:'prog',tip:'EM payload, EMC test with bus EM, launch booking → CDR'},
+    {g:'Programme',n:'Phase D — qualification & production',a:q(S.cdr)+0.25,b:q(S.launch),c:'prog',tip:'QM/FM, AIT at HAITF, environmental test, FRR'},
+    {g:'Programme',n:'Launch, commissioning → IOC',a:q(S.launch),b:q(S.ioc)+0.25,c:'prog',tip:'Launch 2030-Q2; calibration on known emitters; IOC 2030-Q4 (G3)'},
+    {g:'Licensing',n:'HSC / Ministry informal engagement',a:q('2027-Q1'),b:q('2027-Q4'),c:'reg',tip:'First Greek SIGINT-class application; frame as EESS / RF-environment monitoring (P-05)'},
+    {g:'Licensing',n:'National licence, Law 4508/2017 (12–18 months)',a:q('2028-Q1'),b:q('2029-Q3'),c:'reg',tip:'Application at start of Phase B; debris plan, pre-launch environmental report, insurance condition'},
+    {g:'Licensing',n:'ITU CR/C filing via EETT (PDR −30 months)',a:q('2027-Q4'),b:q('2028-Q2'),c:'reg',tip:'X-band 8025–8400 MHz EESS + S-band TT&C; publication 4–6 months; CHF 10–60 k'},
+    {g:'Licensing',n:'ITU coordination (12–36 months) → Notification, BIU',a:q('2028-Q2'),b:q(S.launch)+0.5,c:'reg',tip:'Coordinate with affected administrations; notify and bring into use at launch; 7-year limit 2034'},
+    {g:'Licensing',n:'EETT national frequency assignment',a:q('2028-Q1'),b:q('2029-Q2'),c:'reg',tip:'TT&C and downlink assignment in parallel with ITU'},
+    {g:'Licensing',n:'Launch-provider import/export paperwork (15–18 months)',a:q('2028-Q4'),b:q(S.launch),c:'reg',tip:'SpaceX rideshare via Exolaunch; book two options (T-12)'},
+    {g:'Licensing',n:'Post-launch & EOL environmental reports; registration',a:q(S.launch)+0.25,b:q(S.ioc)+0.25,c:'reg',tip:'Law 4508/2017 reports; National Register / UN registration'},
+    {g:'Legal',n:'Legal opinion: externals-only collection (G0)',a:q('2027-Q1'),b:q('2027-Q3'),c:'legal',tip:'Constitution Art. 19, Laws 2225/1994, 5002/2022; ePrivacy/GDPR; ECtHR safeguards'},
+    {g:'Legal',n:'Export classification at SRR (ITAR-free; DU vs ML11)',a:q('2027-Q2'),b:q('2027-Q4'),c:'legal',tip:'Greek export authority; EU 2021/821 entries 3A001, 3A002.g, 5A001, 7A005, 9A004'},
+    {g:'Legal',n:'US EAR licences for RFSoC / ADC (2–6 months)',a:q(S.pdr),b:q(S.pdr)+0.75,c:'legal',tip:'3A001.a.5, 9A515; end-use statements; apply at PDR (T-14)'},
+    {g:'Legal',n:'Facility Security Clearance & cleared staff',a:q('2028-Q1'),b:q('2029-Q3'),c:'legal',tip:'Greek NSA; NATO/EU SECRET enclave before first government products'},
+    {g:'Legal',n:'DPIA and data-protection design before first civil product',a:q('2029-Q3'),b:q(S.ioc),c:'legal',tip:'Pseudonymised identifiers, retention policy; GDPR legitimate-interest analysis'},
+    {g:'EU',n:'NIS2-compliant ground segment design',a:q('2027-Q4'),b:q(S.launch),c:'eu',tip:'Zero-trust, AES-256 TT&C, HSM keys; EU Space Act cybersecurity chapter or NIS2 (T-17)'},
+    {g:'EU',n:'Debris / footprint file; Zero Debris Charter compliance',a:q('2027-Q4'),b:q(S.launch),c:'eu',tip:'≤5-year disposal, ≥90 % probability, 50 m/s reserved; CA service'},
+    {g:'EU',n:'EU Space Act application (TALOS-1 grandfathered; cluster 2032 in scope)',a:2030.0,b:T1,c:'eu',tip:'Commission: 1 Jan 2030; Council/Parliament: EIF + 36 months; authorisation by Member State of establishment'},
+  ];
+  const MS=[{n:'SRR',t:q('2027-Q3')+0.2},{n:'PDR',t:q(S.pdr)+0.2},{n:'CDR',t:q(S.cdr)+0.2},{n:'FRR',t:q(S.launch)-0.1},{n:'Launch',t:q(S.launch)+0.1},{n:'IOC',t:q(S.ioc)+0.2}];
+  function drawGantt(){
+    const el=document.getElementById('gantt'); el.innerHTML='';
+    const w=Math.max(760,el.clientWidth), rowH=22, m={t:44,r:16,b:10,l:Math.min(330,Math.round(w*0.4))}, h=m.t+m.b+ROWS.length*rowH+3*10;
+    const svg=d3.select(el).append('svg').attr('viewBox',`0 0 ${w} ${h}`);
+    const x=d3.scaleLinear().domain([T0,T1]).range([m.l,w-m.r]);
+    // year grid
+    for(let yr=2027;yr<=2031;yr++){ svg.append('line').attr('x1',x(yr)).attr('x2',x(yr)).attr('y1',m.t-6).attr('y2',h-m.b).attr('class','grid-line'); svg.append('text').attr('x',x(yr)).attr('y',m.t-10).attr('text-anchor','middle').attr('class','lbl s').text(yr); }
+    for(let t=T0;t<T1;t+=0.25){ svg.append('line').attr('x1',x(t)).attr('x2',x(t)).attr('y1',m.t-4).attr('y2',m.t).attr('class','axis-line'); }
+    let yy=m.t, lastG=null;
+    ROWS.forEach(r=>{ if(r.g!==lastG){ yy+=10; lastG=r.g; svg.append('text').attr('x',4).attr('y',yy+rowH/2+4).attr('class','lbl xs').attr('font-weight','600').text(r.g.toUpperCase()); }
+      const y=yy; yy+=rowH;
+      svg.append('text').attr('x',m.l-6).attr('y',y+rowH/2).attr('dy','0.35em').attr('text-anchor','end').attr('class','lbl s').text(r.n.length>52&&w<900?r.n.slice(0,50)+'…':r.n);
+      svg.append('rect').attr('x',x(r.a)).attr('y',y+4).attr('width',Math.max(3,x(r.b)-x(r.a))).attr('height',rowH-8).attr('rx',3).attr('class','bar-'+r.c)
+        .on('mousemove',(e)=>showTip(`${r.n}: ${r.tip}`,e.clientX,e.clientY)).on('mouseleave',hideTip);
+    });
+    MS.forEach(ms=>{ svg.append('line').attr('x1',x(ms.t)).attr('x2',x(ms.t)).attr('y1',m.t).attr('y2',h-m.b).attr('class','ms-line'); svg.append('path').attr('d',d3.symbol(d3.symbolDiamond,50)()).attr('transform',`translate(${x(ms.t)},${m.t+2})`).attr('class','ms'); svg.append('text').attr('x',x(ms.t)+(ms.n==='FRR'?-4:ms.n==='Launch'?4:0)).attr('y',m.t-28).attr('text-anchor',ms.n==='FRR'?'end':ms.n==='Launch'?'start':'middle').attr('class','lbl xs').attr('fill','var(--accent-2)').text(ms.n); });
+    const today=2026+(9.7)/12; svg.append('line').attr('x1',x(today)).attr('x2',x(today)).attr('y1',m.t).attr('y2',h-m.b).attr('class','today');
+  }
+  drawGantt();
+  let lw=0; new ResizeObserver(()=>{const el=document.getElementById('gantt'); if(Math.abs(el.clientWidth-lw)>20){lw=el.clientWidth;drawGantt();drawAnchors();}}).observe(document.getElementById('gantt'));
+  document.addEventListener('themechange',()=>{drawGantt();drawAnchors();});
+  wireRefs();
+})();
+</script>
+</body>
+</html>
