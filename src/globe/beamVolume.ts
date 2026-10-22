@@ -25,8 +25,8 @@ export interface BeamVolumeStyle {
 export class BeamVolume {
   private cone: Cesium.Primitive | null = null;
   private fill: Cesium.Primitive | null = null;
-  /** Replaced primitives stay on screen until their successor is ready (no blank frames). */
-  private retiring: Cesium.Primitive[] = [];
+  /** A replaced primitive stays on screen until its successor is ready (no blank frames); one per part. */
+  private retiring: { cone: Cesium.Primitive | null; fill: Cesium.Primitive | null } = { cone: null, fill: null };
   private coneApex = new Cesium.Cartesian3();
   private coneEdge0 = new Cesium.Cartesian3();
   private coneN = 0;
@@ -61,18 +61,27 @@ export class BeamVolume {
   /** Edge rays help read small LEO beams; on huge GEO/MEO beams they are long and distracting. */
   setRays(on: boolean) { this.showRays = on; }
 
-  private swap(old: Cesium.Primitive | null, next: Cesium.Primitive | null) {
-    if (old) this.retiring.push(old);
-    return next;
+  private swap(part: 'cone' | 'fill', next: Cesium.Primitive | null) {
+    const old = this[part];
+    if (old) {
+      // Keep only the last primitive that was actually drawn. A LEO cone is rebuilt every frame, so its
+      // successor is never ready at reap time: piling up every predecessor left a smeared trail behind the beam.
+      if (old.ready) {
+        if (this.retiring[part]) this.scene.primitives.remove(this.retiring[part]);
+        this.retiring[part] = old;
+      } else this.scene.primitives.remove(old); // never drawn, so removing it leaves no gap
+    }
+    this[part] = next;
   }
 
-  /** Drop replaced primitives once the current ones are drawable. */
+  /** Drop a replaced primitive once its successor is drawable. */
   private reap() {
-    if (!this.retiring.length) return;
-    const ready = (p: Cesium.Primitive | null) => !p || p.ready;
-    if (ready(this.cone) && ready(this.fill)) {
-      for (const p of this.retiring) this.scene.primitives.remove(p);
-      this.retiring = [];
+    for (const part of ['cone', 'fill'] as const) {
+      const old = this.retiring[part], cur = this[part];
+      if (old && (!cur || cur.ready)) {
+        this.scene.primitives.remove(old);
+        this.retiring[part] = null;
+      }
     }
   }
 
@@ -115,10 +124,10 @@ export class BeamVolume {
     // tolerance grows with the beam length: ~200 m for LEO, ~1 km for GEO (invisible either way)
     const tol = Math.max(200, 2.5e-5 * Cesium.Cartesian3.distance(apex, edge[0]));
     if (!opts.cone) {
-      this.cone = this.swap(this.cone, null);
+      this.swap('cone', null);
       this.coneN = 0;
     } else if (this.coneN !== edge.length || Cesium.Cartesian3.distance(apex, this.coneApex) > tol || Cesium.Cartesian3.distance(edge[0], this.coneEdge0) > 200) {
-      this.cone = this.swap(this.cone, this.scene.primitives.add(this.fan(apex, edge)));
+      this.swap('cone', this.scene.primitives.add(this.fan(apex, edge)));
       Cesium.Cartesian3.clone(apex, this.coneApex);
       Cesium.Cartesian3.clone(edge[0], this.coneEdge0);
       this.coneN = edge.length;
@@ -128,12 +137,12 @@ export class BeamVolume {
     const key = `${closed.length}:${closed[0][0].toFixed(3)},${closed[0][1].toFixed(3)}:${closed[n >> 1][0].toFixed(3)}`;
     const now = performance.now();
     if (!opts.footprint) {
-      this.fill = this.swap(this.fill, null);
+      this.swap('fill', null);
       this.ringKey = '';
     } else if (key !== this.ringKey && now - this.lastFill > 160) {
       this.ringKey = key;
       this.lastFill = now;
-      this.fill = this.swap(this.fill, this.scene.primitives.add(new Cesium.Primitive({
+      this.swap('fill', this.scene.primitives.add(new Cesium.Primitive({
         geometryInstances: new Cesium.GeometryInstance({
           geometry: new Cesium.PolygonGeometry({
             polygonHierarchy: new Cesium.PolygonHierarchy(closed.slice(0, -1).map(([la, lo]) => Cesium.Cartesian3.fromDegrees(lo, la))),
@@ -179,9 +188,9 @@ export class BeamVolume {
     this.visible = false;
     this.outline.show = false;
     for (const r of this.rayLines) r.show = false;
-    for (const p of [this.cone, this.fill, ...this.retiring]) if (p) this.scene.primitives.remove(p);
+    for (const p of [this.cone, this.fill, this.retiring.cone, this.retiring.fill]) if (p) this.scene.primitives.remove(p);
     this.cone = this.fill = null;
-    this.retiring = [];
+    this.retiring = { cone: null, fill: null };
     this.ringKey = '';
     this.coneN = 0;
   }
