@@ -4,7 +4,7 @@ import { AccountDialog } from './ui/AccountDialog';
 // Only the open tab is mounted: leaving a tab unmounts it, which stops its simulation loop.
 const Simulator = lazy(() => import('./Simulator'));
 
-type TabId = 'home' | 'link-budget' | 'talos' | 'lyra3';
+type TabId = 'home' | 'link-budget' | 'talos' | 'talos3';
 
 interface AppInfo { id: Exclude<TabId, 'home'>; label: string; title: string; text: string; src?: string }
 
@@ -14,7 +14,7 @@ const APPS: AppInfo[] = [
     text: 'LEO, MEO and GEO constellations on a 3D globe: beams, terminals, handovers and ITU-R propagation, with a full link budget for every pass.',
   },
   {
-    id: 'lyra3', label: 'LYRA-3 simulator', title: 'LYRA-3 SIGINT mission simulator', src: 'apps/lyra3/index.html',
+    id: 'talos3', label: 'TALOS-3 simulator', title: 'TALOS-3 SIGINT mission simulator', src: 'apps/talos3/index.html',
     text: 'Three-satellite TDOA/FDOA geolocation cluster: operations picture, formation, payload RF, geolocation, planning and spacecraft budgets, plus the 100–150 kg baseline study (link chain, scaling, flight hardware, suppliers).',
   },
   {

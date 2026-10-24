@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — application state, simulation clock, product generation and view orchestration. */
+/* TALOS-3 simulator — application state, simulation clock, product generation and view orchestration. */
 'use strict';
 (function (S) {
   const { C } = S;
@@ -80,8 +80,8 @@
       if (c.t1 > a && c.t1 <= b) S.log('gs', `LOS ${c.gs.name}`, c.t1);
     }
     for (const e of pl.eclipses) {
-      if (e.t0 > a && e.t0 <= b) S.log('ecl', 'LYRA-3A eclipse entry', e.t0);
-      if (e.t1 > a && e.t1 <= b) S.log('ecl', 'LYRA-3A eclipse exit', e.t1);
+      if (e.t0 > a && e.t0 <= b) S.log('ecl', 'TALOS-3A eclipse entry', e.t0);
+      if (e.t1 > a && e.t1 <= b) S.log('ecl', 'TALOS-3A eclipse exit', e.t1);
     }
     for (const c of pl.collections) {
       if (c.c0 > a && c.c0 <= b) { S.log('coll', `${c.id} start: ${c.em.id} ${c.em.name}, ${S.fmtMHz(c.em.f)}, ${st.geoCfg.nSnap} snapshots`, c.c0); c.status = c.status === 'done' ? 'done' : 'active'; }
@@ -102,7 +102,7 @@
     document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === name)));
     document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'view-' + name));
     const v = S.views[name]; if (v && v.onShow) v.onShow();
-    try { localStorage.setItem('lyra3-tab', name); } catch (e) { /* storage unavailable */ }
+    try { localStorage.setItem('talos3-tab', name); } catch (e) { /* storage unavailable */ }
     if (location.hash.slice(1) !== name) try { history.replaceState(null, '', '#' + name); } catch (e) { /* sandboxed */ }
   };
   S.showTab = showTab;
@@ -141,7 +141,7 @@
     new MutationObserver(onTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme', 'class'] });
 
     let tab = 'ops';
-    try { tab = localStorage.getItem('lyra3-tab') || tab; } catch (e) { /* storage unavailable */ }
+    try { tab = localStorage.getItem('talos3-tab') || tab; } catch (e) { /* storage unavailable */ }
     const h = location.hash.slice(1); if (S.views[h]) tab = h;
     showTab(S.views[tab] ? tab : 'ops');
 

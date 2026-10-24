@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — shared UI helpers: theme tokens, canvas sizing, plot axes, tables, map drawing. */
+/* TALOS-3 simulator — shared UI helpers: theme tokens, canvas sizing, plot axes, tables, map drawing. */
 'use strict';
 (function (S) {
   const { C } = S;

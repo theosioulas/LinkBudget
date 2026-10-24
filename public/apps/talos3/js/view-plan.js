@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — Planning view: tasking request (mock-up wired to the planner), target deck,
+/* TALOS-3 simulator — Planning view: tasking request (mock-up wired to the planner), target deck,
    36 h Gantt of accesses / collections / contacts / eclipses, collection and contact tables. */
 'use strict';
 (function (S) {

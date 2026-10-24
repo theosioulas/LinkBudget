@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — core constants, frames, time, geodesy, small linear algebra.
+/* TALOS-3 simulator — core constants, frames, time, geodesy, small linear algebra.
    Units: km, km/s, seconds, radians unless a name says otherwise. */
 'use strict';
 window.SIM = window.SIM || {};

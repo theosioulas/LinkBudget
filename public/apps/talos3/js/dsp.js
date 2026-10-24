@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — signal-level processing.
+/* TALOS-3 simulator — signal-level processing.
    Generates complex-baseband IQ for each emitter waveform, applies the differential delay and Doppler
    between two receivers, adds thermal noise at the link-budget SNR and computes the cross-ambiguity
    function  A(τ,ν) = |Σ s1*(t) · s2(t+τ) · e^{-j2πνt}|²

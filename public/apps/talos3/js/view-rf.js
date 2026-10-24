@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — Payload RF view: spectrum analyser + waterfall per spacecraft, signal list,
+/* TALOS-3 simulator — Payload RF view: spectrum analyser + waterfall per spacecraft, signal list,
    link budget, receive-chain table and pass geometry (Doppler, TDOA, FDOA, SNR vs time). */
 'use strict';
 (function (S) {

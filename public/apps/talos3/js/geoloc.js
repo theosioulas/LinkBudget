@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — TDOA / FDOA geolocation engine.
+/* TALOS-3 simulator — TDOA / FDOA geolocation engine.
    1. collect(): geometry + link budgets per snapshot; each measurement gets its white (CRLB) noise and
       linear sensitivities to the systematic error sources that are constant over a collection:
       per-satellite clock offset, ephemeris position/velocity, LO frequency offset, ionospheric slant

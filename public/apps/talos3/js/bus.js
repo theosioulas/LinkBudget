@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — spacecraft bus: budgets and a time-stepped power / data / thermal simulation. */
+/* TALOS-3 simulator — spacecraft bus: budgets and a time-stepped power / data / thermal simulation. */
 'use strict';
 (function (S) {
   const { C, V } = S;

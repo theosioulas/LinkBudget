@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — RF environment and payload receiver model.
+/* TALOS-3 simulator — RF environment and payload receiver model.
    Emitter library, scenario, ground stations, link budgets, Doppler, Cramér–Rao bounds (Stein 1981). */
 'use strict';
 (function (S) {
