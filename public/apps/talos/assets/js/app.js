@@ -165,13 +165,29 @@
     const page = h('div', { class: 'page' + (wide ? ' wide' : '') });
     content.parentNode.insertBefore(page, content);
     page.append(content);
-    if (!wide) { const toc = buildToc(content); if (toc) page.append(toc); else page.classList.add('wide'); }
+    if (!wide) { const toc = buildToc(content); if (toc) page.append(toc); else page.classList.add('no-toc'); }
     const main = h('main', { class: 'main' }, buildTopbar(), page);
     const app = h('div', { class: 'app' }, buildSidebar(), main);
     document.body.prepend(app);
+    keepSidebarScroll(app.querySelector('.sidebar'));
     // move stray elements that follow content (e.g., tooltip divs) stay in body
     document.addEventListener('click', e => { const sb = document.querySelector('.sidebar'); if (sb.classList.contains('open') && !sb.contains(e.target) && !e.target.closest('.menu-btn')) sb.classList.remove('open'); });
     initTabs(); initSortable(); initTooltips(); initDetailsBodies(); renderMath();
+  }
+
+  // ---- sidebar scroll survives page-to-page navigation
+  const sideKey = 'sigint-sidebar-scroll';
+  function keepSidebarScroll(side) {
+    let y = null; try { y = sessionStorage.getItem(sideKey); } catch (e) {}
+    if (y != null) side.scrollTop = +y;
+    const cur = side.querySelector('[aria-current="page"]');
+    if (cur) {
+      const r = cur.getBoundingClientRect(), s = side.getBoundingClientRect();
+      if (r.top < s.top || r.bottom > s.bottom) side.scrollTop += r.top - s.top - (s.height - r.height) / 2;
+    }
+    const save = () => { try { sessionStorage.setItem(sideKey, side.scrollTop); } catch (e) {} };
+    side.addEventListener('click', e => { if (e.target.closest('a')) save(); });
+    addEventListener('pagehide', save);
   }
 
   // ---- tabs: <div class="tabs"><div class="tablist"><button data-tab="a">..</button></div><div class="tabpanel" data-tab="a">..</div></div>

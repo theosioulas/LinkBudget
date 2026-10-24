@@ -49,7 +49,7 @@ This is a static, offline-capable web application opened from a Google Drive fol
 </html>
 ```
 
-`app.js` wraps `.content` with the sidebar, top bar (breadcrumbs, prev/next) and an auto-generated "On this page" TOC from `h2`/`h3` (needs ≥3 headings; otherwise the page goes full width). It also initialises tabs, sortable tables, tooltips, `<details>` and KaTeX. The sitemap lives in `app.js` (`SITEMAP`) — page file names must match it.
+`app.js` wraps `.content` with the sidebar, top bar (breadcrumbs, prev/next) and an auto-generated "On this page" TOC from `h2`/`h3` (needs ≥3 headings; otherwise the reading column stays centred without it). It also initialises tabs, sortable tables, tooltips, `<details>` and KaTeX. The sitemap lives in `app.js` (`SITEMAP`) — page file names must match it.
 
 ## Writing rules
 - Audience: payload engineers, sales, software developers, management. Lead with the conclusion, then evidence. Use real numbers with units and say where they come from.
