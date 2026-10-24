@@ -176,6 +176,9 @@ blockquote { margin: 1rem 0; padding: 0.2rem 1rem; border-left: 3px solid var(--
 .page-head h1 { margin-bottom: 0.6rem; }
 .page-head .meta { font-family: var(--font-ui); font-size: 0.8rem; color: var(--ink-3); display: flex; gap: 0.6rem 1.2rem; flex-wrap: wrap; margin-top: 0.8rem; }
 .page-head .meta span { overflow-wrap: anywhere; }
+/* key-fact strip that follows a profile heading (operators page) */
+.profile + .facts { font-family: var(--font-ui); font-size: 0.84rem; color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 0.3rem 1.2rem; margin: 0.3rem 0 0.6rem; }
+.profile + .facts b { color: var(--ink); font-weight: 600; }
 
 /* ---------- spectrum ribbon (identity element) ---------- */
 .ribbon { display: block; width: 100%; height: auto; }
@@ -321,6 +324,7 @@ label { font-family: var(--font-ui); font-size: 0.85rem; color: var(--ink-2); }
 .refs { font-family: var(--font-ui); font-size: 0.82rem; color: var(--ink-2); }
 .refs ol { padding-left: 1.6rem; max-width: none; }
 .refs li { margin: 0.25rem 0; overflow-wrap: anywhere; }
+sup { line-height: 0; }
 sup.ref a { font-family: var(--font-ui); font-size: 0.7rem; padding: 0 0.15em; }
 
 /* legend */
@@ -350,6 +354,9 @@ sup.ref a { font-family: var(--font-ui); font-size: 0.7rem; padding: 0 0.15em; }
 }
 
 /* responsive */
+/* Big screens: grow the reading column with the type so line length stays the same. */
+@media (min-width: 1800px) { :root { --sidebar-w: 340px; --toc-w: 240px; --content-max: 880px; } body { font-size: 19px; } }
+@media (min-width: 2300px) { :root { --sidebar-w: 360px; --toc-w: 260px; --content-max: 960px; } body { font-size: 20px; } }
 @media (max-width: 1280px) { .page:not(.wide) { grid-template-columns: minmax(0, var(--content-max)); } .toc { display: none; } }
 @media (max-width: 900px) {
   .app { grid-template-columns: 1fr; }
