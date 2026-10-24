@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — tabs taken from the 100–150 kg single-satellite baseline study. Each one is
+/* TALOS-3 simulator — tabs taken from the 100–150 kg single-satellite baseline study. Each one is
    a page of its own (own styles and scripts), so it is shown in a frame and only fetched when first opened. */
 'use strict';
 (function (S) {

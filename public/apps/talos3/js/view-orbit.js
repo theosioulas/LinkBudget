@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — Orbit view: orthographic globe (inertial or Earth-fixed), formation LVLH plot,
+/* TALOS-3 simulator — Orbit view: orthographic globe (inertial or Earth-fixed), formation LVLH plot,
    baselines, mean elements, orbit / formation design form and TLE export. */
 'use strict';
 (function (S) {
@@ -143,7 +143,7 @@
       U.satGlyph(ctx, ax.X(now.s), ax.Y(now.w), U.satColor(i), 4);
       U.label(ctx, `${s.sats[i].name}  R ${now.r >= 0 ? '+' : ''}${now.r.toFixed(2)} km`, ax.X(now.s) + 10, ax.Y(now.w) - 10, U.satColor(i));
     });
-    U.satGlyph(ctx, cxp, cyp, U.satColor(0), 4.5); U.label(ctx, 'LYRA-3A', cxp + 10, cyp + 12, U.satColor(0));
+    U.satGlyph(ctx, cxp, cyp, U.satColor(0), 4.5); U.label(ctx, 'TALOS-3A', cxp + 10, cyp + 12, U.satColor(0));
   };
   const renderBase = () => {
     const cv = document.getElementById('baselines'); if (!U.visible(cv)) return;

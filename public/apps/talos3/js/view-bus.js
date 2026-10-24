@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — Spacecraft view: KPIs, housekeeping telemetry strips, mode state machine,
+/* TALOS-3 simulator — Spacecraft view: KPIs, housekeeping telemetry strips, mode state machine,
    power / mass / downlink / propulsion budgets. */
 'use strict';
 (function (S) {

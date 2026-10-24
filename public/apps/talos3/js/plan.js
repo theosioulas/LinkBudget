@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — mission planning.
+/* TALOS-3 simulator — mission planning.
    Eclipses, ground-station contacts, target access windows, predicted geolocation accuracy per pass,
    and a greedy priority scheduler for the dual-channel payload. */
 'use strict';

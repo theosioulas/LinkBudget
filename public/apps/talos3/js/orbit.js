@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — orbit model.
+/* TALOS-3 simulator — orbit model.
    Mean-element propagation with J2 secular rates (RAAN, argument of perigee, mean anomaly),
    Kepler solution per epoch, WGS-84 Earth, GMST rotation to ECEF.
    Velocities are central differences of the propagated position (|err| < 1 mm/s), so the
@@ -60,7 +60,7 @@
     const sun = S.sunEci(cfg.epoch), raSun = Math.atan2(sun[1], sun[0]);
     const raan0 = raSun + (cfg.ltanH - 12) * 15 * C.DEG;
     return cfg.sats.slice(0, cfg.nSats).map((s, k) => ({
-      idx: k, id: 'S' + (k + 1), name: `LYRA-3${'ABCD'[k]}`, colorVar: S.SAT_COLORS[k],
+      idx: k, id: 'S' + (k + 1), name: `TALOS-3${'ABCD'[k]}`, colorVar: S.SAT_COLORS[k],
       along: s.along, cross: s.cross,
       orbit: new S.Orbit({
         a, e, i: inc,

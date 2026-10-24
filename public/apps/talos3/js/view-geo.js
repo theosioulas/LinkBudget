@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — Geolocation view: collection picker, processing settings, local map with
+/* TALOS-3 simulator — Geolocation view: collection picker, processing settings, local map with
    iso-TDOA hyperbolae / iso-FDOA curves, estimate + error ellipses + Monte Carlo cloud,
    cross-ambiguity surface, solution report, error budget and measurement table. */
 'use strict';
@@ -317,7 +317,7 @@
       if (!A.sol || !A.sol.ok || !A.coll) return;
       const c = A.coll, sol = A.sol, eEl = sol.ell;
       const text = [
-        'LYRA-3 RF GEOLOCATION PRODUCT',
+        'TALOS-3 RF GEOLOCATION PRODUCT',
         `Product ID: ${c.product ? c.product.id : 'PRE-PASS'}`,
         `Target: ${c.em.id} · ${c.em.name}`,
         `Signal: ${S.fmtMHz(c.em.f)} · ${c.em.label}`,

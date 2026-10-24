@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LYRA-3 · 100–150 kg baseline reference</title>
+  <title>TALOS-3 · 100–150 kg baseline reference</title>
   <style>
     /* ==========================================================================
        1. DESIGN TOKENS & MUTED PALETTE (Linear/Aerospace Modernism)
@@ -924,7 +924,7 @@
     }
   </style>
   <style>
-    /* Embedded as tabs of the LYRA-3 simulator: no own header or tab bar. */
+    /* Embedded as tabs of the TALOS-3 simulator: no own header or tab bar. */
     body { min-height: 0; }
     main.container { padding-top: 20px; padding-bottom: 40px; }
   </style>
@@ -2666,7 +2666,7 @@
      INITIALIZATION ON DOM LOAD
      ========================================================================== */
   window.addEventListener('DOMContentLoaded', () => {
-    // Embedded in the LYRA-3 simulator: show the pane named by ?view= and initialise what it holds.
+    // Embedded in the TALOS-3 simulator: show the pane named by ?view= and initialise what it holds.
     const view = new URLSearchParams(location.search).get('view') || 'link';
     const pane = document.getElementById('view-' + view) || document.querySelector('.tab-pane');
     pane.classList.add('active');

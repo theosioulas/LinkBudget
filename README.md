@@ -110,7 +110,7 @@ src/globe/     CesiumJS controller (imagery, day/night, satellites, orbits, beam
 src/ui/        React panels (editors, link budget, timeline charts, Beam Lab, reports)
 src/Shell.tsx  site shell: app tabs + link page; only the open tab is mounted
 public/apps/   static SIGINT apps shown as tabs (copied in, no build step)
-  lyra3/       LYRA-3 mission simulator; lyra3/baseline/ holds the tabs taken from the 100–150 kg baseline study
+  talos3/      TALOS-3 mission simulator; talos3/baseline/ holds the tabs taken from the 100–150 kg baseline study
   talos/       TALOS SIGINT constellation study
 ```
 

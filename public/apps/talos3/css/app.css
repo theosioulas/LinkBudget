@@ -1,4 +1,4 @@
-/* LYRA-3 mission simulator — console styling.
+/* TALOS-3 mission simulator — console styling.
    Layout: one-screen operations console — sticky top bar with mission clock, each view is a CSS grid
    of instrument panels; below 1100 px the grids collapse to a single scrolling column. */
 :root {

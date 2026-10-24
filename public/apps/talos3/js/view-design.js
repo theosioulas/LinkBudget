@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — System Design view: mission architecture, payload block diagram,
+/* TALOS-3 simulator — System Design view: mission architecture, payload block diagram,
    orbital mechanics, TDOA/FDOA math, link budgets, spacecraft bus and interactive scenario deep-links. */
 'use strict';
 (function (S) {
@@ -8,7 +8,7 @@
 
   const buildSvgDiagram = () => `
     <div class="diagram">
-      <svg viewBox="0 0 1060 480" role="img" aria-label="LYRA-3 End-to-End System Architecture Diagram">
+      <svg viewBox="0 0 1060 480" role="img" aria-label="TALOS-3 End-to-End System Architecture Diagram">
         <defs>
           <marker id="ar-norm" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="ar" d="M0,0 L8,4 L0,8 z"/></marker>
           <marker id="ar-acc" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path class="ar-acc" d="M0,0 L8,4 L0,8 z"/></marker>
@@ -164,11 +164,11 @@
       <div class="sec doc-hero">
         <div>
           <div class="row" style="margin-bottom:8px">
-            <span class="pill acc">LYRA-3 System Architecture</span>
+            <span class="pill acc">TALOS-3 System Architecture</span>
             <span class="pill ok">Active Baseline Design</span>
             <span class="pill info">TRL 8/9 Flight Heritage</span>
           </div>
-          <h1>LYRA-3 Mission Architecture &amp; System Design</h1>
+          <h1>TALOS-3 Mission Architecture &amp; System Design</h1>
           <p class="lede">A high-precision spaceborne radio frequency (RF) geolocation constellation consisting of three (expandable to four) formation-flying ESPA-class microsatellites in a 550 km Sun-Synchronous Orbit (SSO). The cluster performs synchronised dual-channel Time-Difference-of-Arrival (TDOA) and Frequency-Difference-of-Arrival (FDOA) cross-ambiguity processing to detect, classify, and locate maritime radars, illegal communications, distress beacons, GNSS jammers, and satcom uplinks with sub-kilometer accuracy.</p>
           <div class="row" style="margin-top:14px;gap:8px">
             <button class="btn primary" id="doc-btn-ops">Launch Common Operating Picture</button>
@@ -208,7 +208,7 @@
         <div class="two">
           <div>
             <p>Geolocating unknown surface emitters using passive TDOA and FDOA requires multiple spacecraft to observe the same RF signal simultaneously from non-collinear lines of sight. If satellites simply trail each other in the same orbital plane, the resulting TDOA hyperboloids degenerate into narrow cones aligned with the velocity vector, yielding large along-track uncertainty and geometric singularities at the horizon.</p>
-            <p>LYRA-3 resolves this by creating an orthogonal two-dimensional baseline aperture through a combination of along-track separation (&Delta;M) and small cross-track inclination / RAAN offsets (&Delta;&Omega;):</p>
+            <p>TALOS-3 resolves this by creating an orthogonal two-dimensional baseline aperture through a combination of along-track separation (&Delta;M) and small cross-track inclination / RAAN offsets (&Delta;&Omega;):</p>
             <pre>Nodal regression rate (J2 secular):
 d&Omega;/dt = - (3/2) * J2 * (R_E / p)^2 * n * cos(i)
 
@@ -223,7 +223,7 @@ Condition for zero secular drift:
             <div class="card">
               <h4>Formation Geometry Presets</h4>
               <ul>
-                <li><b>Trail + Cross-Track (Default, "tri"):</b> LYRA-3B is offset -35 km along-track and +14 km cross-track; LYRA-3C is offset -70 km along-track and -14 km cross-track. Provides balanced, non-singular TDOA/FDOA intersecting cuts regardless of pass direction.</li>
+                <li><b>Trail + Cross-Track (Default, "tri"):</b> TALOS-3B is offset -35 km along-track and +14 km cross-track; TALOS-3C is offset -70 km along-track and -14 km cross-track. Provides balanced, non-singular TDOA/FDOA intersecting cuts regardless of pass direction.</li>
                 <li><b>Wide Baseline ("wide"):</b> Along-track baselines up to 185 km with &plusmn;30 km cross-track separation. Produces ultra-narrow error ellipses (&lt;50 m CEP) on high-SNR pulsed radar and VSAT targets.</li>
                 <li><b>Tight Cluster ("tight"):</b> 5–15 km baselines. Minimises decorrelation and differential Doppler spread for high-frequency or short-burst signals.</li>
                 <li><b>Pure Along-Track ("trail"):</b> Zero cross-track offset. Used during initial orbit insertion and checkout.</li>
@@ -231,7 +231,7 @@ Condition for zero secular drift:
             </div>
             <div class="card" style="margin-top:12px">
               <h4>Hill-Clohessy-Wiltshire (LVLH) Motion</h4>
-              <p style="font-size:12px;color:var(--muted);margin:0 0 8px">In the Local-Vertical Local-Horizontal frame of lead spacecraft LYRA-3A, relative coordinates satisfy:</p>
+              <p style="font-size:12px;color:var(--muted);margin:0 0 8px">In the Local-Vertical Local-Horizontal frame of lead spacecraft TALOS-3A, relative coordinates satisfy:</p>
               <pre>&delta;r(t) = 0   (circular orbit, &Delta;a = 0)
 &delta;s(t) = a * &Delta;M = const   (along-track)
 &delta;w(t) = a * sin(i) * &Delta;&Omega; * cos(u(t))   (cross-track harmonic)</pre>
@@ -266,7 +266,7 @@ FDOA:  &nu;_ij(x) = - (f_0 / c) * [ (r_i - x)&sdot;v_i / ||r_i - x|| - (r_j - x)
             </div>
             <div class="card" style="margin-top:12px">
               <h4>Systematic Error Budget Covariance</h4>
-              <p style="font-size:12px;color:var(--muted);margin:0 0 6px">Thermal noise alone severely underestimates real-world satellite error. LYRA-3 employs a rigorous full-covariance formulation:</p>
+              <p style="font-size:12px;color:var(--muted);margin:0 0 6px">Thermal noise alone severely underestimates real-world satellite error. TALOS-3 employs a rigorous full-covariance formulation:</p>
               <pre>R = diag(&sigma;_w^2) + G &Sigma; G^T</pre>
               <p style="font-size:11.5px;color:var(--muted);margin:0">Where <i>G</i> represents analytic sensitivities &part;h/&part;&theta; to the systematic error parameters:</p>
               <ul style="font-size:11.5px;margin-top:4px">

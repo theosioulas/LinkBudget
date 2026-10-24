@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — coastline data.
+/* TALOS-3 simulator — coastline data.
    Loads the Natural-Earth-derived world outline shipped with ECharts 4 (a UMD script that calls
    echarts.registerMap) and decodes its quantised polygon encoding. Falls back to a graticule only. */
 'use strict';

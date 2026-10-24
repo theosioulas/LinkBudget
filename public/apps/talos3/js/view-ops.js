@@ -1,4 +1,4 @@
-/* LYRA-3 simulator — Operations view: common operating picture, cluster state, products, event log. */
+/* TALOS-3 simulator — Operations view: common operating picture, cluster state, products, event log. */
 'use strict';
 (function (S) {
   const { C, V } = S, U = S.ui;
