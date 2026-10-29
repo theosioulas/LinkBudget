@@ -57,3 +57,23 @@ create trigger scenarios_touch before update on public.scenarios
 --    where email = 'guest@linkbudget.local';
 --
 -- A role change takes effect at the user's next sign-in.
+
+-- ---------------------------------------------------------------------------
+-- Link budget is for admins only. The site hides the tab and refuses #/link-budget
+-- for guests; these policies make the database agree, so a guest account cannot
+-- read or save scenarios through the public API either. Safe to re-run.
+
+drop policy if exists "scenarios: read own"   on public.scenarios;
+drop policy if exists "scenarios: insert own" on public.scenarios;
+drop policy if exists "scenarios: update own" on public.scenarios;
+drop policy if exists "scenarios: delete own" on public.scenarios;
+
+create policy "scenarios: read own"   on public.scenarios for select to authenticated
+  using ((select auth.uid()) = user_id and (select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+create policy "scenarios: insert own" on public.scenarios for insert to authenticated
+  with check ((select auth.uid()) = user_id and (select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+create policy "scenarios: update own" on public.scenarios for update to authenticated
+  using ((select auth.uid()) = user_id and (select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin')
+  with check ((select auth.uid()) = user_id and (select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
+create policy "scenarios: delete own" on public.scenarios for delete to authenticated
+  using ((select auth.uid()) = user_id and (select auth.jwt() -> 'app_metadata' ->> 'role') = 'admin');
