@@ -109,7 +109,7 @@ src/core/      pure TypeScript engine (no DOM) – unit tested with Vitest
 src/globe/     CesiumJS controller (imagery, day/night, satellites, orbits, beams, links)
 src/ui/        React panels (editors, link budget, timeline charts, Beam Lab, reports)
 src/Shell.tsx  site shell: app tabs + link page; only the open tab is mounted
-public/brand/  site logo: drop logo.svg (or logo.png) here and it shows in the top bar
+public/brand/  site logo: drop logo.png (or logo.svg) here and it shows in the top bar
 public/apps/   static SIGINT apps shown as tabs (copied in, no build step)
   talos3/      TALOS-3 mission simulator; talos3/baseline/ holds the tabs taken from the 100–150 kg baseline study
   talos/       TALOS SIGINT constellation study
