@@ -928,6 +928,7 @@
     body { min-height: 0; }
     main.container { padding-top: 20px; padding-bottom: 40px; }
   </style>
+<script src="../js/role.js"></script>
 </head>
 <body>
   <main class="container">
@@ -2666,6 +2667,11 @@
      INITIALIZATION ON DOM LOAD
      ========================================================================== */
   window.addEventListener('DOMContentLoaded', () => {
+    // These tabs are for admin accounts of the RF Eye site only (see ../js/role.js).
+    if (!window.RFEYE_ADMIN) {
+      document.body.innerHTML = '<p style="padding:24px;font-family:sans-serif;color:#8b98a9">Not available for guest accounts.</p>';
+      return;
+    }
     // Embedded in the TALOS-3 simulator: show the pane named by ?view= and initialise what it holds.
     const view = new URLSearchParams(location.search).get('view') || 'link';
     const pane = document.getElementById('view-' + view) || document.querySelector('.tab-pane');

@@ -65,21 +65,15 @@ function NoAccess() {
 }
 
 // Site logo: drop a file at public/brand/logo.svg (or logo.png) and it shows in the top bar.
-// Until one exists, the built-in mark and name are shown instead.
+// Until one exists, nothing is shown there.
 const LOGO_FILES = ['brand/logo.svg', 'brand/logo.png'];
 
 function Logo() {
   const [i, setI] = useState(0);
+  if (i >= LOGO_FILES.length) return null;
   return (
-    <a className="shell-logo" href="#/home" title="RF Eye home">
-      {i < LOGO_FILES.length ? (
-        <img src={LOGO_FILES[i]} alt="RF Eye" onError={() => setI(i + 1)} />
-      ) : (
-        <>
-          <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="12" fill="#1f6feb" /><ellipse cx="32" cy="32" rx="28" ry="10" fill="none" stroke="#38d6f0" strokeWidth="3.5" transform="rotate(-25 32 32)" /><circle cx="56" cy="21" r="4.5" fill="#f472b6" /></svg>
-          <span>RF Eye</span>
-        </>
-      )}
+    <a className="shell-logo" href="#/home" title="Home">
+      <img src={LOGO_FILES[i]} alt="Logo" onError={() => setI(i + 1)} />
     </a>
   );
 }

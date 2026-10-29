@@ -140,7 +140,8 @@ passwords are hashed (bcrypt) by Supabase and never stored or seen by this app.
   Accounts with a real e-mail sign in with the full address.
 - **Roles:** `admin` / `guest`, stored in the user's `app_metadata` (not editable by the
   user). Guests cannot open the **Link budget** tab (it is hidden, and typing `#/link-budget`
-  shows a "Not available" page), and the database only lets admins read or save cloud
+  shows a "Not available" page). The TALOS-3 baseline-study tabs (Link chain, Single-sat &
+  scaling, Flight hardware, Suppliers & library) are hidden from guests too, and the database only lets admins read or save cloud
   scenarios. Any account without `"role":"admin"` counts as a guest.
 - `src/auth/supabase.ts`: the client. The project URL and **publishable** key are public
   by design and may be committed; override them with `VITE_SUPABASE_URL` /
