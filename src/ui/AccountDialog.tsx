@@ -56,7 +56,7 @@ export function LoginScreen() {
         <div className="login-brand">
           <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="12" fill="#1f6feb" /><ellipse cx="32" cy="32" rx="28" ry="10" fill="none" stroke="#38d6f0" strokeWidth="3.5" transform="rotate(-25 32 32)" /><circle cx="56" cy="21" r="4.5" fill="#f472b6" /></svg>
           <div>
-            <div className="login-title">OrbitLink</div>
+            <div className="login-title">SIGINT</div>
             <div className="dim small">Multi-orbit link budget studio</div>
           </div>
         </div>

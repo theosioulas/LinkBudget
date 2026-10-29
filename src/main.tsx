@@ -40,7 +40,7 @@ function Root() {
   const ready = useAuth((s) => s.ready);
   const user = useAuth((s) => s.user);
   if (SKIP_AUTH) return <Shell role="admin" />;
-  if (!ready) return <Splash text="Loading OrbitLink…" />;
+  if (!ready) return <Splash text="Loading SIGINT…" />;
   return user ? <Shell role={userRole(user)} /> : <LoginScreen />;
 }
 

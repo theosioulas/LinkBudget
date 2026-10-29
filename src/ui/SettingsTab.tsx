@@ -39,7 +39,7 @@ export function SettingsTab() {
 
       <Sect>About</Sect>
       <div className="small muted">
-        OrbitLink Studio models propagation with ITU-R P.618-13 (rain, scintillation, XPD, total attenuation), P.676 Annex 2 (gases), P.840 (clouds), P.838-3 (rain
+        SIGINT models propagation with ITU-R P.618-13 (rain, scintillation, XPD, total attenuation), P.676 Annex 2 (gases), P.840 (clouds), P.838-3 (rain
         coefficients), using global ITU-R digital maps. Orbits: two-body + J2 secular (Walker / GEO presets) or SGP4 (TLEs). MODCODs: DVB-S2/S2X ACM thresholds.
         Payload values are representative public estimates — edit them to match your data sheets.
       </div>

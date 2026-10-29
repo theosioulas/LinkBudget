@@ -61,7 +61,7 @@ export function TopBar() {
     <header className="topbar glass">
       <div className="brand">
         <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="12" fill="#1f6feb" /><ellipse cx="32" cy="32" rx="28" ry="10" fill="none" stroke="#38d6f0" strokeWidth="3.5" transform="rotate(-25 32 32)" /><circle cx="56" cy="21" r="4.5" fill="#f472b6" /></svg>
-        <span>OrbitLink</span>
+        <span>SIGINT</span>
       </div>
       <button className="scenario-btn" onClick={() => set({ drawer: drawer === 'scenario' ? null : 'scenario' })} title="Build the scenario: terminal, satellites, beam plan">
         <span style={{ minWidth: 0 }}>
