@@ -21,6 +21,8 @@ export default defineConfig({
   ],
   define: {
     CESIUM_BASE_URL: JSON.stringify(`${base}cesium`),
+    // Changes on every build, so files served under a fixed name (the logo) are fetched fresh after a deploy.
+    'import.meta.env.VITE_BUILD_ID': JSON.stringify(Date.now().toString(36)),
   },
   build: {
     chunkSizeWarningLimit: 6000,

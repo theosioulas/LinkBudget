@@ -73,7 +73,7 @@ function Logo() {
   if (i >= LOGO_FILES.length) return null;
   return (
     <a className="shell-logo" href="#/home" title="Home">
-      <img src={LOGO_FILES[i]} alt="Logo" onError={() => setI(i + 1)} />
+      <img src={`${LOGO_FILES[i]}?v=${import.meta.env.VITE_BUILD_ID ?? ''}`} alt="Logo" onError={() => setI(i + 1)} />
     </a>
   );
 }
