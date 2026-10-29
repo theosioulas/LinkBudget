@@ -75,7 +75,7 @@ export const LIBRARY: SystemRef[] = [
       ['User bands', 'Ka'],
       ['Payload', 'Regenerative, on-board digital processing, direct radiating arrays, optical ISLs'],
     ],
-    beams: 'Regenerative payload: uplink and downlink are decoded/re-encoded on board, so up- and down-link noise do not add – each hop is budgeted independently (OrbitLink models this with the "regenerative" architecture).',
+    beams: 'Regenerative payload: uplink and downlink are decoded/re-encoded on board, so up- and down-link noise do not add – each hop is budgeted independently (SIGINT models this with the "regenerative" architecture).',
     handover: 'Higher altitude → longer passes (≈10–15 min) and fewer handovers than 550 km systems.',
     sources: [],
   },
