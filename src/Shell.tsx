@@ -64,9 +64,9 @@ function NoAccess() {
   );
 }
 
-// Site logo: drop a file at public/brand/logo.svg (or logo.png) and it shows in the top bar.
+// Site logo: drop a file at public/brand/logo.png (or logo.svg) and it shows in the top bar.
 // Until one exists, nothing is shown there.
-const LOGO_FILES = ['brand/logo.svg', 'brand/logo.png'];
+const LOGO_FILES = ['brand/logo.png', 'brand/logo.svg'];
 
 function Logo() {
   const [i, setI] = useState(0);
