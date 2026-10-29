@@ -2,7 +2,7 @@ import { StrictMode, Component, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 import Shell from './Shell';
-import { useAuth } from './auth/supabase';
+import { useAuth, userRole } from './auth/supabase';
 import { LoginScreen } from './ui/AccountDialog';
 
 // The whole site requires a signed-in account. The link page and tabs come after login;
@@ -39,9 +39,9 @@ class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | 
 function Root() {
   const ready = useAuth((s) => s.ready);
   const user = useAuth((s) => s.user);
-  if (SKIP_AUTH) return <Shell />;
+  if (SKIP_AUTH) return <Shell role="admin" />;
   if (!ready) return <Splash text="Loading OrbitLink…" />;
-  return user ? <Shell /> : <LoginScreen />;
+  return user ? <Shell role={userRole(user)} /> : <LoginScreen />;
 }
 
 createRoot(document.getElementById('root')!).render(

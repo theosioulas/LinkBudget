@@ -109,6 +109,7 @@ src/core/      pure TypeScript engine (no DOM) – unit tested with Vitest
 src/globe/     CesiumJS controller (imagery, day/night, satellites, orbits, beams, links)
 src/ui/        React panels (editors, link budget, timeline charts, Beam Lab, reports)
 src/Shell.tsx  site shell: app tabs + link page; only the open tab is mounted
+public/brand/  site logo: drop logo.svg (or logo.png) here and it shows in the top bar
 public/apps/   static SIGINT apps shown as tabs (copied in, no build step)
   talos3/      TALOS-3 mission simulator; talos3/baseline/ holds the tabs taken from the 100–150 kg baseline study
   talos/       TALOS SIGINT constellation study
@@ -138,7 +139,9 @@ passwords are hashed (bcrypt) by Supabase and never stored or seen by this app.
   `guest` is created as `guest@linkbudget.local` and signs in with just `guest`.
   Accounts with a real e-mail sign in with the full address.
 - **Roles:** `admin` / `guest`, stored in the user's `app_metadata` (not editable by the
-  user). Both roles currently have the same permissions.
+  user). Guests cannot open the **Link budget** tab (it is hidden, and typing `#/link-budget`
+  shows a "Not available" page), and the database only lets admins read or save cloud
+  scenarios. Any account without `"role":"admin"` counts as a guest.
 - `src/auth/supabase.ts`: the client. The project URL and **publishable** key are public
   by design and may be committed; override them with `VITE_SUPABASE_URL` /
   `VITE_SUPABASE_PUBLISHABLE_KEY`. **Never** put a `service_role` / secret key in the app.

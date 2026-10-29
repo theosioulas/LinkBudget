@@ -1,5 +1,6 @@
 import { createClient, type Session, type User } from '@supabase/supabase-js';
 import { create } from 'zustand';
+import type { Role } from './access';
 
 // The project URL and publishable key are public by design: they only identify the
 // project. What a visitor may read or write is enforced in the database by Row Level
@@ -69,7 +70,7 @@ export function displayName(user: User | null): string {
 }
 
 /** Role set by the owner in app_metadata (users cannot change it themselves). */
-export function userRole(user: User | null): 'admin' | 'guest' {
+export function userRole(user: User | null): Role {
   return user?.app_metadata?.role === 'admin' ? 'admin' : 'guest';
 }
 
